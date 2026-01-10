@@ -1,36 +1,122 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Verifolio - POC Facturation avec Chat
 
-## Getting Started
+POC d'un assistant conversationnel pour aider les micro-entrepreneurs à créer et gérer leurs devis et factures.
 
-First, run the development server:
+## Setup
+
+### 1. Prérequis
+
+- Node.js 18+
+- Compte Supabase (gratuit)
+- Clé API OpenAI (optionnel, mode mock disponible)
+
+### 2. Supabase
+
+1. Créer un projet sur [supabase.com](https://supabase.com)
+2. Aller dans **SQL Editor**
+3. Copier le contenu de `supabase/migrations/001_initial_schema.sql`
+4. Exécuter le script
+5. Récupérer les clés dans **Settings > API** :
+   - Project URL
+   - anon public key
+
+### 3. Variables d'environnement
+
+Créer un fichier `.env.local` à la racine :
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# Supabase (requis)
+NEXT_PUBLIC_SUPABASE_URL=https://votre-projet.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=votre-clé-anon
+
+# OpenAI (optionnel - mode mock si absent)
+OPENAI_API_KEY=sk-votre-clé
+
+# Email - Resend (optionnel - mock si absent)
+RESEND_API_KEY=re_votre-clé
+EMAIL_FROM=factures@votredomaine.com
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 4. Installation
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm install
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+L'app est accessible sur http://localhost:3000
 
-## Learn More
+## Fonctionnalités
 
-To learn more about Next.js, take a look at the following resources:
+### Chat (interface principale)
+- Créer des clients, devis et factures par conversation
+- Lister et rechercher des documents
+- Convertir un devis en facture
+- Marquer une facture comme payée
+- Envoyer des documents par email (avec confirmation)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Formulaires manuels
+- Création/édition de clients
+- Création/édition de devis avec lignes
+- Création/édition de factures avec lignes
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Documents
+- Génération PDF (un template simple)
+- Envoi par email (Resend ou mock)
+- Statuts : brouillon, envoyé, payé
 
-## Deploy on Vercel
+### Mini-CRM
+- Liste clients avec soldes (facturé/payé/restant)
+- Fiche client avec indicateurs
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Architecture
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+app/
+├── (auth)/           # Pages login/signup
+├── (dashboard)/      # Pages protégées
+│   ├── clients/
+│   ├── quotes/
+│   └── invoices/
+└── api/
+    ├── chat/         # Endpoint LLM
+    ├── pdf/          # Génération PDF
+    └── email/        # Envoi email
+
+components/
+├── chat/             # Interface chat
+├── forms/            # Formulaires CRUD
+├── documents/        # Preview + actions
+├── layout/           # Sidebar
+└── ui/               # Composants de base
+
+lib/
+├── supabase/         # Clients + types
+├── llm/              # Prompt + tools + router
+├── pdf/              # Template + génération
+└── email/            # Envoi + template
+```
+
+## LLM Tools disponibles
+
+- `create_client` - Créer un client
+- `list_clients` - Lister les clients
+- `create_quote` - Créer un devis
+- `list_quotes` - Lister les devis
+- `create_invoice` - Créer une facture
+- `list_invoices` - Lister les factures
+- `convert_quote_to_invoice` - Convertir devis → facture
+- `mark_invoice_paid` - Marquer une facture payée
+- `send_email` - Envoyer un document (avec confirmation)
+
+## Scope OUT (Phase 2)
+
+Les fonctionnalités suivantes sont hors scope pour ce POC :
+- WhatsApp, notifications
+- Connexion Gmail/Outlook
+- Relances automatiques
+- Multi-templates
+- Paiement en ligne
+- Workflow fiscal (verrouillage)
+- Multi-entreprises, multi-utilisateurs
+- Analytics avancés

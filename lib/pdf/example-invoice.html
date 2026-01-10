@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FACTURE FA-001-25 - Exemple de rendu Verifolio</title>
+  <style>
+    /* Reset */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    /* Document */
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      font-size: 10pt;
+      line-height: 1.5;
+      color: #1f2937;
+      background: #fff;
+    }
+
+    .document {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 0 auto;
+      padding: 15mm 20mm;
+      background: #fff;
+    }
+
+    /* Zones */
+    .zone {
+      margin-bottom: 20px;
+    }
+
+    /* ========================================
+       ZONE 1: En-tête
+       ======================================== */
+    .zone-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding-bottom: 20px;
+      border-bottom: 2px solid #e5e7eb;
+      margin-bottom: 25px;
+    }
+
+    .header-left {
+      flex: 0 0 auto;
+    }
+
+    .header-right {
+      text-align: right;
+    }
+
+    .logo-container {
+      margin-bottom: 10px;
+    }
+
+    .logo-img {
+      max-height: 60px;
+      max-width: 180px;
+    }
+
+    .company-name {
+      font-size: 14pt;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .company-name-large {
+      font-size: 20pt;
+    }
+
+    .company-contact-compact {
+      font-size: 9pt;
+      color: #6b7280;
+      margin-top: 5px;
+    }
+
+    /* ========================================
+       ZONE 2: Infos document (bloc à droite)
+       ======================================== */
+    .zone-doc-info {
+      float: right;
+      width: 220px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 15px;
+      margin-left: 30px;
+      margin-bottom: 20px;
+    }
+
+    .doc-type-number {
+      text-align: center;
+      margin-bottom: 15px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .doc-type {
+      display: block;
+      font-size: 18pt;
+      font-weight: 700;
+      color: #1e40af;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .doc-number {
+      display: block;
+      font-size: 12pt;
+      font-weight: 600;
+      color: #374151;
+      margin-top: 5px;
+    }
+
+    .doc-info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      font-size: 9pt;
+    }
+
+    .doc-info-label {
+      color: #6b7280;
+    }
+
+    .doc-info-value {
+      color: #1f2937;
+      font-weight: 500;
+    }
+
+    /* ========================================
+       ZONE 3: Bloc client
+       ======================================== */
+    .zone-client {
+      clear: none;
+      max-width: calc(100% - 270px);
+    }
+
+    .client-box {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 15px;
+    }
+
+    .client-label {
+      font-size: 8pt;
+      font-weight: 600;
+      color: #9ca3af;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 10px;
+    }
+
+    .client-name {
+      font-size: 12pt;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 5px;
+    }
+
+    .client-address {
+      font-size: 9pt;
+      color: #4b5563;
+      margin-bottom: 5px;
+    }
+
+    .client-contact {
+      font-size: 9pt;
+      color: #6b7280;
+    }
+
+    .client-fields {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    .client-empty {
+      font-style: italic;
+      color: #9ca3af;
+    }
+
+    /* ========================================
+       ZONE 4: Tableau des lignes
+       ======================================== */
+    .zone-items {
+      clear: both;
+      margin-top: 25px;
+    }
+
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .items-table th {
+      background: #f3f4f6;
+      border: 1px solid #d1d5db;
+      padding: 10px 12px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 9pt;
+      color: #374151;
+      text-transform: uppercase;
+    }
+
+    .items-table td {
+      border: 1px solid #e5e7eb;
+      padding: 10px 12px;
+      vertical-align: top;
+      font-size: 10pt;
+    }
+
+    .items-table .col-description {
+      width: 50%;
+    }
+
+    .items-table .col-qty {
+      width: 12%;
+      text-align: center;
+    }
+
+    .items-table .col-price,
+    .items-table .col-total {
+      width: 19%;
+      text-align: right;
+    }
+
+    .items-table th.col-qty,
+    .items-table th.col-price,
+    .items-table th.col-total {
+      text-align: center;
+    }
+
+    .items-table tbody tr:nth-child(even) {
+      background: #fafafa;
+    }
+
+    .items-empty {
+      text-align: center;
+      font-style: italic;
+      color: #9ca3af;
+      padding: 30px;
+    }
+
+    /* ========================================
+       ZONE 5: Totaux
+       ======================================== */
+    .zone-totals {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 20px;
+    }
+
+    .totals-box {
+      width: 250px;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .totals-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 15px;
+      border-bottom: 1px solid #e5e7eb;
+      font-size: 10pt;
+    }
+
+    .totals-row:last-child {
+      border-bottom: none;
+    }
+
+    .totals-label {
+      color: #6b7280;
+    }
+
+    .totals-value {
+      font-weight: 600;
+      color: #1f2937;
+    }
+
+    .totals-ttc {
+      background: #eff6ff;
+      border-top: 2px solid #1e40af !important;
+    }
+
+    .totals-ttc .totals-label,
+    .totals-ttc .totals-value {
+      color: #1e40af;
+      font-weight: 700;
+      font-size: 11pt;
+    }
+
+    /* ========================================
+       ZONE 6: Montant total dû
+       ======================================== */
+    .zone-total-due {
+      margin-top: 25px;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .total-due-box {
+      background: #f0f9ff;
+      border: 2px solid #1e40af;
+      border-radius: 8px;
+      padding: 15px 25px;
+      text-align: center;
+      min-width: 300px;
+    }
+
+    .total-due-label {
+      font-size: 9pt;
+      font-weight: 600;
+      color: #1e40af;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 5px;
+    }
+
+    .total-due-amount {
+      font-size: 18pt;
+      font-weight: 700;
+      color: #1e40af;
+    }
+
+    .total-due-letters {
+      font-size: 8pt;
+      color: #64748b;
+      margin-top: 8px;
+      font-style: italic;
+    }
+
+    /* ========================================
+       ZONE 7: Paiement / Banque
+       ======================================== */
+    .zone-payment {
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    .payment-label {
+      font-size: 9pt;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    .payment-value {
+      font-size: 9pt;
+      color: #4b5563;
+    }
+
+    .payment-conditions {
+      margin-bottom: 15px;
+    }
+
+    .payment-bank {
+      background: #f8fafc;
+      border-radius: 4px;
+      padding: 12px 15px;
+    }
+
+    .bank-field {
+      font-size: 9pt;
+      margin-bottom: 5px;
+    }
+
+    .bank-field:last-child {
+      margin-bottom: 0;
+    }
+
+    .bank-label {
+      color: #6b7280;
+    }
+
+    .bank-value {
+      color: #1f2937;
+      font-weight: 500;
+      font-family: 'Courier New', monospace;
+    }
+
+    /* ========================================
+       ZONE 8: Footer
+       ======================================== */
+    .zone-footer {
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid #e5e7eb;
+      font-size: 8pt;
+      color: #6b7280;
+    }
+
+    .footer-identity {
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 5px;
+    }
+
+    .footer-legal {
+      margin-bottom: 5px;
+    }
+
+    .footer-contact {
+      margin-bottom: 10px;
+    }
+
+    .footer-notes {
+      margin-top: 15px;
+      padding: 10px;
+      background: #fffbeb;
+      border-left: 3px solid #f59e0b;
+      font-size: 9pt;
+      color: #78350f;
+    }
+
+    .footer-notes-label {
+      font-weight: 600;
+    }
+
+    /* ========================================
+       Dynamic Fields
+       ======================================== */
+    .dynamic-field {
+      font-size: 9pt;
+      margin-bottom: 5px;
+    }
+
+    .dynamic-field-label {
+      color: #6b7280;
+    }
+
+    .dynamic-field-value {
+      color: #1f2937;
+      font-weight: 500;
+    }
+
+    /* ========================================
+       Print styles
+       ======================================== */
+    @media print {
+      body {
+        background: none;
+      }
+      .document {
+        padding: 10mm 15mm;
+        max-width: none;
+        width: 100%;
+      }
+    }
+
+    @page {
+      size: A4;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="document">
+    <!-- ZONE 1: En-tête -->
+
+    <div class="zone zone-header">
+      <div class="header-left">
+        <div class="logo-container">
+          <!-- Logo placeholder - remplacer par une vraie image -->
+          <svg width="120" height="50" viewBox="0 0 120 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="120" height="50" rx="4" fill="#1e40af"/>
+            <text x="60" y="30" text-anchor="middle" fill="white" font-size="14" font-weight="bold">LOGO</text>
+          </svg>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="company-name">TechConsult SARL</div>
+        <div class="company-contact-compact">
+          123 Avenue Mohammed V, Casablanca 20000<br>
+          contact@techconsult.ma | +212 522 123 456
+        </div>
+      </div>
+    </div>
+
+    <!-- ZONE 2: Infos document -->
+
+    <div class="zone zone-doc-info">
+
+    <div class="doc-type-number">
+      <span class="doc-type">FACTURE</span>
+      <span class="doc-number">FA-001-25</span>
+    </div>
+
+
+    <div class="doc-info-row">
+      <span class="doc-info-label">Date d'émission</span>
+      <span class="doc-info-value">25/12/2025</span>
+    </div>
+
+
+    <div class="doc-info-row">
+      <span class="doc-info-label">Date d'échéance</span>
+      <span class="doc-info-value">25/01/2026</span>
+    </div>
+
+
+    <div class="doc-info-row">
+      <span class="doc-info-label">Référence devis</span>
+      <span class="doc-info-value">DEV-042-24</span>
+    </div>
+
+    </div>
+
+
+    <!-- ZONE 3: Bloc client -->
+
+    <div class="zone zone-client">
+      <div class="client-box">
+        <div class="client-label">DESTINATAIRE</div>
+        <div class="client-name">Entreprise ABC</div>
+<div class="client-address">456 Boulevard Zerktouni<br>3ème étage, Bureau 301<br>Casablanca 20100</div>
+<div class="client-contact">contact@abc.ma | +212 522 789 012</div>
+<div class="client-fields">
+      <div class="dynamic-field">
+        <span class="dynamic-field-label">ICE :</span>
+        <span class="dynamic-field-value">001234567890123</span>
+      </div>
+    </div>
+      </div>
+    </div>
+
+
+    <!-- ZONE 4: Tableau des lignes -->
+
+    <div class="zone zone-items">
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th class="col-description">Désignation</th>
+            <th class="col-qty">Qté</th>
+            <th class="col-price">Prix unitaire</th>
+            <th class="col-total">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+
+      <tr>
+        <td class="col-description">Développement application web - Phase 1<br><small style="color: #6b7280;">Analyse des besoins, maquettes, architecture technique</small></td>
+        <td class="col-qty">1</td>
+        <td class="col-price">15 000,00 DH</td>
+        <td class="col-total">15 000,00 DH</td>
+      </tr>
+
+
+      <tr>
+        <td class="col-description">Développement frontend React<br><small style="color: #6b7280;">Interface utilisateur responsive avec composants réutilisables</small></td>
+        <td class="col-qty">40</td>
+        <td class="col-price">800,00 DH</td>
+        <td class="col-total">32 000,00 DH</td>
+      </tr>
+
+
+      <tr>
+        <td class="col-description">Développement backend Node.js<br><small style="color: #6b7280;">API REST, authentification, base de données</small></td>
+        <td class="col-qty">35</td>
+        <td class="col-price">900,00 DH</td>
+        <td class="col-total">31 500,00 DH</td>
+      </tr>
+
+
+      <tr>
+        <td class="col-description">Tests et déploiement</td>
+        <td class="col-qty">10</td>
+        <td class="col-price">700,00 DH</td>
+        <td class="col-total">7 000,00 DH</td>
+      </tr>
+
+
+      <tr>
+        <td class="col-description">Formation utilisateurs (sur site)</td>
+        <td class="col-qty">2</td>
+        <td class="col-price">2 500,00 DH</td>
+        <td class="col-total">5 000,00 DH</td>
+      </tr>
+
+        </tbody>
+      </table>
+    </div>
+
+
+    <!-- ZONE 5: Totaux -->
+
+    <div class="zone zone-totals">
+      <div class="totals-box">
+
+    <div class="totals-row">
+      <span class="totals-label">Total HT</span>
+      <span class="totals-value">90 500,00 DH</span>
+    </div>
+
+    <div class="totals-row">
+      <span class="totals-label">TVA (20%)</span>
+      <span class="totals-value">18 100,00 DH</span>
+    </div>
+
+    <div class="totals-row totals-ttc">
+      <span class="totals-label">Total TTC</span>
+      <span class="totals-value">108 600,00 DH</span>
+    </div>
+
+      </div>
+    </div>
+
+
+    <!-- ZONE 6: Montant total dû -->
+
+    <div class="zone zone-total-due">
+      <div class="total-due-box">
+        <div class="total-due-label">Montant total dû</div>
+        <div class="total-due-amount">108 600,00 DH</div>
+        <div class="total-due-letters">Cent huit mille six cents dirhams</div>
+      </div>
+    </div>
+
+
+    <!-- ZONE 7: Paiement / Banque -->
+
+    <div class="zone zone-payment">
+
+      <div class="payment-conditions">
+        <div class="payment-label">Modalités de paiement</div>
+        <div class="payment-value">Paiement à 30 jours par virement bancaire</div>
+      </div>
+
+
+      <div class="payment-bank">
+        <div class="payment-label">Coordonnées bancaires</div>
+
+        <div class="bank-field">
+          <span class="bank-label">Banque :</span>
+          <span class="bank-value">Attijariwafa Bank</span>
+        </div>
+
+        <div class="bank-field">
+          <span class="bank-label">Titulaire :</span>
+          <span class="bank-value">TechConsult SARL</span>
+        </div>
+
+        <div class="bank-field">
+          <span class="bank-label">IBAN :</span>
+          <span class="bank-value">MA64 0111 2222 3333 4444 5555 666</span>
+        </div>
+
+        <div class="bank-field">
+          <span class="bank-label">BIC/SWIFT :</span>
+          <span class="bank-value">BCMAMAMC</span>
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <!-- ZONE 8: Footer -->
+
+    <div class="zone zone-footer">
+      <div class="footer-identity">TechConsult SARL — 123 Avenue Mohammed V, Casablanca 20000</div>
+<div class="footer-legal">ICE: 002860945000047 | RC: 123456 | Patente: 12345678 | IF: 12345678</div>
+<div class="footer-contact">contact@techconsult.ma | +212 522 123 456</div>
+
+      <div class="footer-notes">
+        <span class="footer-notes-label">Notes :</span>
+        Merci pour votre confiance. En cas de retard de paiement, des pénalités de 1,5% par mois seront appliquées.
+      </div>
+
+    </div>
+
+  </div>
+</body>
+</html>

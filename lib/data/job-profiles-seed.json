@@ -1,0 +1,823 @@
+{
+  "version": "1.0",
+  "universal_variables": ["client", "date_or_period", "location"],
+  "profiles": [
+    {
+      "id": "mentalist",
+      "label": "Mentaliste / Magicien / Animateur",
+      "category": "event",
+      "variables": [
+        {
+          "key": "participants_count",
+          "label": "Nombre de participants",
+          "type": "number",
+          "required_suggestion": true,
+          "examples": ["50", "150", "300"],
+          "help": "Nombre estimé de participants à l'événement."
+        },
+        {
+          "key": "event_type",
+          "label": "Type d'événement",
+          "type": "select",
+          "options": ["Soirée entreprise", "Mariage", "Anniversaire", "Séminaire", "Salon/Foire"],
+          "required_suggestion": true,
+          "examples": ["Soirée entreprise", "Mariage"],
+          "help": "Nature de l'événement."
+        },
+        {
+          "key": "duration_hours",
+          "label": "Durée de prestation",
+          "type": "duration",
+          "required_suggestion": true,
+          "examples": ["1h30", "2h", "3h"],
+          "help": "Durée totale de l'intervention."
+        },
+        {
+          "key": "setup_included",
+          "label": "Installation incluse",
+          "type": "boolean",
+          "required_suggestion": false,
+          "examples": ["Oui", "Non"],
+          "help": "L'installation du matériel est-elle comprise ?"
+        },
+        {
+          "key": "travel_included",
+          "label": "Déplacement inclus",
+          "type": "boolean",
+          "required_suggestion": false,
+          "examples": ["Oui", "Non"],
+          "help": "Les frais de déplacement sont-ils inclus ?"
+        }
+      ]
+    },
+    {
+      "id": "musician",
+      "label": "Musicien / Groupe / DJ",
+      "category": "event",
+      "variables": [
+        {
+          "key": "set_duration",
+          "label": "Durée du set",
+          "type": "duration",
+          "required_suggestion": true,
+          "examples": ["2h", "3h", "4h"],
+          "help": "Durée totale de la prestation musicale."
+        },
+        {
+          "key": "event_type",
+          "label": "Type d'événement",
+          "type": "select",
+          "options": ["Mariage", "Soirée privée", "Concert", "Bar/Restaurant", "Corporate"],
+          "required_suggestion": true,
+          "examples": ["Mariage", "Soirée privée"],
+          "help": "Nature de l'événement."
+        },
+        {
+          "key": "sound_system",
+          "label": "Sonorisation fournie",
+          "type": "boolean",
+          "required_suggestion": true,
+          "examples": ["Oui", "Non"],
+          "help": "Le matériel son est-il fourni par le prestataire ?"
+        },
+        {
+          "key": "musicians_count",
+          "label": "Nombre de musiciens",
+          "type": "number",
+          "required_suggestion": false,
+          "examples": ["1", "3", "5"],
+          "help": "Nombre de musiciens sur scène."
+        },
+        {
+          "key": "repertoire",
+          "label": "Style musical",
+          "type": "text",
+          "required_suggestion": false,
+          "examples": ["Jazz", "Pop/Rock", "Musique orientale"],
+          "help": "Genre ou répertoire principal."
+        }
+      ]
+    },
+    {
+      "id": "photographer",
+      "label": "Photographe / Vidéaste",
+      "category": "creative",
+      "variables": [
+        {
+          "key": "coverage_duration",
+          "label": "Durée de couverture",
+          "type": "duration",
+          "required_suggestion": true,
+          "examples": ["4h", "8h", "Journée complète"],
+          "help": "Temps de présence sur place."
+        },
+        {
+          "key": "deliverables_count",
+          "label": "Nombre de photos/vidéos livrées",
+          "type": "number",
+          "required_suggestion": true,
+          "examples": ["50", "200", "500"],
+          "help": "Nombre de fichiers retouchés/montés livrés."
+        },
+        {
+          "key": "shooting_type",
+          "label": "Type de shooting",
+          "type": "select",
+          "options": ["Mariage", "Corporate", "Portrait", "Produit", "Événement"],
+          "required_suggestion": true,
+          "examples": ["Mariage", "Corporate"],
+          "help": "Nature de la prestation photo/vidéo."
+        },
+        {
+          "key": "delivery_delay",
+          "label": "Délai de livraison",
+          "type": "text",
+          "required_suggestion": false,
+          "examples": ["2 semaines", "1 mois", "48h"],
+          "help": "Délai pour recevoir les fichiers finaux."
+        },
+        {
+          "key": "raw_files_included",
+          "label": "Fichiers RAW inclus",
+          "type": "boolean",
+          "required_suggestion": false,
+          "examples": ["Oui", "Non"],
+          "help": "Les fichiers bruts sont-ils fournis ?"
+        }
+      ]
+    },
+    {
+      "id": "consultant",
+      "label": "Consultant (stratégie / ops / RH / finance)",
+      "category": "b2b",
+      "variables": [
+        {
+          "key": "mission_scope",
+          "label": "Périmètre de la mission",
+          "type": "text",
+          "required_suggestion": true,
+          "examples": ["Audit RH", "Optimisation process", "Stratégie commerciale"],
+          "help": "Description courte du périmètre d'intervention."
+        },
+        {
+          "key": "days_count",
+          "label": "Nombre de jours",
+          "type": "number",
+          "required_suggestion": true,
+          "examples": ["5", "10", "20"],
+          "help": "Volume estimé en jours de prestation."
+        },
+        {
+          "key": "work_mode",
+          "label": "Mode de travail",
+          "type": "select",
+          "options": ["Sur site", "À distance", "Hybride"],
+          "required_suggestion": true,
+          "examples": ["Hybride", "À distance"],
+          "help": "Lieu d'exécution de la mission."
+        },
+        {
+          "key": "deliverables",
+          "label": "Livrables attendus",
+          "type": "text",
+          "required_suggestion": false,
+          "examples": ["Rapport d'audit", "Plan d'action", "Formation équipe"],
+          "help": "Principaux livrables de la mission."
+        },
+        {
+          "key": "team_size",
+          "label": "Taille de l'équipe concernée",
+          "type": "number",
+          "required_suggestion": false,
+          "examples": ["5", "15", "50"],
+          "help": "Nombre de personnes impactées."
+        }
+      ]
+    },
+    {
+      "id": "coach",
+      "label": "Coach / Formateur",
+      "category": "b2b",
+      "variables": [
+        {
+          "key": "session_count",
+          "label": "Nombre de sessions",
+          "type": "number",
+          "required_suggestion": true,
+          "examples": ["1", "5", "10"],
+          "help": "Nombre total de sessions prévues."
+        },
+        {
+          "key": "session_duration",
+          "label": "Durée par session",
+          "type": "duration",
+          "required_suggestion": true,
+          "examples": ["1h", "2h", "Demi-journée"],
+          "help": "Durée de chaque session."
+        },
+        {
+          "key": "format",
+          "label": "Format",
+          "type": "select",
+          "options": ["Individuel", "Groupe", "Mixte"],
+          "required_suggestion": true,
+          "examples": ["Individuel", "Groupe"],
+          "help": "Coaching individuel ou collectif."
+        },
+        {
+          "key": "participants_count",
+          "label": "Nombre de participants",
+          "type": "number",
+          "required_suggestion": false,
+          "examples": ["1", "8", "20"],
+          "help": "Nombre de personnes formées/coachées."
+        },
+        {
+          "key": "topic",
+          "label": "Thématique",
+          "type": "text",
+          "required_suggestion": false,
+          "examples": ["Leadership", "Gestion du stress", "Prise de parole"],
+          "help": "Sujet principal de l'accompagnement."
+        }
+      ]
+    },
+    {
+      "id": "marketing",
+      "label": "Prestataire marketing / growth",
+      "category": "b2b",
+      "variables": [
+        {
+          "key": "service_type",
+          "label": "Type de prestation",
+          "type": "select",
+          "options": ["SEO", "SEA/Ads", "Emailing", "Stratégie", "Growth hacking"],
+          "required_suggestion": true,
+          "examples": ["SEO", "SEA/Ads"],
+          "help": "Nature de la prestation marketing."
+        },
+        {
+          "key": "duration_months",
+          "label": "Durée d'accompagnement",
+          "type": "number",
+          "required_suggestion": true,
+          "examples": ["1", "3", "6"],
+          "help": "Durée en mois de la mission."
+        },
+        {
+          "key": "monthly_budget",
+          "label": "Budget média mensuel",
+          "type": "number",
+          "required_suggestion": false,
+          "examples": ["500", "2000", "10000"],
+          "help": "Budget publicitaire mensuel (hors honoraires)."
+        },
+        {
+          "key": "reporting_frequency",
+          "label": "Fréquence de reporting",
+          "type": "select",
+          "options": ["Hebdomadaire", "Bi-mensuel", "Mensuel"],
+          "required_suggestion": false,
+          "examples": ["Mensuel", "Bi-mensuel"],
+          "help": "Rythme des rapports de performance."
+        },
+        {
+          "key": "kpis",
+          "label": "KPIs suivis",
+          "type": "text",
+          "required_suggestion": false,
+          "examples": ["Trafic, Leads", "ROAS, CPA", "MRR, Churn"],
+          "help": "Indicateurs clés à suivre."
+        }
+      ]
+    },
+    {
+      "id": "developer",
+      "label": "Développeur web / mobile",
+      "category": "tech",
+      "variables": [
+        {
+          "key": "project_type",
+          "label": "Type de projet",
+          "type": "select",
+          "options": ["Site vitrine", "Application web", "Application mobile", "API/Backend", "Refonte"],
+          "required_suggestion": true,
+          "examples": ["Application web", "Site vitrine"],
+          "help": "Nature du développement."
+        },
+        {
+          "key": "estimated_days",
+          "label": "Estimation en jours",
+          "type": "number",
+          "required_suggestion": true,
+          "examples": ["5", "15", "40"],
+          "help": "Volume estimé de travail."
+        },
+        {
+          "key": "tech_stack",
+          "label": "Technologies",
+          "type": "text",
+          "required_suggestion": true,
+          "examples": ["React, Node.js", "Flutter", "WordPress"],
+          "help": "Stack technique utilisée."
+        },
+        {
+          "key": "maintenance_included",
+          "label": "Maintenance incluse",
+          "type": "boolean",
+          "required_suggestion": false,
+          "examples": ["Oui", "Non"],
+          "help": "Une période de maintenance est-elle incluse ?"
+        },
+        {
+          "key": "hosting_setup",
+          "label": "Mise en prod incluse",
+          "type": "boolean",
+          "required_suggestion": false,
+          "examples": ["Oui", "Non"],
+          "help": "Le déploiement est-il compris ?"
+        }
+      ]
+    },
+    {
+      "id": "designer",
+      "label": "Designer UI/UX / Graphiste",
+      "category": "creative",
+      "variables": [
+        {
+          "key": "deliverable_type",
+          "label": "Type de livrable",
+          "type": "select",
+          "options": ["Maquettes UI", "Identité visuelle", "Print", "Illustrations", "Packaging"],
+          "required_suggestion": true,
+          "examples": ["Maquettes UI", "Identité visuelle"],
+          "help": "Nature des livrables design."
+        },
+        {
+          "key": "screens_count",
+          "label": "Nombre d'écrans/pages",
+          "type": "number",
+          "required_suggestion": true,
+          "examples": ["5", "15", "30"],
+          "help": "Volume de pages ou écrans à concevoir."
+        },
+        {
+          "key": "revisions_count",
+          "label": "Nombre d'allers-retours",
+          "type": "number",
+          "required_suggestion": true,
+          "examples": ["2", "3", "5"],
+          "help": "Nombre de cycles de révision inclus."
+        },
+        {
+          "key": "source_files",
+          "label": "Fichiers sources inclus",
+          "type": "boolean",
+          "required_suggestion": false,
+          "examples": ["Oui", "Non"],
+          "help": "Les fichiers sources (Figma, AI...) sont-ils fournis ?"
+        },
+        {
+          "key": "brand_guidelines",
+          "label": "Charte graphique existante",
+          "type": "boolean",
+          "required_suggestion": false,
+          "examples": ["Oui", "Non"],
+          "help": "Une charte graphique existe-t-elle déjà ?"
+        }
+      ]
+    },
+    {
+      "id": "nocode",
+      "label": "No-code / Automations",
+      "category": "tech",
+      "variables": [
+        {
+          "key": "platform",
+          "label": "Plateforme principale",
+          "type": "select",
+          "options": ["Notion", "Airtable", "Make/Zapier", "Bubble", "Webflow"],
+          "required_suggestion": true,
+          "examples": ["Make/Zapier", "Notion"],
+          "help": "Outil no-code principal utilisé."
+        },
+        {
+          "key": "automations_count",
+          "label": "Nombre d'automations",
+          "type": "number",
+          "required_suggestion": true,
+          "examples": ["3", "10", "25"],
+          "help": "Nombre de workflows/automations à créer."
+        },
+        {
+          "key": "systems_connected",
+          "label": "Systèmes à connecter",
+          "type": "text",
+          "required_suggestion": true,
+          "examples": ["CRM + Email", "Stripe + Notion", "Google Sheets + Slack"],
+          "help": "Outils/systèmes à intégrer."
+        },
+        {
+          "key": "training_included",
+          "label": "Formation incluse",
+          "type": "boolean",
+          "required_suggestion": false,
+          "examples": ["Oui", "Non"],
+          "help": "Une formation à l'utilisation est-elle prévue ?"
+        },
+        {
+          "key": "documentation",
+          "label": "Documentation fournie",
+          "type": "boolean",
+          "required_suggestion": false,
+          "examples": ["Oui", "Non"],
+          "help": "Une documentation technique est-elle livrée ?"
+        }
+      ]
+    },
+    {
+      "id": "copywriter",
+      "label": "Rédacteur / Copywriter",
+      "category": "creative",
+      "variables": [
+        {
+          "key": "content_type",
+          "label": "Type de contenu",
+          "type": "select",
+          "options": ["Articles SEO", "Pages web", "Emails", "Scripts vidéo", "Livres blancs"],
+          "required_suggestion": true,
+          "examples": ["Articles SEO", "Pages web"],
+          "help": "Nature des contenus à produire."
+        },
+        {
+          "key": "word_count",
+          "label": "Volume en mots",
+          "type": "number",
+          "required_suggestion": true,
+          "examples": ["1000", "5000", "20000"],
+          "help": "Volume total estimé en mots."
+        },
+        {
+          "key": "pieces_count",
+          "label": "Nombre de contenus",
+          "type": "number",
+          "required_suggestion": true,
+          "examples": ["4", "10", "20"],
+          "help": "Nombre d'articles/pages/emails."
+        },
+        {
+          "key": "seo_optimization",
+          "label": "Optimisation SEO",
+          "type": "boolean",
+          "required_suggestion": false,
+          "examples": ["Oui", "Non"],
+          "help": "Les contenus doivent-ils être optimisés SEO ?"
+        },
+        {
+          "key": "tone",
+          "label": "Ton éditorial",
+          "type": "text",
+          "required_suggestion": false,
+          "examples": ["Professionnel", "Décontracté", "Expert"],
+          "help": "Style rédactionnel souhaité."
+        }
+      ]
+    },
+    {
+      "id": "community_manager",
+      "label": "Community Manager",
+      "category": "creative",
+      "variables": [
+        {
+          "key": "platforms",
+          "label": "Réseaux sociaux",
+          "type": "text",
+          "required_suggestion": true,
+          "examples": ["Instagram, LinkedIn", "TikTok, YouTube", "Facebook, Twitter"],
+          "help": "Plateformes à gérer."
+        },
+        {
+          "key": "posts_per_week",
+          "label": "Publications par semaine",
+          "type": "number",
+          "required_suggestion": true,
+          "examples": ["3", "7", "14"],
+          "help": "Fréquence de publication hebdomadaire."
+        },
+        {
+          "key": "duration_months",
+          "label": "Durée d'accompagnement",
+          "type": "number",
+          "required_suggestion": true,
+          "examples": ["1", "3", "6"],
+          "help": "Durée en mois de la mission."
+        },
+        {
+          "key": "content_creation",
+          "label": "Création de visuels incluse",
+          "type": "boolean",
+          "required_suggestion": false,
+          "examples": ["Oui", "Non"],
+          "help": "Les visuels sont-ils créés par le CM ?"
+        },
+        {
+          "key": "moderation",
+          "label": "Modération incluse",
+          "type": "boolean",
+          "required_suggestion": false,
+          "examples": ["Oui", "Non"],
+          "help": "La gestion des commentaires est-elle incluse ?"
+        }
+      ]
+    },
+    {
+      "id": "video_editor",
+      "label": "Monteur vidéo / Motion design",
+      "category": "creative",
+      "variables": [
+        {
+          "key": "video_type",
+          "label": "Type de vidéo",
+          "type": "select",
+          "options": ["Corporate", "Réseaux sociaux", "Publicité", "Motion graphics", "Aftermovie"],
+          "required_suggestion": true,
+          "examples": ["Corporate", "Réseaux sociaux"],
+          "help": "Nature de la production vidéo."
+        },
+        {
+          "key": "final_duration",
+          "label": "Durée finale",
+          "type": "text",
+          "required_suggestion": true,
+          "examples": ["30s", "2min", "5min"],
+          "help": "Durée de la vidéo montée."
+        },
+        {
+          "key": "videos_count",
+          "label": "Nombre de vidéos",
+          "type": "number",
+          "required_suggestion": true,
+          "examples": ["1", "5", "10"],
+          "help": "Nombre de vidéos à produire."
+        },
+        {
+          "key": "subtitles",
+          "label": "Sous-titres inclus",
+          "type": "boolean",
+          "required_suggestion": false,
+          "examples": ["Oui", "Non"],
+          "help": "Les sous-titres sont-ils ajoutés ?"
+        },
+        {
+          "key": "music_licensed",
+          "label": "Musique libre de droits incluse",
+          "type": "boolean",
+          "required_suggestion": false,
+          "examples": ["Oui", "Non"],
+          "help": "La musique est-elle fournie/incluse ?"
+        }
+      ]
+    },
+    {
+      "id": "architect",
+      "label": "Architecte / Décorateur",
+      "category": "field",
+      "variables": [
+        {
+          "key": "project_type",
+          "label": "Type de projet",
+          "type": "select",
+          "options": ["Rénovation", "Construction neuve", "Aménagement intérieur", "Décoration", "Extension"],
+          "required_suggestion": true,
+          "examples": ["Aménagement intérieur", "Rénovation"],
+          "help": "Nature du projet architectural."
+        },
+        {
+          "key": "surface_m2",
+          "label": "Surface en m²",
+          "type": "number",
+          "required_suggestion": true,
+          "examples": ["50", "120", "300"],
+          "help": "Surface concernée par le projet."
+        },
+        {
+          "key": "mission_phase",
+          "label": "Phase de mission",
+          "type": "select",
+          "options": ["Esquisse", "APS/APD", "Projet complet", "Suivi chantier"],
+          "required_suggestion": true,
+          "examples": ["Esquisse", "Projet complet"],
+          "help": "Étendue de la mission architecturale."
+        },
+        {
+          "key": "plans_3d",
+          "label": "Rendus 3D inclus",
+          "type": "boolean",
+          "required_suggestion": false,
+          "examples": ["Oui", "Non"],
+          "help": "Des visuels 3D sont-ils produits ?"
+        },
+        {
+          "key": "visits_count",
+          "label": "Nombre de visites site",
+          "type": "number",
+          "required_suggestion": false,
+          "examples": ["2", "5", "10"],
+          "help": "Visites sur site prévues."
+        }
+      ]
+    },
+    {
+      "id": "artisan",
+      "label": "Artisan / Travaux",
+      "category": "field",
+      "variables": [
+        {
+          "key": "work_type",
+          "label": "Type de travaux",
+          "type": "select",
+          "options": ["Plomberie", "Électricité", "Menuiserie", "Peinture", "Maçonnerie", "Multi-corps"],
+          "required_suggestion": true,
+          "examples": ["Peinture", "Électricité"],
+          "help": "Corps de métier concerné."
+        },
+        {
+          "key": "surface_or_quantity",
+          "label": "Surface / Quantité",
+          "type": "text",
+          "required_suggestion": true,
+          "examples": ["50m²", "3 pièces", "1 salle de bain"],
+          "help": "Étendue des travaux."
+        },
+        {
+          "key": "duration_days",
+          "label": "Durée estimée (jours)",
+          "type": "number",
+          "required_suggestion": true,
+          "examples": ["2", "5", "15"],
+          "help": "Nombre de jours de chantier."
+        },
+        {
+          "key": "materials_included",
+          "label": "Fournitures incluses",
+          "type": "boolean",
+          "required_suggestion": false,
+          "examples": ["Oui", "Non"],
+          "help": "Les matériaux sont-ils compris dans le devis ?"
+        },
+        {
+          "key": "cleanup_included",
+          "label": "Nettoyage fin de chantier",
+          "type": "boolean",
+          "required_suggestion": false,
+          "examples": ["Oui", "Non"],
+          "help": "Le nettoyage est-il inclus ?"
+        }
+      ]
+    },
+    {
+      "id": "virtual_assistant",
+      "label": "Assistant virtuel / admin",
+      "category": "admin",
+      "variables": [
+        {
+          "key": "hours_per_month",
+          "label": "Heures par mois",
+          "type": "number",
+          "required_suggestion": true,
+          "examples": ["10", "20", "40"],
+          "help": "Volume horaire mensuel."
+        },
+        {
+          "key": "tasks_scope",
+          "label": "Périmètre des tâches",
+          "type": "text",
+          "required_suggestion": true,
+          "examples": ["Emails, agenda", "Facturation, relances", "Support client"],
+          "help": "Types de tâches à effectuer."
+        },
+        {
+          "key": "availability",
+          "label": "Disponibilité",
+          "type": "select",
+          "options": ["Heures bureau", "Flexible", "Temps réel"],
+          "required_suggestion": true,
+          "examples": ["Heures bureau", "Flexible"],
+          "help": "Plages de disponibilité attendues."
+        },
+        {
+          "key": "tools_used",
+          "label": "Outils utilisés",
+          "type": "text",
+          "required_suggestion": false,
+          "examples": ["Google Workspace", "Notion + Slack", "Microsoft 365"],
+          "help": "Outils principaux à maîtriser."
+        },
+        {
+          "key": "confidentiality",
+          "label": "NDA requis",
+          "type": "boolean",
+          "required_suggestion": false,
+          "examples": ["Oui", "Non"],
+          "help": "Un accord de confidentialité est-il nécessaire ?"
+        }
+      ]
+    },
+    {
+      "id": "event_agency",
+      "label": "Événementiel (agence / organisateur)",
+      "category": "event",
+      "variables": [
+        {
+          "key": "event_type",
+          "label": "Type d'événement",
+          "type": "select",
+          "options": ["Séminaire", "Soirée gala", "Teambuilding", "Lancement produit", "Conférence"],
+          "required_suggestion": true,
+          "examples": ["Séminaire", "Soirée gala"],
+          "help": "Nature de l'événement à organiser."
+        },
+        {
+          "key": "guests_count",
+          "label": "Nombre d'invités",
+          "type": "number",
+          "required_suggestion": true,
+          "examples": ["50", "150", "500"],
+          "help": "Jauge attendue."
+        },
+        {
+          "key": "services_included",
+          "label": "Prestations incluses",
+          "type": "text",
+          "required_suggestion": true,
+          "examples": ["Lieu + traiteur", "Coordination jour J", "Clé en main"],
+          "help": "Étendue des services proposés."
+        },
+        {
+          "key": "venue_search",
+          "label": "Recherche de lieu",
+          "type": "boolean",
+          "required_suggestion": false,
+          "examples": ["Oui", "Non"],
+          "help": "La recherche de lieu est-elle incluse ?"
+        },
+        {
+          "key": "day_coordination",
+          "label": "Coordination jour J",
+          "type": "boolean",
+          "required_suggestion": false,
+          "examples": ["Oui", "Non"],
+          "help": "Présence le jour de l'événement ?"
+        }
+      ]
+    },
+    {
+      "id": "other",
+      "label": "Autre métier",
+      "category": "other",
+      "variables": [
+        {
+          "key": "service_description",
+          "label": "Description du service",
+          "type": "text",
+          "required_suggestion": true,
+          "examples": ["Conseil personnalisé", "Prestation sur mesure"],
+          "help": "Décrivez brièvement votre prestation."
+        },
+        {
+          "key": "duration_or_volume",
+          "label": "Durée ou volume",
+          "type": "text",
+          "required_suggestion": true,
+          "examples": ["5 jours", "10 heures", "1 mois"],
+          "help": "Quantifiez votre intervention."
+        },
+        {
+          "key": "deliverables",
+          "label": "Livrables",
+          "type": "text",
+          "required_suggestion": true,
+          "examples": ["Rapport final", "Fichiers sources", "Formation"],
+          "help": "Ce que le client recevra."
+        },
+        {
+          "key": "work_mode",
+          "label": "Mode de travail",
+          "type": "select",
+          "options": ["Sur site", "À distance", "Hybride"],
+          "required_suggestion": false,
+          "examples": ["À distance", "Hybride"],
+          "help": "Lieu d'exécution de la prestation."
+        },
+        {
+          "key": "custom_note",
+          "label": "Note personnalisée",
+          "type": "text",
+          "required_suggestion": false,
+          "examples": ["Conditions particulières", "Prérequis client"],
+          "help": "Informations complémentaires."
+        }
+      ]
+    }
+  ]
+}
