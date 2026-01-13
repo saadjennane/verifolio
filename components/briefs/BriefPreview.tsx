@@ -13,104 +13,143 @@ import type {
   DateRangeValue,
 } from '@/lib/briefs/types';
 import { BRIEF_STATUS_LABELS, BRIEF_STATUS_VARIANTS, isDataQuestion } from '@/lib/briefs/types';
+import { getBriefTheme } from '@/lib/briefs/themes';
 
 interface BriefPreviewProps {
   brief: BriefWithDetails;
   showResponses?: boolean;
+  companyLogoUrl?: string | null;
 }
 
-export function BriefPreview({ brief, showResponses = false }: BriefPreviewProps) {
-  return (
-    <div className="bg-white rounded-lg shadow-lg max-w-[210mm] mx-auto">
-      {/* Header */}
-      <div className="px-12 pt-12 pb-6 border-b border-gray-100">
-        <div className="flex items-center justify-between mb-4">
-          <Badge variant={BRIEF_STATUS_VARIANTS[brief.status]}>
-            {BRIEF_STATUS_LABELS[brief.status]}
-          </Badge>
-          {brief.responded_at && (
-            <span className="text-sm text-gray-500">
-              Repondu le {new Date(brief.responded_at).toLocaleDateString('fr-FR')}
-            </span>
-          )}
-        </div>
-        <h1 className="text-2xl font-bold text-gray-900">{brief.title}</h1>
-        {brief.description && (
-          <p className="text-sm text-gray-600 mt-2 whitespace-pre-wrap">{brief.description}</p>
-        )}
-        <p className="text-sm text-gray-500 mt-2">
-          Pour {brief.client.nom} - {brief.deal.title}
-        </p>
-      </div>
+export function BriefPreview({ brief, showResponses = false, companyLogoUrl }: BriefPreviewProps) {
+  const theme = getBriefTheme(brief.theme_color);
 
-      {/* Questions */}
-      <div className="px-12 py-8 space-y-6">
+  return (
+    <div
+      className="min-h-full p-6"
+      style={{ backgroundColor: theme.background }}
+    >
+      <div className="max-w-2xl mx-auto space-y-4">
+        {/* Logo */}
+        {brief.show_logo && companyLogoUrl && (
+          <div className="text-center pt-2 pb-2">
+            <img
+              src={companyLogoUrl}
+              alt=""
+              className="h-10 mx-auto object-contain"
+            />
+          </div>
+        )}
+
+        {/* Header card */}
+        <div
+          className="bg-white rounded-lg shadow-sm border-l-4 p-6"
+          style={{ borderLeftColor: theme.accent }}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <Badge variant={BRIEF_STATUS_VARIANTS[brief.status]}>
+              {BRIEF_STATUS_LABELS[brief.status]}
+            </Badge>
+            {brief.responded_at && (
+              <span className="text-sm text-gray-500">
+                Repondu le {new Date(brief.responded_at).toLocaleDateString('fr-FR')}
+              </span>
+            )}
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900">{brief.title}</h1>
+          {brief.description && (
+            <p className="text-sm text-gray-600 mt-3 whitespace-pre-wrap">{brief.description}</p>
+          )}
+          <p className="text-sm text-gray-500 mt-3">
+            Pour {brief.client.nom} - {brief.deal.title}
+          </p>
+        </div>
+
+        {/* Questions as cards */}
         {brief.questions.map((question) => (
-          <QuestionPreviewBlock
+          <QuestionPreviewCard
             key={question.id}
             question={question}
             showResponse={showResponses}
+            accentColor={theme.accent}
           />
         ))}
-      </div>
 
-      {/* Footer */}
-      <div className="px-12 py-6 bg-gray-50 rounded-b-lg border-t border-gray-100">
-        <p className="text-sm text-gray-500 text-center">
-          Brief cree le {new Date(brief.created_at).toLocaleDateString('fr-FR')}
-          {brief.sent_at && ` - Envoye le ${new Date(brief.sent_at).toLocaleDateString('fr-FR')}`}
-        </p>
+        {/* Footer */}
+        <div className="text-center py-4">
+          <p className="text-sm text-gray-500">
+            Brief cree le {new Date(brief.created_at).toLocaleDateString('fr-FR')}
+            {brief.sent_at && ` - Envoye le ${new Date(brief.sent_at).toLocaleDateString('fr-FR')}`}
+          </p>
+        </div>
       </div>
     </div>
   );
 }
 
 // ============================================================================
-// Question Preview Block
+// Question Preview Card
 // ============================================================================
 
-interface QuestionPreviewBlockProps {
+interface QuestionPreviewCardProps {
   question: BriefQuestionWithResponse;
   showResponse: boolean;
+  accentColor: string;
 }
 
-function QuestionPreviewBlock({ question, showResponse }: QuestionPreviewBlockProps) {
+function QuestionPreviewCard({ question, showResponse, accentColor }: QuestionPreviewCardProps) {
   const hasResponse = question.response != null;
 
-  switch (question.type) {
-    case 'title':
-      return (
-        <h3 className="text-xl font-semibold text-gray-900 pt-4 first:pt-0">
+  // Title blocks get their own card style
+  if (question.type === 'title') {
+    return (
+      <div
+        className="bg-white rounded-lg shadow-sm border-l-4 p-4"
+        style={{ borderLeftColor: accentColor }}
+      >
+        <h3 className="text-lg font-semibold text-gray-900">
           {question.label}
         </h3>
-      );
+      </div>
+    );
+  }
 
-    case 'description':
-      return (
+  // Description inline
+  if (question.type === 'description') {
+    return (
+      <div className="px-2">
         <p className="text-sm text-gray-600 whitespace-pre-wrap">
           {question.label}
         </p>
-      );
-
-    case 'separator':
-      return <hr className="border-gray-200 my-4" />;
-
-    default:
-      return (
-        <div className="space-y-2">
-          <label className="block font-medium text-gray-900">
-            {question.label}
-            {question.is_required && <span className="text-red-500 ml-1">*</span>}
-          </label>
-
-          {showResponse && hasResponse ? (
-            <ResponseDisplay question={question} response={question.response!} />
-          ) : (
-            <QuestionPlaceholder question={question} />
-          )}
-        </div>
-      );
+      </div>
+    );
   }
+
+  // Separator
+  if (question.type === 'separator') {
+    return <hr className="border-gray-200 my-2" />;
+  }
+
+  // Regular data questions in a card
+  return (
+    <div
+      className="bg-white rounded-lg shadow-sm border-l-4 p-6"
+      style={{ borderLeftColor: accentColor }}
+    >
+      <div className="space-y-3">
+        <label className="block font-medium text-gray-900">
+          {question.label}
+          {question.is_required && <span className="text-red-500 ml-1">*</span>}
+        </label>
+
+        {showResponse && hasResponse ? (
+          <ResponseDisplay question={question} response={question.response!} accentColor={accentColor} />
+        ) : (
+          <QuestionPlaceholder question={question} />
+        )}
+      </div>
+    </div>
+  );
 }
 
 // ============================================================================
@@ -120,15 +159,21 @@ function QuestionPreviewBlock({ question, showResponse }: QuestionPreviewBlockPr
 interface ResponseDisplayProps {
   question: BriefQuestion;
   response: BriefResponse;
+  accentColor: string;
 }
 
-function ResponseDisplay({ question, response }: ResponseDisplayProps) {
+function ResponseDisplay({ question, response, accentColor }: ResponseDisplayProps) {
+  // Compute a lighter version of accent for backgrounds
+  const bgColor = `${accentColor}15`; // 15 = ~9% opacity in hex
   switch (question.type) {
     case 'text_short':
     case 'text_long':
     case 'number':
       return (
-        <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-gray-900">
+        <div
+          className="rounded-lg p-3 text-gray-900"
+          style={{ backgroundColor: bgColor, border: `1px solid ${accentColor}30` }}
+        >
           {response.value || <span className="text-gray-400 italic">Pas de reponse</span>}
         </div>
       );
@@ -139,7 +184,10 @@ function ResponseDisplay({ question, response }: ResponseDisplayProps) {
         return <span className="text-gray-400 italic">Pas de reponse</span>;
       }
       return (
-        <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-gray-900">
+        <div
+          className="rounded-lg p-3 text-gray-900"
+          style={{ backgroundColor: bgColor, border: `1px solid ${accentColor}30` }}
+        >
           {address.lieu && <div className="font-medium">{address.lieu}</div>}
           {address.adresse && <div>{address.adresse}</div>}
           {(address.ville || address.pays) && (
@@ -159,8 +207,11 @@ function ResponseDisplay({ question, response }: ResponseDisplayProps) {
 
       if (mode === 'single') {
         return (
-          <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-gray-900 inline-flex items-center gap-2">
-            <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div
+            className="rounded-lg p-3 text-gray-900 inline-flex items-center gap-2"
+            style={{ backgroundColor: bgColor, border: `1px solid ${accentColor}30` }}
+          >
+            <svg className="w-4 h-4" style={{ color: accentColor }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
             {response.value
@@ -174,8 +225,11 @@ function ResponseDisplay({ question, response }: ResponseDisplayProps) {
       if (mode === 'range') {
         const range = response.structured_value as DateRangeValue | null;
         return (
-          <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-gray-900 inline-flex items-center gap-2">
-            <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div
+            className="rounded-lg p-3 text-gray-900 inline-flex items-center gap-2"
+            style={{ backgroundColor: bgColor, border: `1px solid ${accentColor}30` }}
+          >
+            <svg className="w-4 h-4" style={{ color: accentColor }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
             {range ? (
@@ -193,11 +247,18 @@ function ResponseDisplay({ question, response }: ResponseDisplayProps) {
       // Multiple dates
       const dates = response.structured_value as string[] | null;
       return (
-        <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-gray-900">
+        <div
+          className="rounded-lg p-3 text-gray-900"
+          style={{ backgroundColor: bgColor, border: `1px solid ${accentColor}30` }}
+        >
           {dates && dates.length > 0 ? (
             <div className="flex flex-wrap gap-2">
               {dates.map((date, i) => (
-                <span key={i} className="px-2 py-1 bg-blue-100 rounded text-sm">
+                <span
+                  key={i}
+                  className="px-2 py-1 rounded text-sm"
+                  style={{ backgroundColor: `${accentColor}25` }}
+                >
                   {new Date(date).toLocaleDateString('fr-FR')}
                 </span>
               ))}
@@ -216,11 +277,18 @@ function ResponseDisplay({ question, response }: ResponseDisplayProps) {
       if (selectionType === 'multiple') {
         const selections = response.structured_value as string[] | null;
         return (
-          <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-gray-900">
+          <div
+            className="rounded-lg p-3 text-gray-900"
+            style={{ backgroundColor: bgColor, border: `1px solid ${accentColor}30` }}
+          >
             {selections && selections.length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {selections.map((sel, i) => (
-                  <span key={i} className="px-2 py-1 bg-blue-100 rounded text-sm">
+                  <span
+                    key={i}
+                    className="px-2 py-1 rounded text-sm"
+                    style={{ backgroundColor: `${accentColor}25` }}
+                  >
                     {sel}
                   </span>
                 ))}
@@ -233,7 +301,10 @@ function ResponseDisplay({ question, response }: ResponseDisplayProps) {
       }
 
       return (
-        <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-gray-900">
+        <div
+          className="rounded-lg p-3 text-gray-900"
+          style={{ backgroundColor: bgColor, border: `1px solid ${accentColor}30` }}
+        >
           {response.value || <span className="text-gray-400 italic">Pas de selection</span>}
         </div>
       );
@@ -241,7 +312,10 @@ function ResponseDisplay({ question, response }: ResponseDisplayProps) {
 
     default:
       return (
-        <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-gray-900">
+        <div
+          className="rounded-lg p-3 text-gray-900"
+          style={{ backgroundColor: bgColor, border: `1px solid ${accentColor}30` }}
+        >
           {response.value || <span className="text-gray-400 italic">Pas de reponse</span>}
         </div>
       );

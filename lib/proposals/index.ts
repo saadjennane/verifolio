@@ -16,6 +16,7 @@ export {
 export {
   createProposal,
   createProposalFromDeal,
+  createProposalFromStructure,
   getProposal,
   getProposalByToken,
   listProposals,

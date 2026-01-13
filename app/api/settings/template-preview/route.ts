@@ -37,6 +37,7 @@ export async function GET(request: Request) {
     }
 
     const config: TemplateConfig = {
+      presetId: (url.searchParams.get('presetId') as TemplateConfig['presetId']) || DEFAULT_TEMPLATE_CONFIG.presetId,
       primaryColor: url.searchParams.get('primaryColor') || DEFAULT_TEMPLATE_CONFIG.primaryColor,
       accentColor: url.searchParams.get('accentColor') || DEFAULT_TEMPLATE_CONFIG.accentColor,
       fontFamily: (url.searchParams.get('fontFamily') as TemplateConfig['fontFamily']) || DEFAULT_TEMPLATE_CONFIG.fontFamily,

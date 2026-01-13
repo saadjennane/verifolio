@@ -1,13 +1,52 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useEditor, EditorContent } from '@tiptap/react';
+import { useState, useEffect, useCallback, useRef, useMemo, type ReactElement } from 'react';
+import { useEditor, EditorContent, Node, mergeAttributes } from '@tiptap/react';
+import { BubbleMenu } from '@tiptap/react/menus';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import Image from '@tiptap/extension-image';
 import TextAlign from '@tiptap/extension-text-align';
+import Link from '@tiptap/extension-link';
+import Youtube from '@tiptap/extension-youtube';
+import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
 import { useTabsStore } from '@/lib/stores/tabs-store';
 import { toast } from 'sonner';
+import { PROPOSAL_PRESETS } from '@/lib/proposals/presets';
+import type { ProposalPresetId, ProposalVisualOptions } from '@/lib/proposals/presets/types';
+
+// ============================================================================
+// Custom TipTap Extensions
+// ============================================================================
+
+// Two-column block extension
+const TwoColumns = Node.create({
+  name: 'twoColumns',
+  group: 'block',
+  content: 'columnBlock columnBlock',
+
+  parseHTML() {
+    return [{ tag: 'div[data-type="two-columns"]' }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return ['div', mergeAttributes(HTMLAttributes, { 'data-type': 'two-columns', class: 'two-columns-block' }), 0];
+  },
+});
+
+const ColumnBlock = Node.create({
+  name: 'columnBlock',
+  group: 'block',
+  content: 'block+',
+
+  parseHTML() {
+    return [{ tag: 'div[data-type="column"]' }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return ['div', mergeAttributes(HTMLAttributes, { 'data-type': 'column', class: 'column-block' }), 0];
+  },
+});
 
 // ============================================================================
 // Types
@@ -20,6 +59,14 @@ interface Page {
   is_visible: boolean;
   is_cover: boolean;
   content: TipTapContent;
+}
+
+interface ProposalDesignSettings {
+  presetId: ProposalPresetId;
+  primaryColor: string;
+  accentColor: string;
+  fontFamily: 'sans' | 'serif' | 'mono';
+  visualOptions: ProposalVisualOptions;
 }
 
 interface TipTapContent {
@@ -75,6 +122,28 @@ export function ProposalEditorTab({ proposalId }: ProposalEditorTabProps) {
   // Save as template modal state
   const [showSaveAsTemplateModal, setShowSaveAsTemplateModal] = useState(false);
 
+  // Design settings state
+  const [designSettings, setDesignSettings] = useState<ProposalDesignSettings>({
+    presetId: 'classic',
+    primaryColor: '#1e293b',
+    accentColor: '#3b82f6',
+    fontFamily: 'sans',
+    visualOptions: {
+      showLogo: true,
+      showLogoOnAllPages: false,
+      showTableOfContents: false,
+      showSectionNumbers: true,
+      showPageNumbers: true,
+      footerText: '',
+      watermark: {
+        enabled: false,
+        text: 'BROUILLON',
+        opacity: 10,
+      },
+    },
+  });
+  const [showDesignPanel, setShowDesignPanel] = useState(false);
+
   // Count visible pages for template
   const visiblePageCount = useMemo(() => {
     return pages.filter(p => p.is_visible !== false).length;
@@ -106,6 +175,12 @@ export function ProposalEditorTab({ proposalId }: ProposalEditorTabProps) {
         if (!pagesRes.ok) throw new Error('Erreur lors du chargement des pages');
         const pagesData = await pagesRes.json();
         let loadedPages: Page[] = pagesData.data || [];
+
+        // Debug: log loaded pages content
+        console.log('[ProposalEditor] Loaded pages:', loadedPages.length);
+        loadedPages.forEach((page, i) => {
+          console.log(`[ProposalEditor] Page ${i} "${page.title}": content type=${page.content?.type}, nodes=${page.content?.content?.length || 0}`);
+        });
 
         // Transform old structure to new if needed (sections/blocks -> content)
         loadedPages = loadedPages.map((page: Page & { sections?: unknown[] }) => ({
@@ -154,6 +229,17 @@ export function ProposalEditorTab({ proposalId }: ProposalEditorTabProps) {
         // Select first page
         if (loadedPages.length > 0) {
           setSelectedPageId(loadedPages[0].id);
+        }
+
+        // Initialize design settings from proposal
+        const proposalPresetId = proposalData.data?.preset_id;
+        console.log('[ProposalEditor] Loaded proposal preset_id:', proposalPresetId);
+        if (proposalPresetId && ['classic', 'modern', 'minimal', 'elegant', 'professional', 'creative'].includes(proposalPresetId)) {
+          console.log('[ProposalEditor] Applying preset:', proposalPresetId);
+          setDesignSettings(prev => ({
+            ...prev,
+            presetId: proposalPresetId as ProposalPresetId,
+          }));
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Erreur inconnue');
@@ -411,6 +497,21 @@ export function ProposalEditorTab({ proposalId }: ProposalEditorTabProps) {
 
         {/* Actions */}
         <div className="flex items-center gap-2">
+          {/* Design button */}
+          <button
+            onClick={() => setShowDesignPanel(!showDesignPanel)}
+            className={`px-4 py-2 text-sm font-medium rounded-lg flex items-center gap-2 ${
+              showDesignPanel
+                ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                : 'text-gray-700 bg-white border hover:bg-gray-50'
+            }`}
+            title="Options de mise en page"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+            </svg>
+            Design
+          </button>
           {visiblePageCount > 0 && (
             <button
               onClick={() => setShowSaveAsTemplateModal(true)}
@@ -423,19 +524,19 @@ export function ProposalEditorTab({ proposalId }: ProposalEditorTabProps) {
               Template
             </button>
           )}
-          <button className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border rounded-lg hover:bg-gray-50">
-            Prévisualiser
-          </button>
-          <button
-            className={`px-4 py-2 text-sm font-medium rounded-lg ${
-              proposal?.status === 'DRAFT'
-                ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                : 'bg-blue-600 text-white hover:bg-blue-700'
-            }`}
-            disabled={proposal?.status === 'DRAFT'}
-          >
-            Envoyer
-          </button>
+          {/* Only show Send button if proposal is linked to a deal */}
+          {proposal?.deal && (
+            <button
+              className={`px-4 py-2 text-sm font-medium rounded-lg ${
+                proposal?.status === 'DRAFT'
+                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+              disabled={proposal?.status === 'DRAFT'}
+            >
+              Envoyer
+            </button>
+          )}
         </div>
       </header>
 
@@ -686,27 +787,194 @@ export function ProposalEditorTab({ proposalId }: ProposalEditorTabProps) {
         </aside>
 
         {/* ============================================================== */}
-        {/* CENTER - DOCUMENT (TipTap) - A4 Format */}
+        {/* CENTER - DOCUMENT (TipTap Editor) - A4 Format */}
         {/* ============================================================== */}
         <main className="flex-1 flex flex-col overflow-hidden bg-[#f6f7f9]">
           {selectedPage ? (
-              <PageEditor
-                key={selectedPage.id}
-                page={selectedPage}
-                proposalTitle={proposal?.title || ''}
-                clientName={proposal?.client?.nom || ''}
-                onContentChange={(content) => updatePageContent(selectedPage.id, content)}
-              />
-            ) : (
-              <div className="flex-1 overflow-auto py-8">
-                <div className="flex justify-center">
-                  <div className="w-[794px] min-h-[1123px] bg-white border border-gray-200 shadow-sm rounded-lg flex items-center justify-center">
-                    <p className="text-gray-400">Sélectionnez une page pour commencer</p>
+            <PageEditor
+              key={selectedPage.id}
+              page={selectedPage}
+              proposalTitle={proposal?.title || ''}
+              clientName={proposal?.client?.nom || ''}
+              onContentChange={(content) => updatePageContent(selectedPage.id, content)}
+              designSettings={designSettings}
+            />
+          ) : (
+            <div className="flex-1 overflow-auto py-8">
+              <div className="flex justify-center">
+                <div className="w-[794px] min-h-[1123px] bg-white border border-gray-200 shadow-sm rounded-lg flex items-center justify-center">
+                  <p className="text-gray-400">Sélectionnez une page pour commencer</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </main>
+
+        {/* ============================================================== */}
+        {/* RIGHT SIDEBAR - DESIGN SETTINGS */}
+        {/* ============================================================== */}
+        {showDesignPanel && (
+          <aside className="w-72 bg-white border-l flex flex-col overflow-hidden">
+            <div className="px-4 py-3 border-b flex items-center justify-between">
+              <span className="text-sm font-semibold text-gray-900">Design</span>
+              <button
+                onClick={() => setShowDesignPanel(false)}
+                className="p-1 text-gray-400 hover:text-gray-600 rounded"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-auto p-4 space-y-6">
+              {/* Preset Selector */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
+                  Modèle de mise en page
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {PROPOSAL_PRESETS.map((preset) => {
+                    const isSelected = designSettings.presetId === preset.id;
+                    return (
+                      <button
+                        key={preset.id}
+                        onClick={() => setDesignSettings(s => ({ ...s, presetId: preset.id }))}
+                        className={`
+                          flex flex-col items-center p-2 rounded-lg border transition-all text-left
+                          ${isSelected
+                            ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500'
+                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                          }
+                        `}
+                        title={preset.description}
+                      >
+                        <div className={`w-full aspect-[5/7] rounded mb-1.5 flex items-center justify-center ${isSelected ? 'text-blue-600' : 'text-gray-400'}`}>
+                          <PresetThumbnail presetId={preset.id} />
+                        </div>
+                        <span className={`text-[10px] font-medium ${isSelected ? 'text-blue-700' : 'text-gray-600'}`}>
+                          {preset.name}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Color & Font */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
+                  Couleurs et police
+                </label>
+                <div className="space-y-3">
+                  {/* Primary Color */}
+                  <div className="flex items-center gap-3">
+                    <label className="text-sm text-gray-600 w-20">Primaire</label>
+                    <input
+                      type="color"
+                      value={designSettings.primaryColor}
+                      onChange={(e) => setDesignSettings(s => ({ ...s, primaryColor: e.target.value }))}
+                      className="w-8 h-8 rounded cursor-pointer border border-gray-200"
+                    />
+                    <input
+                      type="text"
+                      value={designSettings.primaryColor}
+                      onChange={(e) => setDesignSettings(s => ({ ...s, primaryColor: e.target.value }))}
+                      className="flex-1 px-2 py-1 text-xs border border-gray-200 rounded"
+                    />
+                  </div>
+                  {/* Accent Color */}
+                  <div className="flex items-center gap-3">
+                    <label className="text-sm text-gray-600 w-20">Accent</label>
+                    <input
+                      type="color"
+                      value={designSettings.accentColor}
+                      onChange={(e) => setDesignSettings(s => ({ ...s, accentColor: e.target.value }))}
+                      className="w-8 h-8 rounded cursor-pointer border border-gray-200"
+                    />
+                    <input
+                      type="text"
+                      value={designSettings.accentColor}
+                      onChange={(e) => setDesignSettings(s => ({ ...s, accentColor: e.target.value }))}
+                      className="flex-1 px-2 py-1 text-xs border border-gray-200 rounded"
+                    />
+                  </div>
+                  {/* Font */}
+                  <div className="flex items-center gap-3">
+                    <label className="text-sm text-gray-600 w-20">Police</label>
+                    <select
+                      value={designSettings.fontFamily}
+                      onChange={(e) => setDesignSettings(s => ({ ...s, fontFamily: e.target.value as 'sans' | 'serif' | 'mono' }))}
+                      className="flex-1 px-2 py-1.5 text-sm border border-gray-200 rounded"
+                    >
+                      <option value="sans">Sans-serif</option>
+                      <option value="serif">Serif</option>
+                      <option value="mono">Mono</option>
+                    </select>
                   </div>
                 </div>
               </div>
-            )}
-        </main>
+
+              {/* Visual Options */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
+                  Options visuelles
+                </label>
+                <div className="space-y-2">
+                  <ToggleOption
+                    checked={designSettings.visualOptions.showLogo}
+                    onChange={() => setDesignSettings(s => ({
+                      ...s,
+                      visualOptions: { ...s.visualOptions, showLogo: !s.visualOptions.showLogo }
+                    }))}
+                    label="Afficher le logo"
+                  />
+                  <ToggleOption
+                    checked={designSettings.visualOptions.showSectionNumbers}
+                    onChange={() => setDesignSettings(s => ({
+                      ...s,
+                      visualOptions: { ...s.visualOptions, showSectionNumbers: !s.visualOptions.showSectionNumbers }
+                    }))}
+                    label="Sections numérotées"
+                  />
+                  <ToggleOption
+                    checked={designSettings.visualOptions.showTableOfContents}
+                    onChange={() => setDesignSettings(s => ({
+                      ...s,
+                      visualOptions: { ...s.visualOptions, showTableOfContents: !s.visualOptions.showTableOfContents }
+                    }))}
+                    label="Table des matières"
+                  />
+                  <ToggleOption
+                    checked={designSettings.visualOptions.showPageNumbers}
+                    onChange={() => setDesignSettings(s => ({
+                      ...s,
+                      visualOptions: { ...s.visualOptions, showPageNumbers: !s.visualOptions.showPageNumbers }
+                    }))}
+                    label="Numéros de page"
+                  />
+                </div>
+              </div>
+
+              {/* Footer Text */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
+                  Pied de page
+                </label>
+                <input
+                  type="text"
+                  value={designSettings.visualOptions.footerText || ''}
+                  onChange={(e) => setDesignSettings(s => ({
+                    ...s,
+                    visualOptions: { ...s.visualOptions, footerText: e.target.value }
+                  }))}
+                  placeholder="Texte personnalisé..."
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded"
+                />
+              </div>
+            </div>
+          </aside>
+        )}
 
       </div>
 
@@ -898,9 +1166,10 @@ interface PageEditorProps {
   proposalTitle: string;
   clientName: string;
   onContentChange: (content: TipTapContent) => void;
+  designSettings: ProposalDesignSettings;
 }
 
-function PageEditor({ page, proposalTitle, clientName, onContentChange }: PageEditorProps) {
+function PageEditor({ page, proposalTitle, clientName, onContentChange, designSettings }: PageEditorProps) {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Debounced save
@@ -933,12 +1202,17 @@ function PageEditor({ page, proposalTitle, clientName, onContentChange }: PageEd
       }
     : page.content;
 
+  // Create a key to force re-render when page or design changes
+  const editorKey = `${page.id}-${designSettings.presetId}-${designSettings.primaryColor}-${designSettings.accentColor}-${designSettings.fontFamily}`;
+
   return (
     <TipTapPageEditor
+      key={editorKey}
       content={content}
       onChange={handleUpdate}
       placeholder={page.is_cover ? "Titre de la proposition..." : "Commencez à rédiger cette page..."}
       coverMode={page.is_cover}
+      designSettings={designSettings}
     />
   );
 }
@@ -952,10 +1226,182 @@ interface TipTapPageEditorProps {
   onChange: (json: TipTapContent) => void;
   placeholder?: string;
   coverMode?: boolean;
+  designSettings: ProposalDesignSettings;
 }
 
-function TipTapPageEditor({ content, onChange, placeholder = 'Commencez à écrire...', coverMode = false }: TipTapPageEditorProps) {
+function TipTapPageEditor({ content, onChange, placeholder = 'Commencez a ecrire...', coverMode = false, designSettings }: TipTapPageEditorProps) {
   const [styleDropdownOpen, setStyleDropdownOpen] = useState(false);
+  const [insertDropdownOpen, setInsertDropdownOpen] = useState(false);
+
+  // Get font family CSS
+  const getFontFamily = () => {
+    switch (designSettings.fontFamily) {
+      case 'serif': return "'Georgia', 'Times New Roman', serif";
+      case 'mono': return "'Menlo', 'Monaco', 'Courier New', monospace";
+      default: return "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+    }
+  };
+
+  // Get preset-specific styles
+  const getPresetStyles = () => {
+    const { presetId, primaryColor, accentColor } = designSettings;
+
+    switch (presetId) {
+      case 'modern':
+        return {
+          h1Style: `
+            font-size: 2.5rem;
+            font-weight: 800;
+            letter-spacing: -0.025em;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 3px solid ${accentColor};
+          `,
+          h2Style: `
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            padding-left: 1rem;
+            border-left: 4px solid ${accentColor};
+          `,
+          blockStyle: `
+            background: linear-gradient(135deg, ${accentColor}08 0%, transparent 100%);
+            border-radius: 12px;
+            padding: 1.5rem;
+          `,
+          containerClass: 'preset-modern',
+        };
+
+      case 'minimal':
+        return {
+          h1Style: `
+            font-size: 2rem;
+            font-weight: 300;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            margin-bottom: 2rem;
+          `,
+          h2Style: `
+            font-size: 1.25rem;
+            font-weight: 400;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-top: 2.5rem;
+            margin-bottom: 1rem;
+            color: ${primaryColor}99;
+          `,
+          blockStyle: `
+            background: transparent;
+            border: 1px solid #e5e7eb;
+          `,
+          containerClass: 'preset-minimal',
+        };
+
+      case 'elegant':
+        return {
+          h1Style: `
+            font-size: 2.25rem;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid ${primaryColor}30;
+          `,
+          h2Style: `
+            font-size: 1.5rem;
+            font-weight: 500;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            text-align: center;
+            position: relative;
+          `,
+          blockStyle: `
+            background: #fafafa;
+            border: 1px solid #e5e7eb;
+            border-radius: 2px;
+          `,
+          containerClass: 'preset-elegant',
+        };
+
+      case 'professional':
+        return {
+          h1Style: `
+            font-size: 1.875rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            padding: 0.75rem 1rem;
+            background: ${primaryColor};
+            color: white !important;
+            border-radius: 4px;
+          `,
+          h2Style: `
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+            padding: 0.5rem 0;
+            border-bottom: 2px solid ${primaryColor};
+          `,
+          blockStyle: `
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+          `,
+          containerClass: 'preset-professional',
+        };
+
+      case 'creative':
+        return {
+          h1Style: `
+            font-size: 2.75rem;
+            font-weight: 900;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, ${primaryColor} 0%, ${accentColor} 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+          `,
+          h2Style: `
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            position: relative;
+            padding-left: 1.5rem;
+          `,
+          blockStyle: `
+            background: linear-gradient(135deg, ${accentColor}15 0%, ${primaryColor}10 100%);
+            border-radius: 16px;
+            border: none;
+          `,
+          containerClass: 'preset-creative',
+        };
+
+      default: // classic
+        return {
+          h1Style: `
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+          `,
+          h2Style: `
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+          `,
+          blockStyle: `
+            background: #f9fafb;
+            border: 1px dashed #e5e7eb;
+            border-radius: 8px;
+          `,
+          containerClass: 'preset-classic',
+        };
+    }
+  };
+
+  const presetStyles = getPresetStyles();
 
   const editor = useEditor({
     extensions: [
@@ -973,6 +1419,30 @@ function TipTapPageEditor({ content, onChange, placeholder = 'Commencez à écri
       TextAlign.configure({
         types: ['heading', 'paragraph'],
       }),
+      Link.configure({
+        openOnClick: false,
+        HTMLAttributes: {
+          class: 'text-blue-600 underline hover:text-blue-800',
+        },
+      }),
+      Youtube.configure({
+        width: 640,
+        height: 360,
+        HTMLAttributes: {
+          class: 'rounded-lg overflow-hidden my-4',
+        },
+      }),
+      Table.configure({
+        resizable: true,
+        HTMLAttributes: {
+          class: 'border-collapse table-auto w-full',
+        },
+      }),
+      TableRow,
+      TableCell,
+      TableHeader,
+      TwoColumns,
+      ColumnBlock,
     ],
     content,
     immediatelyRender: false,
@@ -1179,23 +1649,321 @@ function TipTapPageEditor({ content, onChange, placeholder = 'Commencez à écri
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
         </ToolbarButton>
+
+        {/* Link button */}
+        <ToolbarButton
+          onClick={() => {
+            const previousUrl = editor.getAttributes('link').href;
+            const url = window.prompt('URL du lien:', previousUrl);
+            if (url === null) return;
+            if (url === '') {
+              editor.chain().focus().extendMarkRange('link').unsetLink().run();
+              return;
+            }
+            editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+          }}
+          active={editor.isActive('link')}
+          title="Lien"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+          </svg>
+        </ToolbarButton>
+
+        {/* Video embed button */}
+        <ToolbarButton
+          onClick={() => {
+            const url = window.prompt('URL de la video (YouTube, Vimeo):');
+            if (url) {
+              editor.chain().focus().setYoutubeVideo({ src: url }).run();
+            }
+          }}
+          title="Video"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </ToolbarButton>
+
+        <div className="w-px h-5 bg-gray-200 mx-1" />
+
+        {/* Insert dropdown for columns */}
+        <div className="relative">
+          <button
+            onClick={() => setInsertDropdownOpen(!insertDropdownOpen)}
+            className="flex items-center gap-1 px-2.5 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded"
+            title="Inserer un bloc"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+            </svg>
+            <span>Bloc</span>
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {insertDropdownOpen && (
+            <div className="absolute left-0 top-full mt-1 w-56 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-20">
+              <button
+                onClick={() => {
+                  editor.chain().focus().insertContent({
+                    type: 'twoColumns',
+                    content: [
+                      { type: 'columnBlock', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Colonne 1' }] }] },
+                      { type: 'columnBlock', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Colonne 2' }] }] },
+                    ],
+                  }).run();
+                  setInsertDropdownOpen(false);
+                }}
+                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-3"
+              >
+                <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+                </svg>
+                <div>
+                  <div className="font-medium text-gray-700">2 colonnes texte</div>
+                  <div className="text-xs text-gray-500">Texte | Texte</div>
+                </div>
+              </button>
+              <button
+                onClick={() => {
+                  editor.chain().focus().insertContent({
+                    type: 'twoColumns',
+                    content: [
+                      { type: 'columnBlock', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Votre texte ici...' }] }] },
+                      { type: 'columnBlock', content: [{ type: 'image', attrs: { src: 'https://placehold.co/400x300?text=Image' } }] },
+                    ],
+                  }).run();
+                  setInsertDropdownOpen(false);
+                }}
+                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-3"
+              >
+                <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <div>
+                  <div className="font-medium text-gray-700">Texte + Image</div>
+                  <div className="text-xs text-gray-500">Texte | Image</div>
+                </div>
+              </button>
+              <button
+                onClick={() => {
+                  editor.chain().focus().insertContent({
+                    type: 'twoColumns',
+                    content: [
+                      { type: 'columnBlock', content: [{ type: 'image', attrs: { src: 'https://placehold.co/400x300?text=Image' } }] },
+                      { type: 'columnBlock', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Votre texte ici...' }] }] },
+                    ],
+                  }).run();
+                  setInsertDropdownOpen(false);
+                }}
+                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-3"
+              >
+                <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <div>
+                  <div className="font-medium text-gray-700">Image + Texte</div>
+                  <div className="text-xs text-gray-500">Image | Texte</div>
+                </div>
+              </button>
+              <button
+                onClick={() => {
+                  editor.chain().focus().insertContent({
+                    type: 'twoColumns',
+                    content: [
+                      { type: 'columnBlock', content: [{ type: 'image', attrs: { src: 'https://placehold.co/400x300?text=Image+1' } }] },
+                      { type: 'columnBlock', content: [{ type: 'image', attrs: { src: 'https://placehold.co/400x300?text=Image+2' } }] },
+                    ],
+                  }).run();
+                  setInsertDropdownOpen(false);
+                }}
+                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-3"
+              >
+                <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <div>
+                  <div className="font-medium text-gray-700">2 Images</div>
+                  <div className="text-xs text-gray-500">Image | Image</div>
+                </div>
+              </button>
+
+              {/* Separator */}
+              <div className="border-t border-gray-100 my-1" />
+
+              {/* Callout */}
+              <button
+                onClick={() => {
+                  editor.chain().focus().insertContent({
+                    type: 'blockquote',
+                    content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Votre note ou conseil ici...' }] }],
+                  }).run();
+                  setInsertDropdownOpen(false);
+                }}
+                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-3"
+              >
+                <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <div className="font-medium text-gray-700">Callout</div>
+                  <div className="text-xs text-gray-500">Note ou conseil mis en avant</div>
+                </div>
+              </button>
+
+              {/* Table */}
+              <button
+                onClick={() => {
+                  editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+                  setInsertDropdownOpen(false);
+                }}
+                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-3"
+              >
+                <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                <div>
+                  <div className="font-medium text-gray-700">Tableau</div>
+                  <div className="text-xs text-gray-500">3x3 avec en-tete</div>
+                </div>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Table BubbleMenu - appears near the table when cursor is inside */}
+      <BubbleMenu
+        editor={editor}
+        shouldShow={({ editor }) => editor.isActive('table')}
+        options={{
+          placement: 'top',
+          offset: { mainAxis: 8, crossAxis: 0 },
+        }}
+      >
+        <div className="flex items-center gap-1 p-1 bg-white rounded-lg shadow-lg border border-gray-200">
+          {/* Column controls */}
+          <div className="flex items-center">
+            <button
+              onClick={() => editor.chain().focus().addColumnBefore().run()}
+              className="p-1.5 text-gray-600 hover:bg-gray-100 rounded"
+              title="Ajouter colonne avant"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19V5m-7 7h14" />
+              </svg>
+            </button>
+            <button
+              onClick={() => editor.chain().focus().addColumnAfter().run()}
+              className="p-1.5 text-gray-600 hover:bg-gray-100 rounded"
+              title="Ajouter colonne apres"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m7-7H5" />
+              </svg>
+            </button>
+            <button
+              onClick={() => editor.chain().focus().deleteColumn().run()}
+              className="p-1.5 text-gray-600 hover:bg-red-50 hover:text-red-600 rounded"
+              title="Supprimer colonne"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v18M15 3v18M3 9h18M3 15h18" />
+              </svg>
+            </button>
+          </div>
+          <div className="w-px h-5 bg-gray-200" />
+          {/* Row controls */}
+          <div className="flex items-center">
+            <button
+              onClick={() => editor.chain().focus().addRowBefore().run()}
+              className="p-1.5 text-gray-600 hover:bg-gray-100 rounded"
+              title="Ajouter ligne avant"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 11h14M12 5v14" />
+              </svg>
+            </button>
+            <button
+              onClick={() => editor.chain().focus().addRowAfter().run()}
+              className="p-1.5 text-gray-600 hover:bg-gray-100 rounded"
+              title="Ajouter ligne apres"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 12H5m7 7V5" />
+              </svg>
+            </button>
+            <button
+              onClick={() => editor.chain().focus().deleteRow().run()}
+              className="p-1.5 text-gray-600 hover:bg-red-50 hover:text-red-600 rounded"
+              title="Supprimer ligne"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9h18M3 15h18M9 3v18M15 3v18" />
+              </svg>
+            </button>
+          </div>
+          <div className="w-px h-5 bg-gray-200" />
+          {/* Delete table */}
+          <button
+            onClick={() => editor.chain().focus().deleteTable().run()}
+            className="p-1.5 text-red-500 hover:bg-red-50 rounded"
+            title="Supprimer le tableau"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
+        </div>
+      </BubbleMenu>
 
       {/* Scrollable A4 content area */}
       <div className="flex-1 overflow-auto py-8">
         <div className="flex justify-center">
-          <div className={`w-[794px] min-h-[1123px] bg-white border border-gray-200 shadow-sm rounded-lg overflow-hidden ${coverMode ? 'cover-editor' : ''}`}>
-            <EditorContent editor={editor} className="h-full" />
+          <div
+            className={`w-[794px] min-h-[1123px] bg-white shadow-lg overflow-hidden ${presetStyles.containerClass} ${coverMode ? 'cover-editor' : ''}`}
+            style={{
+              fontFamily: getFontFamily(),
+              borderRadius: designSettings.presetId === 'creative' ? '16px' : designSettings.presetId === 'modern' ? '12px' : '8px',
+              border: '1px solid #e5e7eb',
+            }}
+          >
+            {/* Preset-specific top decoration */}
+            {designSettings.presetId === 'creative' && (
+              <div
+                className="h-2"
+                style={{ background: `linear-gradient(90deg, ${designSettings.primaryColor} 0%, ${designSettings.accentColor} 100%)` }}
+              />
+            )}
+            {designSettings.presetId === 'modern' && (
+              <div className="h-1" style={{ background: designSettings.accentColor }} />
+            )}
+            {designSettings.presetId === 'professional' && (
+              <div className="h-1" style={{ background: designSettings.primaryColor }} />
+            )}
+            {designSettings.presetId === 'elegant' && (
+              <div className="flex justify-center py-2">
+                <div className="w-24 h-px" style={{ background: designSettings.primaryColor }} />
+              </div>
+            )}
+            {(designSettings.presetId === 'classic' || designSettings.presetId === 'minimal') && (
+              <div className="h-1" style={{ background: designSettings.accentColor }} />
+            )}
+
+            <EditorContent editor={editor} className="h-full p-12" />
           </div>
         </div>
       </div>
 
-      {/* Styles */}
+      {/* Dynamic Styles based on designSettings and preset */}
       <style jsx global>{`
         .ProseMirror {
           outline: none;
           min-height: 100%;
           color: #111827;
+          font-family: ${getFontFamily()};
         }
         .ProseMirror p.is-editor-empty:first-child::before {
           color: #9ca3af;
@@ -1204,32 +1972,32 @@ function TipTapPageEditor({ content, onChange, placeholder = 'Commencez à écri
           height: 0;
           pointer-events: none;
         }
+
+        /* H1 Styles - Preset specific */
         .ProseMirror h1 {
-          font-size: 2rem;
-          font-weight: 700;
-          margin-bottom: 1rem;
           line-height: 1.2;
-          color: #111827;
+          color: ${designSettings.primaryColor};
+          ${presetStyles.h1Style}
         }
         .cover-editor .ProseMirror h1 {
-          font-size: 2.5rem;
           text-align: center;
           margin-top: 200px;
-          color: #111827;
         }
+
+        /* H2 Styles - Preset specific */
         .ProseMirror h2 {
-          font-size: 1.5rem;
-          font-weight: 600;
-          margin-bottom: 0.75rem;
           line-height: 1.3;
-          color: #1f2937;
+          color: ${designSettings.primaryColor};
+          ${presetStyles.h2Style}
         }
+
+        /* H3 Styles */
         .ProseMirror h3 {
           font-size: 1.25rem;
           font-weight: 600;
           margin-bottom: 0.5rem;
           line-height: 1.4;
-          color: #1f2937;
+          color: ${designSettings.primaryColor};
         }
         .ProseMirror p {
           margin-bottom: 0.75rem;
@@ -1240,6 +2008,43 @@ function TipTapPageEditor({ content, onChange, placeholder = 'Commencez à écri
           text-align: center;
           color: #4b5563;
         }
+
+        /* Creative preset - decorative elements */
+        .preset-creative .ProseMirror h2::before {
+          content: '';
+          position: absolute;
+          left: 0;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 8px;
+          height: 8px;
+          background: ${designSettings.accentColor};
+          border-radius: 50%;
+        }
+
+        /* Elegant preset - decorative separators */
+        .preset-elegant .ProseMirror h2::after {
+          content: '';
+          display: block;
+          width: 40px;
+          height: 1px;
+          background: ${designSettings.primaryColor}50;
+          margin: 0.5rem auto 0;
+        }
+
+        /* Professional preset - section numbering feel */
+        .preset-professional .ProseMirror h2 {
+          background: ${designSettings.primaryColor}08;
+          padding: 0.5rem 1rem;
+          margin-left: -1rem;
+          margin-right: -1rem;
+        }
+
+        /* Modern preset - card-like sections */
+        .preset-modern .ProseMirror > * + h2 {
+          margin-top: 2.5rem;
+        }
+
         .ProseMirror ul, .ProseMirror ol {
           padding-left: 1.5rem;
           margin-bottom: 0.75rem;
@@ -1249,7 +2054,7 @@ function TipTapPageEditor({ content, onChange, placeholder = 'Commencez à écri
         }
         .ProseMirror hr {
           border: none;
-          border-top: 1px solid #e5e7eb;
+          border-top: 2px solid ${designSettings.accentColor};
           margin: 1.5rem 0;
         }
         .ProseMirror img {
@@ -1259,11 +2064,63 @@ function TipTapPageEditor({ content, onChange, placeholder = 'Commencez à écri
           margin: 1rem 0;
         }
         .ProseMirror blockquote {
-          border-left: 3px solid #d1d5db;
+          border-left: 3px solid ${designSettings.accentColor};
           padding-left: 1rem;
           color: #4b5563;
           margin: 1rem 0;
           font-style: italic;
+        }
+        /* Links */
+        .ProseMirror a {
+          color: ${designSettings.accentColor};
+          text-decoration: underline;
+        }
+        .ProseMirror a:hover {
+          opacity: 0.8;
+        }
+        /* YouTube embeds */
+        .ProseMirror iframe {
+          border-radius: 0.5rem;
+          margin: 1rem 0;
+          max-width: 100%;
+        }
+        /* Two columns layout - Preset specific */
+        .ProseMirror .two-columns-block {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 24px;
+          margin: 1.5rem 0;
+          padding: 1rem;
+          ${presetStyles.blockStyle}
+        }
+        .ProseMirror .column-block {
+          min-height: 80px;
+          padding: 0.5rem;
+        }
+        .ProseMirror .column-block:focus-within {
+          outline: 2px solid ${designSettings.accentColor};
+          outline-offset: 2px;
+          border-radius: 4px;
+        }
+
+        /* Preset-specific block styles */
+        .preset-creative .ProseMirror .two-columns-block {
+          border-radius: 16px;
+        }
+        .preset-modern .ProseMirror .two-columns-block {
+          border-radius: 12px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .preset-minimal .ProseMirror .two-columns-block {
+          border-radius: 0;
+          background: transparent;
+          border: 1px solid #e5e7eb;
+        }
+        .preset-elegant .ProseMirror .two-columns-block {
+          border-radius: 2px;
+        }
+        .preset-professional .ProseMirror .two-columns-block {
+          border-radius: 4px;
         }
         /* Text alignment */
         .ProseMirror [style*="text-align: center"],
@@ -1273,6 +2130,48 @@ function TipTapPageEditor({ content, onChange, placeholder = 'Commencez à écri
         .ProseMirror [style*="text-align: right"],
         .ProseMirror [data-text-align="right"] {
           text-align: right;
+        }
+
+        /* Table styles */
+        .ProseMirror table {
+          border-collapse: collapse;
+          width: 100%;
+          margin: 1rem 0;
+          font-size: 0.9rem;
+        }
+        .ProseMirror th,
+        .ProseMirror td {
+          border: 1px solid #d1d5db;
+          padding: 0.5rem 0.75rem;
+          text-align: left;
+          vertical-align: top;
+        }
+        .ProseMirror th {
+          background-color: ${designSettings.primaryColor}10;
+          font-weight: 600;
+          color: ${designSettings.primaryColor};
+        }
+        .ProseMirror tr:hover td {
+          background-color: #f9fafb;
+        }
+        .ProseMirror .selectedCell {
+          background-color: ${designSettings.accentColor}20;
+        }
+        .ProseMirror .selectedCell::after {
+          content: none;
+        }
+        /* Table resize handles */
+        .ProseMirror .column-resize-handle {
+          position: absolute;
+          right: -2px;
+          top: 0;
+          bottom: 0;
+          width: 4px;
+          background-color: ${designSettings.accentColor};
+          pointer-events: none;
+        }
+        .ProseMirror.resize-cursor {
+          cursor: col-resize;
         }
       `}</style>
     </div>
@@ -1303,6 +2202,133 @@ function ToolbarButton({ onClick, active = false, title, children }: ToolbarButt
       {children}
     </button>
   );
+}
+
+// ============================================================================
+// Toggle Option Component
+// ============================================================================
+
+function ToggleOption({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: () => void;
+  label: string;
+}) {
+  return (
+    <label className="flex items-center justify-between cursor-pointer group py-1">
+      <span className="text-sm text-gray-600 group-hover:text-gray-900">
+        {label}
+      </span>
+      <div
+        className={`
+          relative w-9 h-5 rounded-full transition-colors cursor-pointer
+          ${checked ? 'bg-blue-500' : 'bg-gray-300'}
+        `}
+        onClick={onChange}
+      >
+        <div
+          className={`
+            absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform
+            ${checked ? 'translate-x-4' : 'translate-x-0.5'}
+          `}
+        />
+      </div>
+    </label>
+  );
+}
+
+// ============================================================================
+// Preset Thumbnail Component
+// ============================================================================
+
+function PresetThumbnail({ presetId }: { presetId: ProposalPresetId }) {
+  const thumbnails: Record<ProposalPresetId, ReactElement> = {
+    classic: (
+      <svg viewBox="0 0 100 140" className="w-full h-full">
+        <rect x="5" y="5" width="25" height="8" rx="1" fill="currentColor" opacity={0.7} />
+        <line x1="5" y1="18" x2="95" y2="18" stroke="currentColor" strokeWidth="0.5" opacity={0.3} />
+        <rect x="5" y="24" width="60" height="6" rx="1" fill="currentColor" opacity={0.4} />
+        <rect x="5" y="36" width="40" height="20" rx="2" fill="currentColor" opacity={0.08} stroke="currentColor" strokeWidth="0.5" strokeOpacity={0.3} />
+        <rect x="5" y="62" width="8" height="8" rx="4" fill="currentColor" opacity={0.6} />
+        <rect x="18" y="64" width="50" height="4" fill="currentColor" opacity={0.3} />
+        <rect x="5" y="76" width="90" height="15" fill="currentColor" opacity={0.05} />
+        <rect x="5" y="96" width="8" height="8" rx="4" fill="currentColor" opacity={0.6} />
+        <rect x="18" y="98" width="45" height="4" fill="currentColor" opacity={0.3} />
+        <line x1="5" y1="132" x2="95" y2="132" stroke="currentColor" strokeWidth="0.3" opacity={0.2} />
+      </svg>
+    ),
+    modern: (
+      <svg viewBox="0 0 100 140" className="w-full h-full">
+        <rect x="0" y="0" width="100" height="4" fill="currentColor" opacity={0.8} />
+        <rect x="8" y="12" width="20" height="8" rx="1" fill="currentColor" opacity={0.5} />
+        <rect x="8" y="28" width="84" height="18" rx="4" fill="currentColor" opacity={0.06} />
+        <rect x="15" y="33" width="50" height="4" fill="currentColor" opacity={0.4} />
+        <rect x="8" y="52" width="40" height="20" rx="4" fill="currentColor" opacity={0.08} />
+        <rect x="52" y="52" width="40" height="20" rx="4" fill="currentColor" opacity={0.08} />
+        <rect x="8" y="78" width="84" height="20" rx="4" fill="currentColor" opacity={0.04} />
+        <rect x="0" y="130" width="100" height="10" fill="currentColor" opacity={0.05} />
+      </svg>
+    ),
+    minimal: (
+      <svg viewBox="0 0 100 140" className="w-full h-full">
+        <rect x="35" y="10" width="30" height="8" rx="1" fill="currentColor" opacity={0.4} />
+        <line x1="40" y1="24" x2="60" y2="24" stroke="currentColor" strokeWidth="0.5" opacity={0.3} />
+        <rect x="20" y="32" width="60" height="5" rx="1" fill="currentColor" opacity={0.3} />
+        <rect x="30" y="42" width="40" height="3" rx="1" fill="currentColor" opacity={0.2} />
+        <rect x="15" y="60" width="30" height="3" fill="currentColor" opacity={0.25} />
+        <rect x="15" y="68" width="70" height="2" fill="currentColor" opacity={0.1} />
+        <rect x="15" y="90" width="28" height="3" fill="currentColor" opacity={0.25} />
+        <rect x="15" y="98" width="70" height="2" fill="currentColor" opacity={0.1} />
+        <line x1="30" y1="125" x2="70" y2="125" stroke="currentColor" strokeWidth="0.3" opacity={0.2} />
+      </svg>
+    ),
+    elegant: (
+      <svg viewBox="0 0 100 140" className="w-full h-full">
+        <rect x="8" y="8" width="30" height="6" rx="1" fill="currentColor" opacity={0.5} />
+        <rect x="72" y="8" width="20" height="10" rx="2" fill="currentColor" opacity={0.7} />
+        <rect x="8" y="24" width="84" height="2" fill="currentColor" opacity={0.15} />
+        <rect x="20" y="34" width="60" height="5" fill="currentColor" opacity={0.35} />
+        <rect x="35" y="42" width="30" height="1" fill="currentColor" opacity={0.5} />
+        <rect x="6" y="52" width="2" height="18" fill="currentColor" opacity={0.6} />
+        <rect x="12" y="52" width="35" height="18" fill="currentColor" opacity={0.05} />
+        <rect x="8" y="78" width="10" height="10" rx="2" fill="currentColor" opacity={0.15} />
+        <rect x="22" y="80" width="40" height="3" fill="currentColor" opacity={0.3} />
+        <circle cx="50" cy="132" r="2" fill="currentColor" opacity={0.4} />
+      </svg>
+    ),
+    professional: (
+      <svg viewBox="0 0 100 140" className="w-full h-full">
+        <rect x="5" y="5" width="20" height="12" rx="1" fill="currentColor" opacity={0.4} />
+        <rect x="60" y="5" width="35" height="18" fill="currentColor" opacity={0.8} />
+        <line x1="5" y1="28" x2="95" y2="28" stroke="currentColor" strokeWidth="1.5" opacity={0.8} />
+        <rect x="5" y="34" width="90" height="22" fill="currentColor" opacity={0.04} stroke="currentColor" strokeWidth="0.3" strokeOpacity={0.2} />
+        <rect x="5" y="62" width="90" height="5" fill="currentColor" opacity={0.7} />
+        <rect x="5" y="88" width="90" height="6" fill="currentColor" opacity={0.08} />
+        <rect x="3" y="88" width="2" height="6" fill="currentColor" opacity={0.6} />
+        <rect x="0" y="130" width="100" height="10" fill="currentColor" opacity={0.8} />
+      </svg>
+    ),
+    creative: (
+      <svg viewBox="0 0 100 140" className="w-full h-full">
+        <rect x="0" y="0" width="10" height="140" fill="currentColor" opacity={0.8} />
+        <rect x="18" y="10" width="25" height="4" rx="1" fill="currentColor" opacity={0.5} />
+        <rect x="16" y="22" width="2" height="16" fill="currentColor" opacity={0.6} />
+        <rect x="22" y="24" width="55" height="5" fill="currentColor" opacity={0.4} />
+        <rect x="22" y="32" width="35" height="3" fill="currentColor" opacity={0.2} />
+        <line x1="18" y1="48" x2="92" y2="48" stroke="currentColor" strokeWidth="0.3" opacity={0.2} />
+        <rect x="18" y="72" width="14" height="14" rx="3" fill="currentColor" opacity={0.7} />
+        <rect x="36" y="74" width="45" height="4" fill="currentColor" opacity={0.3} />
+        <rect x="18" y="94" width="14" height="14" rx="3" fill="currentColor" opacity={0.7} />
+        <rect x="36" y="96" width="40" height="4" fill="currentColor" opacity={0.3} />
+        <circle cx="22" cy="128" r="3" fill="currentColor" opacity={0.5} />
+      </svg>
+    ),
+  };
+
+  return thumbnails[presetId] || thumbnails.classic;
 }
 
 export default ProposalEditorTab;

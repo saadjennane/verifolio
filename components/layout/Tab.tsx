@@ -73,11 +73,11 @@ export function Tab({ tab }: TabProps) {
       onMouseDown={handleMiddleClick}
       className={`
         group flex items-center gap-2 px-3 py-2 text-sm
-        border-r border-gray-200 min-w-0 max-w-[180px]
+        border-r border-border min-w-0 max-w-[180px]
         ${isDragging ? 'cursor-grabbing opacity-50' : 'cursor-grab'}
         ${isActive
-          ? 'bg-white border-b-2 border-b-blue-500 -mb-[1px]'
-          : 'bg-gray-50 hover:bg-gray-100'
+          ? 'bg-background border-b-2 border-b-primary -mb-[1px]'
+          : 'bg-muted/50 hover:bg-accent'
         }
       `}
     >
@@ -88,7 +88,7 @@ export function Tab({ tab }: TabProps) {
       <span
         className={`
           truncate flex-1
-          ${tab.isPreview ? 'italic text-gray-500' : 'text-gray-900'}
+          ${tab.isPreview ? 'italic text-muted-foreground' : 'text-foreground'}
           ${tab.isDirty ? 'font-medium' : ''}
         `}
       >
@@ -98,14 +98,14 @@ export function Tab({ tab }: TabProps) {
       {/* Dirty indicator or close button */}
       <div className="flex-shrink-0 w-4 h-4 flex items-center justify-center">
         {tab.isDirty ? (
-          <span className="w-2 h-2 rounded-full bg-blue-500" />
+          <span className="w-2 h-2 rounded-full bg-primary" />
         ) : (
           <button
             onClick={handleClose}
-            className="hidden group-hover:flex items-center justify-center w-4 h-4 rounded hover:bg-gray-300"
+            className="hidden group-hover:flex items-center justify-center w-4 h-4 rounded hover:bg-accent"
           >
             <svg
-              className="w-3 h-3 text-gray-500"
+              className="w-3 h-3 text-muted-foreground"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -125,7 +125,7 @@ export function Tab({ tab }: TabProps) {
 }
 
 function TabIcon({ type }: { type: TabType['type'] }) {
-  const iconClass = 'w-4 h-4 text-gray-500 flex-shrink-0';
+  const iconClass = 'w-4 h-4 text-muted-foreground flex-shrink-0';
 
   switch (type) {
     case 'dashboard':

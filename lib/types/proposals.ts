@@ -5,6 +5,18 @@
 export type ProposalStatus = 'DRAFT' | 'SENT' | 'ACCEPTED' | 'REFUSED';
 export type CommentAuthorType = 'client' | 'user';
 
+// Preset types
+export type ProposalPresetId = 'classic' | 'modern' | 'minimal' | 'elegant' | 'professional' | 'creative';
+
+export interface ProposalVisualOptions {
+  showLogo: boolean;
+  coverImageUrl?: string;
+  showTableOfContents: boolean;
+  showSectionNumbers: boolean;
+  showPageNumbers: boolean;
+  footerText?: string;
+}
+
 // ============================================================================
 // Theme
 // ============================================================================
@@ -27,6 +39,14 @@ export interface ProposalTemplate {
   theme: ProposalTheme;
   is_default: boolean;
   is_system: boolean;
+  // Preset and visual options
+  preset_id: ProposalPresetId;
+  show_logo: boolean;
+  cover_image_url: string | null;
+  show_table_of_contents: boolean;
+  show_section_numbers: boolean;
+  show_page_numbers: boolean;
+  footer_text: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -59,6 +79,9 @@ export interface Proposal {
   title: string;
   status: ProposalStatus;
   theme_override: ProposalTheme | null;
+  // Preset override (per-proposal customization)
+  preset_id: ProposalPresetId | null;
+  visual_options_override: Partial<ProposalVisualOptions> | null;
   public_token: string;
   sent_at: string | null;
   accepted_at: string | null;

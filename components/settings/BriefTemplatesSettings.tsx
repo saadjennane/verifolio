@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useTabsStore } from '@/lib/stores/tabs-store';
 import { Button, Badge, Input } from '@/components/ui';
 import type { BriefTemplate } from '@/lib/briefs/types';
+import { NewBriefTemplateWizard } from '@/components/briefs/NewBriefTemplateWizard';
+import type { BriefThemeColor } from '@/lib/briefs/themes';
 
 export function BriefTemplatesSettings() {
   const { openTab } = useTabsStore();
@@ -11,6 +13,7 @@ export function BriefTemplatesSettings() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -37,24 +40,42 @@ export function BriefTemplatesSettings() {
     fetchTemplates();
   }, []);
 
-  const handleCreate = async () => {
+  const handleCreateFromWizard = async (wizardData: {
+    name: string;
+    description: string;
+    useAI: boolean;
+    aiPrompt?: string;
+    themeColor: BriefThemeColor;
+    showLogo: boolean;
+    showBriefReminder: boolean;
+  }) => {
     setIsCreating(true);
     try {
       const res = await fetch('/api/briefs/templates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: 'Nouveau template',
+          name: wizardData.name,
+          description: wizardData.description || null,
+          theme_color: wizardData.themeColor,
+          show_logo: wizardData.showLogo,
+          show_brief_reminder: wizardData.showBriefReminder,
         }),
       });
 
       const data = await res.json();
       if (res.ok && data.data?.id) {
+        setShowWizard(false);
+
+        // If AI was selected, we could call an AI endpoint here
+        // For now, just open the editor
+        // TODO: Implement AI generation
+
         // Open the template editor tab
         openTab({
           type: 'edit-brief-template',
           path: `/briefs/templates/${data.data.id}`,
-          title: 'Nouveau template',
+          title: wizardData.name,
           entityId: data.data.id,
         }, true);
       } else {
@@ -192,6 +213,15 @@ export function BriefTemplatesSettings() {
 
   return (
     <div>
+      {/* Wizard Modal */}
+      {showWizard && (
+        <NewBriefTemplateWizard
+          onComplete={handleCreateFromWizard}
+          onCancel={() => setShowWizard(false)}
+          isCreating={isCreating}
+        />
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -200,7 +230,7 @@ export function BriefTemplatesSettings() {
             Gerez vos templates pour creer des briefs rapidement.
           </p>
         </div>
-        <Button onClick={handleCreate} loading={isCreating}>
+        <Button onClick={() => setShowWizard(true)}>
           Nouveau template
         </Button>
       </div>
@@ -363,7 +393,7 @@ export function BriefTemplatesSettings() {
           <p className="text-sm text-gray-400 mb-6">
             Creez votre premier template pour commencer a utiliser les briefs.
           </p>
-          <Button onClick={handleCreate} loading={isCreating}>
+          <Button onClick={() => setShowWizard(true)}>
             Creer un template
           </Button>
         </div>

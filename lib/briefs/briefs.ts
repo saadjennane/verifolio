@@ -53,10 +53,10 @@ export async function createBrief(
     return { success: false, error: 'Deal introuvable' };
   }
 
-  // Verify template ownership
+  // Verify template ownership and get theme settings
   const { data: template, error: templateError } = await supabase
     .from('brief_templates')
-    .select('id, name, questions:brief_template_questions(*)')
+    .select('id, name, theme_color, show_logo, questions:brief_template_questions(*)')
     .eq('id', payload.template_id)
     .eq('user_id', user.id)
     .single();
@@ -65,7 +65,7 @@ export async function createBrief(
     return { success: false, error: 'Template introuvable' };
   }
 
-  // Create the brief
+  // Create the brief with theme settings from template
   const { data: brief, error: briefError } = await supabase
     .from('briefs')
     .insert({
@@ -76,6 +76,8 @@ export async function createBrief(
       title: payload.title || `Brief - ${deal.title}`,
       status: 'DRAFT',
       public_token: generatePublicToken(),
+      theme_color: template.theme_color || 'blue',
+      show_logo: template.show_logo ?? true,
     })
     .select()
     .single();

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { BadgeSelector } from '@/components/ui/BadgeSelector';
 import { TagColorPicker } from '@/components/ui/TagColorPicker';
-import { CreateProposalModal } from '@/components/modals/CreateProposalModal';
+import { StructureTemplateModal } from '@/components/modals/StructureTemplateModal';
 import { CreateBriefModal } from '@/components/modals/CreateBriefModal';
 import { CreateTaskModal } from '@/components/modals/CreateTaskModal';
 import { DealContactsEditor } from '@/components/deals/DealContactsEditor';
@@ -778,11 +778,11 @@ export function DealDetailTab({ dealId }: DealDetailTabProps) {
       </div>
 
       {/* Modal de création de proposition */}
-      <CreateProposalModal
+      <StructureTemplateModal
         isOpen={showProposalModal}
         onClose={() => setShowProposalModal(false)}
         dealId={dealId}
-        dealTitle={deal.title}
+        clientId={deal.client_id || undefined}
         onCreated={handleProposalCreated}
       />
 

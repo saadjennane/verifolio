@@ -263,6 +263,8 @@ export async function duplicateTemplate(
       name: newName || `${original.name} (copie)`,
       description: original.description,
       is_default: false, // Never copy default status
+      theme_color: original.theme_color || 'blue',
+      show_logo: original.show_logo ?? true,
     })
     .select()
     .single();

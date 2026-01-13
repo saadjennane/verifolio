@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { ProfileSettings } from '@/components/settings/ProfileSettings';
 import { CompanySettings } from '@/components/settings/CompanySettings';
 import { CustomFieldsSettings } from '@/components/settings/CustomFieldsSettings';
 import { TemplateSettings } from '@/components/settings/TemplateSettings';
@@ -9,10 +10,10 @@ import { TrashSettings } from '@/components/settings/TrashSettings';
 import { ReviewTemplatesSettings } from '@/components/settings/ReviewTemplatesSettings';
 import { VerifolioSettings } from '@/components/settings/VerifolioSettings';
 
-type SettingsTab = 'company' | 'fields' | 'template' | 'reviews' | 'verifolio' | 'navigation' | 'trash';
+type SettingsTab = 'profile' | 'company' | 'fields' | 'template' | 'reviews' | 'verifolio' | 'navigation' | 'trash';
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<SettingsTab>('company');
+  const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
 
   return (
     <div className="h-full overflow-auto p-6">
@@ -25,10 +26,20 @@ export default function SettingsPage() {
 
         {/* Tabs */}
         <div className="border-b border-gray-200 mb-6">
-          <nav className="flex gap-6">
+          <nav className="flex gap-6 overflow-x-auto">
+            <button
+              onClick={() => setActiveTab('profile')}
+              className={`pb-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === 'profile'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Mon profil
+            </button>
             <button
               onClick={() => setActiveTab('company')}
-              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`pb-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === 'company'
                   ? 'border-blue-600 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -100,6 +111,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Tab Content */}
+        {activeTab === 'profile' && <ProfileSettings />}
         {activeTab === 'company' && <CompanySettings />}
         {activeTab === 'fields' && <CustomFieldsSettings />}
         {activeTab === 'template' && <TemplateSettings />}

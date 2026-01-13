@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { Button, Input, Textarea, Select, Checkbox } from '@/components/ui';
 import type {
-  BriefWithDetails,
   BriefQuestion,
   BriefQuestionType,
   QuestionConfig,
@@ -14,9 +13,25 @@ import type {
   DateRangeValue,
 } from '@/lib/briefs/types';
 import { isDataQuestion } from '@/lib/briefs/types';
+import { getBriefTheme, type BriefThemeColor } from '@/lib/briefs/themes';
+
+// Public brief data (subset of BriefWithDetails returned by API)
+interface PublicBrief {
+  id: string;
+  title: string;
+  description: string | null;
+  status: 'DRAFT' | 'SENT' | 'RESPONDED';
+  client: { id: string; nom: string };
+  deal: { title: string };
+  questions: BriefQuestion[];
+  responded_at: string | null;
+  theme_color: BriefThemeColor;
+  show_logo: boolean;
+  company_logo_url: string | null;
+}
 
 interface BriefPublicViewProps {
-  brief: BriefWithDetails;
+  brief: PublicBrief;
   token: string;
 }
 
@@ -26,13 +41,22 @@ export function BriefPublicView({ brief, token }: BriefPublicViewProps) {
   const [isSubmitted, setIsSubmitted] = useState(brief.status === 'RESPONDED');
   const [error, setError] = useState<string | null>(null);
 
+  // Get theme colors
+  const theme = getBriefTheme(brief.theme_color);
+
   // Check if brief is already responded
   if (isSubmitted) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md text-center">
-          <div className="w-16 h-16 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
-            <svg className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div
+        className="min-h-screen flex items-center justify-center p-4"
+        style={{ backgroundColor: theme.background }}
+      >
+        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md text-center border-t-4" style={{ borderTopColor: theme.accent }}>
+          <div
+            className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center"
+            style={{ backgroundColor: `${theme.accent}20` }}
+          >
+            <svg className="h-8 w-8" style={{ color: theme.accent }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
@@ -48,8 +72,11 @@ export function BriefPublicView({ brief, token }: BriefPublicViewProps) {
   // Check if brief is in SENT status
   if (brief.status !== 'SENT') {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md text-center">
+      <div
+        className="min-h-screen flex items-center justify-center p-4"
+        style={{ backgroundColor: theme.background }}
+      >
+        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md text-center border-t-4" style={{ borderTopColor: theme.accent }}>
           <div className="w-16 h-16 mx-auto mb-4 bg-amber-100 rounded-full flex items-center justify-center">
             <svg className="h-8 w-8 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -119,52 +146,68 @@ export function BriefPublicView({ brief, token }: BriefPublicViewProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-3xl mx-auto px-4 py-6">
+    <div
+      className="min-h-screen py-8 px-4"
+      style={{ backgroundColor: theme.background }}
+    >
+      <div className="max-w-2xl mx-auto space-y-4">
+        {/* Logo */}
+        {brief.show_logo && brief.company_logo_url && (
+          <div className="text-center pb-2">
+            <img
+              src={brief.company_logo_url}
+              alt=""
+              className="h-10 mx-auto"
+            />
+          </div>
+        )}
+
+        {/* Header card */}
+        <div
+          className="bg-white rounded-lg shadow-sm border-l-4 p-6"
+          style={{ borderLeftColor: theme.accent }}
+        >
           <h1 className="text-2xl font-bold text-gray-900">{brief.title}</h1>
-          <p className="text-gray-500 mt-1">
+          {brief.description && (
+            <p className="text-gray-600 mt-2 whitespace-pre-wrap">{brief.description}</p>
+          )}
+          <p className="text-sm text-gray-500 mt-3">
             Merci de prendre le temps de repondre a ce brief.
           </p>
         </div>
-      </div>
 
-      {/* Content */}
-      <div className="max-w-3xl mx-auto px-4 py-8">
+        {/* Error message */}
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+          <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-            <div className="divide-y divide-gray-100">
-              {brief.questions.map((question) => (
-                <QuestionField
-                  key={question.id}
-                  question={question}
-                  response={responses[question.id]}
-                  onUpdate={(payload) => updateResponse(question.id, payload)}
-                />
-              ))}
-            </div>
-          </div>
+        {/* Questions */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {brief.questions.map((question) => (
+            <QuestionCard
+              key={question.id}
+              question={question}
+              response={responses[question.id]}
+              onUpdate={(payload) => updateResponse(question.id, payload)}
+              accentColor={theme.accent}
+            />
+          ))}
 
           {/* Submit */}
-          <div className="mt-8 flex justify-center">
-            <Button
+          <div className="pt-4 flex justify-center">
+            <button
               type="submit"
-              size="lg"
-              loading={isSubmitting}
               disabled={isSubmitting}
+              className="px-8 py-3 rounded-md text-white font-medium transition-colors disabled:opacity-50"
+              style={{ backgroundColor: theme.accent }}
             >
-              Envoyer mes reponses
-            </Button>
+              {isSubmitting ? 'Envoi en cours...' : 'Envoyer mes reponses'}
+            </button>
           </div>
 
-          <p className="text-center text-sm text-gray-500 mt-4">
+          <p className="text-center text-sm text-gray-500 pb-4">
             Vos reponses seront transmises directement a l&apos;equipe en charge de votre projet.
           </p>
         </form>
@@ -174,33 +217,40 @@ export function BriefPublicView({ brief, token }: BriefPublicViewProps) {
 }
 
 // ============================================================================
-// Question Field Component
+// Question Card Component (Google Forms style)
 // ============================================================================
 
-interface QuestionFieldProps {
+interface QuestionCardProps {
   question: BriefQuestion;
   response?: SubmitResponsePayload;
   onUpdate: (payload: Partial<SubmitResponsePayload>) => void;
+  accentColor: string;
 }
 
-function QuestionField({ question, response, onUpdate }: QuestionFieldProps) {
-  // Structure questions (title, description, separator)
+function QuestionCard({ question, response, onUpdate, accentColor }: QuestionCardProps) {
+  // Structure questions (title, description, separator) - rendered differently
   if (!isDataQuestion(question.type)) {
     switch (question.type) {
       case 'title':
         return (
-          <div className="px-6 py-4 bg-gray-50">
+          <div
+            className="bg-white rounded-lg shadow-sm border-l-4 p-5"
+            style={{ borderLeftColor: accentColor }}
+          >
             <h3 className="text-lg font-semibold text-gray-900">{question.label}</h3>
           </div>
         );
       case 'description':
         return (
-          <div className="px-6 py-4">
+          <div
+            className="bg-white rounded-lg shadow-sm border-l-4 p-5"
+            style={{ borderLeftColor: accentColor }}
+          >
             <p className="text-gray-600 whitespace-pre-wrap">{question.label}</p>
           </div>
         );
       case 'separator':
-        return <hr className="border-gray-200" />;
+        return <div className="py-2" />;
       default:
         return null;
     }
@@ -208,8 +258,11 @@ function QuestionField({ question, response, onUpdate }: QuestionFieldProps) {
 
   // Data collection questions
   return (
-    <div className="px-6 py-5">
-      <label className="block font-medium text-gray-900 mb-2">
+    <div
+      className="bg-white rounded-lg shadow-sm border-l-4 p-5"
+      style={{ borderLeftColor: accentColor }}
+    >
+      <label className="block font-medium text-gray-900 mb-3">
         {question.label}
         {question.is_required && <span className="text-red-500 ml-1">*</span>}
       </label>
@@ -218,6 +271,7 @@ function QuestionField({ question, response, onUpdate }: QuestionFieldProps) {
         question={question}
         response={response}
         onUpdate={onUpdate}
+        accentColor={accentColor}
       />
     </div>
   );
@@ -231,9 +285,10 @@ interface QuestionInputProps {
   question: BriefQuestion;
   response?: SubmitResponsePayload;
   onUpdate: (payload: Partial<SubmitResponsePayload>) => void;
+  accentColor: string;
 }
 
-function QuestionInput({ question, response, onUpdate }: QuestionInputProps) {
+function QuestionInput({ question, response, onUpdate, accentColor }: QuestionInputProps) {
   switch (question.type) {
     case 'text_short':
       return (

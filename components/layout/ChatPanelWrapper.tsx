@@ -133,7 +133,7 @@ export function ChatPanelWrapper() {
   return (
     <div
       ref={panelRef}
-      className="flex flex-col bg-gray-50 border-l border-gray-200 relative"
+      className="flex flex-col bg-muted border-l border-border relative"
       style={{ width: chatPanelWidth }}
     >
       {/* Resize handle */}
@@ -141,18 +141,18 @@ export function ChatPanelWrapper() {
         onMouseDown={handleMouseDown}
         className={`
           absolute left-0 top-0 bottom-0 w-1 cursor-col-resize
-          hover:bg-blue-500 transition-colors
-          ${isResizing ? 'bg-blue-500' : 'bg-transparent'}
+          hover:bg-primary transition-colors
+          ${isResizing ? 'bg-primary' : 'bg-transparent'}
         `}
         title="Redimensionner"
       />
 
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white">
-        <h2 className="font-medium text-gray-900">Assistant</h2>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-background">
+        <h2 className="font-medium text-foreground">Assistant</h2>
         <button
           onClick={() => clearMessages()}
-          className="text-xs text-gray-500 hover:text-gray-700"
+          className="text-xs text-muted-foreground hover:text-foreground"
           title="Nouvelle conversation"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -173,8 +173,8 @@ export function ChatPanelWrapper() {
                 max-w-[90%] rounded-lg px-3 py-2 text-sm
                 ${
                   message.role === 'user'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white border border-gray-200 text-gray-900'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-card border border-border text-foreground'
                 }
               `}
             >
@@ -200,18 +200,18 @@ export function ChatPanelWrapper() {
 
         {loading && !working.isActive && (
           <div className="flex justify-start">
-            <div className="bg-white border border-gray-200 rounded-lg px-3 py-2">
+            <div className="bg-card border border-border rounded-lg px-3 py-2">
               <div className="flex gap-1">
                 <span
-                  className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                  className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"
                   style={{ animationDelay: '0ms' }}
                 />
                 <span
-                  className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                  className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"
                   style={{ animationDelay: '150ms' }}
                 />
                 <span
-                  className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                  className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"
                   style={{ animationDelay: '300ms' }}
                 />
               </div>
@@ -222,11 +222,11 @@ export function ChatPanelWrapper() {
       </div>
 
       {/* Input */}
-      <div className="border-t border-gray-200 bg-white">
+      <div className="border-t border-border bg-background">
         {/* Mode selector */}
         <div className="px-3 pt-3 pb-2 flex items-center justify-between">
           <ChatModeButton />
-          <span className="text-xs text-gray-400">Cliquez pour changer</span>
+          <span className="text-xs text-muted-foreground">Cliquez pour changer</span>
         </div>
 
         {/* Message input */}
@@ -237,7 +237,7 @@ export function ChatPanelWrapper() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Votre message..."
-              className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
               disabled={loading}
             />
             <Button type="submit" disabled={!input.trim() || loading} size="sm">

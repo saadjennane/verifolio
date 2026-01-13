@@ -3,13 +3,19 @@
 import { useState, useCallback } from 'react';
 import { BriefQuestionBlock } from './BriefQuestionBlock';
 import type { BriefQuestion, BriefQuestionType, QuestionConfig } from '@/lib/briefs/types';
+import { getBriefTheme, type BriefThemeColor } from '@/lib/briefs/themes';
 
 interface BriefDocumentProps {
   briefId: string;
   title: string;
+  description?: string | null;
   questions: BriefQuestion[];
   isEditing: boolean;
+  themeColor?: BriefThemeColor;
+  showLogo?: boolean;
+  companyLogoUrl?: string | null;
   onTitleChange: (title: string) => void;
+  onDescriptionChange?: (description: string) => void;
   onQuestionsChange: (questions: BriefQuestion[]) => void;
   onAddQuestion: (type: BriefQuestionType, afterIndex?: number) => void;
 }
@@ -17,12 +23,18 @@ interface BriefDocumentProps {
 export function BriefDocument({
   briefId,
   title,
+  description,
   questions,
   isEditing,
+  themeColor,
+  showLogo,
+  companyLogoUrl,
   onTitleChange,
+  onDescriptionChange,
   onQuestionsChange,
   onAddQuestion,
 }: BriefDocumentProps) {
+  const theme = getBriefTheme(themeColor);
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(null);
 
   // Handle question updates
@@ -89,59 +101,109 @@ export function BriefDocument({
   };
 
   return (
-    <div className="flex-1 bg-gray-100 overflow-auto p-8">
-      {/* A4 Document container */}
+    <div
+      className="flex-1 overflow-auto p-8"
+      style={{ backgroundColor: theme.background }}
+    >
+      {/* Google Forms style container */}
       <div
-        className="bg-white mx-auto shadow-lg rounded-lg max-w-[210mm] min-h-[297mm]"
+        className="mx-auto max-w-2xl space-y-4"
         onDragOver={handleDragOver}
         onDrop={handleDrop}
       >
-        {/* Document header */}
-        <div className="px-12 pt-12 pb-6 border-b border-gray-100">
+        {/* Logo */}
+        {showLogo && companyLogoUrl && (
+          <div className="text-center pt-2 pb-4">
+            <img
+              src={companyLogoUrl}
+              alt=""
+              className="h-12 mx-auto object-contain"
+            />
+          </div>
+        )}
+
+        {/* Header card - Title & Description */}
+        <div
+          className="bg-white rounded-lg shadow-sm border-l-4 p-6"
+          style={{ borderLeftColor: theme.accent }}
+        >
           {isEditing ? (
             <input
               type="text"
               value={title}
               onChange={(e) => onTitleChange(e.target.value)}
               placeholder="Titre du brief"
-              className="w-full text-2xl font-bold text-gray-900 bg-transparent border-b-2 border-transparent hover:border-gray-200 focus:border-blue-500 focus:outline-none py-2"
+              className="w-full text-2xl font-bold text-gray-900 bg-transparent border-b-2 border-transparent hover:border-gray-200 focus:outline-none py-2 mb-2"
+              style={{ borderColor: 'transparent' }}
+              onFocus={(e) => e.target.style.borderColor = theme.accent}
+              onBlur={(e) => e.target.style.borderColor = 'transparent'}
             />
           ) : (
             <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
           )}
-        </div>
 
-        {/* Questions */}
-        <div className="px-12 py-8">
-          {questions.length > 0 ? (
-            <div className="space-y-4">
-              {questions.map((question, index) => (
-                <div key={question.id}>
-                  <BriefQuestionBlock
-                    question={question}
-                    index={index}
-                    totalQuestions={questions.length}
-                    isEditing={isEditing}
-                    onUpdate={(updates) => handleQuestionUpdate(question.id, updates)}
-                    onDelete={() => handleQuestionDelete(question.id)}
-                    onMove={(direction) => handleQuestionMove(question.id, direction)}
-                    onSelect={() => setSelectedQuestionId(question.id)}
-                    isSelected={selectedQuestionId === question.id}
-                  />
-
-                  {/* Add block button between questions */}
-                  {isEditing && (
-                    <AddBlockDivider
-                      onAddBlock={(type) => onAddQuestion(type, index)}
-                    />
-                  )}
-                </div>
-              ))}
+          {/* Description */}
+          {(description || isEditing) && (
+            <div className="mt-3">
+              {isEditing ? (
+                <textarea
+                  value={description || ''}
+                  onChange={(e) => onDescriptionChange?.(e.target.value)}
+                  placeholder="Description ou contexte du brief..."
+                  className="w-full text-gray-600 bg-transparent border-b border-transparent hover:border-gray-200 focus:outline-none py-1 resize-none min-h-[60px]"
+                  style={{ borderColor: 'transparent' }}
+                  onFocus={(e) => e.target.style.borderColor = theme.accent}
+                  onBlur={(e) => e.target.style.borderColor = 'transparent'}
+                />
+              ) : (
+                description && <p className="text-gray-600">{description}</p>
+              )}
             </div>
-          ) : (
-            <EmptyState onAddBlock={onAddQuestion} />
           )}
         </div>
+
+        {/* Questions as cards */}
+        {questions.length > 0 ? (
+          <div className="space-y-4">
+            {questions.map((question, index) => (
+              <div key={question.id}>
+                <div
+                  className="bg-white rounded-lg shadow-sm border-l-4"
+                  style={{ borderLeftColor: theme.accent }}
+                >
+                  <div className="p-6">
+                    <BriefQuestionBlock
+                      question={question}
+                      index={index}
+                      totalQuestions={questions.length}
+                      isEditing={isEditing}
+                      onUpdate={(updates) => handleQuestionUpdate(question.id, updates)}
+                      onDelete={() => handleQuestionDelete(question.id)}
+                      onMove={(direction) => handleQuestionMove(question.id, direction)}
+                      onSelect={() => setSelectedQuestionId(question.id)}
+                      isSelected={selectedQuestionId === question.id}
+                    />
+                  </div>
+                </div>
+
+                {/* Add block button between questions */}
+                {isEditing && (
+                  <AddBlockDivider
+                    onAddBlock={(type) => onAddQuestion(type, index)}
+                    accentColor={theme.accent}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div
+            className="bg-white rounded-lg shadow-sm border-l-4 p-6"
+            style={{ borderLeftColor: theme.accent }}
+          >
+            <EmptyState onAddBlock={onAddQuestion} accentColor={theme.accent} />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -153,9 +215,10 @@ export function BriefDocument({
 
 interface AddBlockDividerProps {
   onAddBlock: (type: BriefQuestionType) => void;
+  accentColor?: string;
 }
 
-function AddBlockDivider({ onAddBlock }: AddBlockDividerProps) {
+function AddBlockDivider({ onAddBlock, accentColor = '#3b82f6' }: AddBlockDividerProps) {
   const [showMenu, setShowMenu] = useState(false);
 
   return (
@@ -163,7 +226,16 @@ function AddBlockDivider({ onAddBlock }: AddBlockDividerProps) {
       <div className="flex items-center justify-center">
         <button
           onClick={() => setShowMenu(!showMenu)}
-          className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 text-gray-400 hover:bg-blue-100 hover:text-blue-600 transition-colors opacity-0 hover:opacity-100 focus:opacity-100"
+          className="w-6 h-6 flex items-center justify-center rounded-full bg-white text-gray-400 hover:text-white transition-colors opacity-0 hover:opacity-100 focus:opacity-100 shadow-sm"
+          style={{ '--hover-bg': accentColor } as React.CSSProperties}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = accentColor;
+            e.currentTarget.style.color = 'white';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'white';
+            e.currentTarget.style.color = '#9ca3af';
+          }}
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -178,6 +250,7 @@ function AddBlockDivider({ onAddBlock }: AddBlockDividerProps) {
             setShowMenu(false);
           }}
           onClose={() => setShowMenu(false)}
+          accentColor={accentColor}
         />
       )}
     </div>
@@ -191,9 +264,10 @@ function AddBlockDivider({ onAddBlock }: AddBlockDividerProps) {
 interface QuickAddMenuProps {
   onSelect: (type: BriefQuestionType) => void;
   onClose: () => void;
+  accentColor?: string;
 }
 
-function QuickAddMenu({ onSelect, onClose }: QuickAddMenuProps) {
+function QuickAddMenu({ onSelect, onClose, accentColor = '#3b82f6' }: QuickAddMenuProps) {
   const items: { type: BriefQuestionType; label: string; icon: string }[] = [
     { type: 'text_short', label: 'Texte court', icon: 'Aa' },
     { type: 'text_long', label: 'Texte long', icon: '¶' },
@@ -238,9 +312,10 @@ function QuickAddMenu({ onSelect, onClose }: QuickAddMenuProps) {
 
 interface EmptyStateProps {
   onAddBlock: (type: BriefQuestionType) => void;
+  accentColor?: string;
 }
 
-function EmptyState({ onAddBlock }: EmptyStateProps) {
+function EmptyState({ onAddBlock, accentColor = '#3b82f6' }: EmptyStateProps) {
   const quickBlocks: { type: BriefQuestionType; label: string; icon: string }[] = [
     { type: 'title', label: 'Titre', icon: 'H1' },
     { type: 'text_short', label: 'Texte court', icon: 'Aa' },
@@ -267,9 +342,19 @@ function EmptyState({ onAddBlock }: EmptyStateProps) {
           <button
             key={block.type}
             onClick={() => onAddBlock(block.type)}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg hover:border-current transition-colors"
+            style={{ color: accentColor }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = accentColor;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = '#e5e7eb';
+            }}
           >
-            <span className="w-6 h-6 flex items-center justify-center bg-gray-100 rounded text-xs font-mono">
+            <span
+              className="w-6 h-6 flex items-center justify-center rounded text-xs font-mono text-white"
+              style={{ backgroundColor: accentColor }}
+            >
               {block.icon}
             </span>
             <span className="text-sm text-gray-700">{block.label}</span>

@@ -5,11 +5,16 @@ import { TemplateToolbar } from './TemplateToolbar';
 import { TemplatePreview, type ZoneClickInfo } from './TemplatePreview';
 import { ZonePopup } from './ZonePopup';
 import { DocTypeSelector } from './DocTypeSelector';
-import type { TemplateConfig } from '@/lib/types/settings';
+import { PresetSelector } from './PresetSelector';
+import type { TemplateConfig, PresetLayoutId } from '@/lib/types/settings';
 import { DEFAULT_TEMPLATE_CONFIG } from '@/lib/types/settings';
 import type { TemplateContextData } from '@/lib/render/clientRenderContext';
 
-export function TemplateSettings() {
+interface TemplateSettingsProps {
+  onEditModeChange?: (isEditing: boolean) => void;
+}
+
+export function TemplateSettings({ onEditModeChange }: TemplateSettingsProps) {
   const [selectedDocType, setSelectedDocType] = useState<'invoice' | 'quote' | null>(null);
   const [config, setConfig] = useState<TemplateConfig>(DEFAULT_TEMPLATE_CONFIG);
   const [templateContext, setTemplateContext] = useState<TemplateContextData | null>(null);
@@ -17,6 +22,11 @@ export function TemplateSettings() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [popupInfo, setPopupInfo] = useState<ZoneClickInfo | null>(null);
+
+  // Notify parent when edit mode changes
+  useEffect(() => {
+    onEditModeChange?.(selectedDocType !== null);
+  }, [selectedDocType, onEditModeChange]);
 
   // Load template config and context in parallel when doc type is selected
   useEffect(() => {
@@ -36,6 +46,7 @@ export function TemplateSettings() {
           const data = await configResponse.json();
           if (data.company) {
             setConfig({
+              presetId: data.company.template_preset_id || DEFAULT_TEMPLATE_CONFIG.presetId,
               primaryColor: data.company.template_primary_color || DEFAULT_TEMPLATE_CONFIG.primaryColor,
               accentColor: data.company.template_accent_color || DEFAULT_TEMPLATE_CONFIG.accentColor,
               fontFamily: data.company.template_font_family || DEFAULT_TEMPLATE_CONFIG.fontFamily,
@@ -118,6 +129,7 @@ export function TemplateSettings() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          template_preset_id: config.presetId,
           template_primary_color: config.primaryColor,
           template_accent_color: config.accentColor,
           template_font_family: config.fontFamily,
@@ -214,7 +226,7 @@ export function TemplateSettings() {
 
   // Show template editor with back button
   return (
-    <div className="h-[calc(100vh-200px)] flex flex-col">
+    <div className="h-[calc(100vh-120px)] flex flex-col">
       {/* Header with back button */}
       <div className="flex items-center gap-3 mb-4">
         <button
@@ -244,11 +256,23 @@ export function TemplateSettings() {
         </div>
       )}
 
-      {/* Toolbar */}
-      <TemplateToolbar
-        config={config}
-        onChange={setConfig}
-      />
+      {/* Toolbar - Preset dropdown + Colors & Font in one row */}
+      <div className="flex items-center gap-4 flex-wrap">
+        {/* Preset dropdown */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-500">Modèle</span>
+          <PresetSelector
+            value={config.presetId}
+            onChange={(presetId) => setConfig(prev => ({ ...prev, presetId }))}
+          />
+        </div>
+
+        {/* Rest of toolbar controls */}
+        <TemplateToolbar
+          config={config}
+          onChange={setConfig}
+        />
+      </div>
 
       {/* Preview - Full width */}
       <div className="flex-1 mt-4 min-h-0">

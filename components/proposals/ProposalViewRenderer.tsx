@@ -2,14 +2,15 @@
 
 import { useMemo } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { Button } from '@/components/ui';
 import {
   buildContextFromProposal,
   buildVariableMap,
   renderTemplate,
 } from '@/lib/proposals/variables';
-import type { ProposalWithDetails, ProposalTheme } from '@/lib/types/proposals';
+import { renderProposal, DEFAULT_PROPOSAL_THEME, DEFAULT_PROPOSAL_VISUAL_OPTIONS } from '@/lib/proposals/presets';
+import type { ProposalRenderContext, ProposalTheme as PresetTheme, ProposalVisualOptions } from '@/lib/proposals/presets/types';
+import type { ProposalWithDetails, ProposalTheme, ProposalPresetId } from '@/lib/types/proposals';
 
 interface CompanyData {
   name?: string | null;
@@ -75,11 +76,44 @@ export function ProposalViewRenderer({
     return buildVariableMap(context);
   }, [proposal, company]);
 
-  // Get theme
-  const theme: ProposalTheme = proposal.theme_override || proposal.template?.theme || {
+  // Interpolate text with variables
+  function interpolate(text: string): string {
+    return renderTemplate(text, variableMap);
+  }
+
+  // Get preset ID (proposal override > template > default)
+  const presetId: ProposalPresetId = proposal.preset_id || proposal.template?.preset_id || 'classic';
+
+  // Get theme (convert from proposals theme to preset theme)
+  const proposalTheme: ProposalTheme = proposal.theme_override || proposal.template?.theme || {
     primaryColor: '#111111',
     accentColor: '#3B82F6',
     font: 'Inter',
+  };
+
+  const theme: PresetTheme = {
+    primaryColor: proposalTheme.primaryColor,
+    accentColor: proposalTheme.accentColor,
+    fontFamily: proposalTheme.font === 'Inter' ? 'sans' :
+                proposalTheme.font === 'Georgia' ? 'serif' :
+                proposalTheme.font === 'Courier' ? 'mono' : 'sans',
+  };
+
+  // Get visual options (merge template defaults with proposal overrides)
+  const templateOptions: ProposalVisualOptions = {
+    showLogo: proposal.template?.show_logo ?? DEFAULT_PROPOSAL_VISUAL_OPTIONS.showLogo,
+    showLogoOnAllPages: DEFAULT_PROPOSAL_VISUAL_OPTIONS.showLogoOnAllPages,
+    coverImageUrl: proposal.template?.cover_image_url || undefined,
+    showTableOfContents: proposal.template?.show_table_of_contents ?? DEFAULT_PROPOSAL_VISUAL_OPTIONS.showTableOfContents,
+    showSectionNumbers: proposal.template?.show_section_numbers ?? DEFAULT_PROPOSAL_VISUAL_OPTIONS.showSectionNumbers,
+    showPageNumbers: proposal.template?.show_page_numbers ?? DEFAULT_PROPOSAL_VISUAL_OPTIONS.showPageNumbers,
+    footerText: proposal.template?.footer_text || undefined,
+    watermark: DEFAULT_PROPOSAL_VISUAL_OPTIONS.watermark,
+  };
+
+  const visualOptions: ProposalVisualOptions = {
+    ...templateOptions,
+    ...(proposal.visual_options_override || {}),
   };
 
   // Get enabled sections sorted by position
@@ -89,19 +123,37 @@ export function ProposalViewRenderer({
       .sort((a, b) => a.position - b.position);
   }, [proposal.sections]);
 
-  // Interpolate text with variables
-  function interpolate(text: string): string {
-    return renderTemplate(text, variableMap);
-  }
+  // Build render context for the preset
+  const renderContext: ProposalRenderContext = useMemo(() => ({
+    title: interpolate(proposal.title),
+    sections: sections.map(s => ({
+      id: s.id,
+      title: interpolate(s.title),
+      body: interpolate(s.body),
+      position: s.position,
+      is_enabled: s.is_enabled,
+    })),
+    company: company ? {
+      name: company.name || '',
+      logoUrl: company.logo_url || undefined,
+      email: company.email || undefined,
+      phone: company.phone || undefined,
+      address: [company.address, company.postal_code, company.city].filter(Boolean).join(', ') || undefined,
+    } : {
+      name: 'Mon Entreprise',
+    },
+    client: proposal.client ? {
+      name: proposal.client.nom,
+      contactName: undefined,
+      email: proposal.client.email || undefined,
+      address: undefined,
+    } : undefined,
+  }), [proposal, company, sections, interpolate]);
 
-  // Format date
-  function formatDate(dateStr: string): string {
-    return new Date(dateStr).toLocaleDateString('fr-FR', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
-  }
+  // Render the proposal HTML using the preset
+  const htmlContent = useMemo(() => {
+    return renderProposal(presetId, renderContext, theme, visualOptions);
+  }, [presetId, renderContext, theme, visualOptions]);
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -131,6 +183,7 @@ export function ProposalViewRenderer({
               <span className="text-sm text-gray-600">
                 Aperçu de la proposition
               </span>
+              <StatusBadge status={proposal.status} />
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -159,127 +212,15 @@ export function ProposalViewRenderer({
         </div>
       )}
 
-      {/* Document container */}
+      {/* Document container - rendered via iframe for proper CSS isolation */}
       <div className="py-8 px-4 print:py-0 print:px-0">
-        <div
-          className="max-w-4xl mx-auto bg-white shadow-lg print:shadow-none"
-          style={{ fontFamily: theme.font }}
-        >
-          {/* Header */}
-          <header
-            className="px-12 py-10 border-b-4"
-            style={{ borderColor: theme.accentColor }}
-          >
-            <div className="flex items-start justify-between">
-              {/* Company info */}
-              <div className="flex items-center gap-4">
-                {company?.logo_url && (
-                  <Image
-                    src={company.logo_url}
-                    alt={company.name || 'Logo'}
-                    width={64}
-                    height={64}
-                    className="h-16 w-auto object-contain"
-                  />
-                )}
-                <div>
-                  {company?.name && (
-                    <p className="text-xl font-semibold text-gray-900">
-                      {company.name}
-                    </p>
-                  )}
-                  {company?.email && (
-                    <p className="text-sm text-gray-500">{company.email}</p>
-                  )}
-                  {company?.phone && (
-                    <p className="text-sm text-gray-500">{company.phone}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Status badge (print hidden) */}
-              <div className="print:hidden">
-                <StatusBadge status={proposal.status} />
-              </div>
-            </div>
-          </header>
-
-          {/* Title section */}
-          <div className="px-12 py-8 bg-gray-50 border-b border-gray-200">
-            <h1
-              className="text-3xl font-bold mb-3"
-              style={{ color: theme.primaryColor }}
-            >
-              {interpolate(proposal.title)}
-            </h1>
-            <div className="flex items-center gap-6 text-sm text-gray-600">
-              <div>
-                <span className="text-gray-400">Pour : </span>
-                <span className="font-medium text-gray-900">
-                  {proposal.client?.nom}
-                </span>
-              </div>
-              <div>
-                <span className="text-gray-400">Date : </span>
-                <span>{formatDate(proposal.created_at)}</span>
-              </div>
-              {proposal.deal && (
-                <div>
-                  <span className="text-gray-400">Réf : </span>
-                  <span>{proposal.deal.title}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Sections */}
-          <div className="px-12 py-10 space-y-10">
-            {sections.map((section, idx) => (
-              <section key={section.id} className="break-inside-avoid">
-                <h2
-                  className="text-xl font-semibold mb-4 pb-2 border-b"
-                  style={{
-                    color: theme.accentColor,
-                    borderColor: `${theme.accentColor}30`,
-                  }}
-                >
-                  {interpolate(section.title)}
-                </h2>
-                <div className="prose prose-gray max-w-none">
-                  <div className="text-gray-700 whitespace-pre-wrap leading-relaxed">
-                    {interpolate(section.body)}
-                  </div>
-                </div>
-              </section>
-            ))}
-          </div>
-
-          {/* Footer */}
-          <footer className="px-12 py-6 bg-gray-50 border-t border-gray-200">
-            <div className="flex items-center justify-between text-sm text-gray-500">
-              <div>
-                {company?.name && <span>{company.name}</span>}
-                {company?.siret && (
-                  <span className="ml-4">SIRET : {company.siret}</span>
-                )}
-              </div>
-              <div>
-                Proposition émise le {formatDate(proposal.created_at)}
-              </div>
-            </div>
-            {company?.address && (
-              <p className="mt-2 text-xs text-gray-400">
-                {[
-                  company.address,
-                  company.postal_code,
-                  company.city,
-                  company.country,
-                ]
-                  .filter(Boolean)
-                  .join(', ')}
-              </p>
-            )}
-          </footer>
+        <div className="max-w-4xl mx-auto">
+          <iframe
+            srcDoc={htmlContent}
+            className="w-full bg-white shadow-lg print:shadow-none"
+            style={{ minHeight: '1123px', border: 'none' }}
+            title="Aperçu de la proposition"
+          />
         </div>
       </div>
 

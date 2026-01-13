@@ -1,59 +1,116 @@
-import * as React from 'react';
+"use client"
 
-interface TableProps extends React.HTMLAttributes<HTMLTableElement> {}
+import * as React from "react"
 
-export function Table({ className = '', ...props }: TableProps) {
+import { cn } from "@/lib/utils"
+
+function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
-    <div className="relative w-full overflow-auto">
+    <div
+      data-slot="table-container"
+      className="relative w-full overflow-x-auto"
+    >
       <table
-        className={`w-full caption-bottom text-sm ${className}`}
+        data-slot="table"
+        className={cn("w-full caption-bottom text-sm", className)}
         {...props}
       />
     </div>
-  );
+  )
 }
 
-interface TableHeaderProps extends React.HTMLAttributes<HTMLTableSectionElement> {}
-
-export function TableHeader({ className = '', ...props }: TableHeaderProps) {
-  return <thead className={`[&_tr]:border-b ${className}`} {...props} />;
+function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
+  return (
+    <thead
+      data-slot="table-header"
+      className={cn("[&_tr]:border-b", className)}
+      {...props}
+    />
+  )
 }
 
-interface TableBodyProps extends React.HTMLAttributes<HTMLTableSectionElement> {}
-
-export function TableBody({ className = '', ...props }: TableBodyProps) {
-  return <tbody className={`[&_tr:last-child]:border-0 ${className}`} {...props} />;
+function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
+  return (
+    <tbody
+      data-slot="table-body"
+      className={cn("[&_tr:last-child]:border-0", className)}
+      {...props}
+    />
+  )
 }
 
-interface TableRowProps extends React.HTMLAttributes<HTMLTableRowElement> {}
+function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
+  return (
+    <tfoot
+      data-slot="table-footer"
+      className={cn(
+        "bg-muted/50 border-t font-medium [&>tr]:last:border-b-0",
+        className
+      )}
+      {...props}
+    />
+  )
+}
 
-export function TableRow({ className = '', ...props }: TableRowProps) {
+function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
   return (
     <tr
-      className={`border-b transition-colors hover:bg-gray-50 data-[state=selected]:bg-gray-50 ${className}`}
+      data-slot="table-row"
+      className={cn(
+        "hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors",
+        className
+      )}
       {...props}
     />
-  );
+  )
 }
 
-interface TableHeadProps extends React.ThHTMLAttributes<HTMLTableCellElement> {}
-
-export function TableHead({ className = '', ...props }: TableHeadProps) {
+function TableHead({ className, ...props }: React.ComponentProps<"th">) {
   return (
     <th
-      className={`h-12 px-4 text-left align-middle font-medium text-gray-500 [&:has([role=checkbox])]:pr-0 ${className}`}
+      data-slot="table-head"
+      className={cn(
+        "text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        className
+      )}
       {...props}
     />
-  );
+  )
 }
 
-interface TableCellProps extends React.TdHTMLAttributes<HTMLTableCellElement> {}
-
-export function TableCell({ className = '', ...props }: TableCellProps) {
+function TableCell({ className, ...props }: React.ComponentProps<"td">) {
   return (
     <td
-      className={`p-4 align-middle text-gray-900 [&:has([role=checkbox])]:pr-0 ${className}`}
+      data-slot="table-cell"
+      className={cn(
+        "p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        className
+      )}
       {...props}
     />
-  );
+  )
+}
+
+function TableCaption({
+  className,
+  ...props
+}: React.ComponentProps<"caption">) {
+  return (
+    <caption
+      data-slot="table-caption"
+      className={cn("text-muted-foreground mt-4 text-sm", className)}
+      {...props}
+    />
+  )
+}
+
+export {
+  Table,
+  TableHeader,
+  TableBody,
+  TableFooter,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableCaption,
 }

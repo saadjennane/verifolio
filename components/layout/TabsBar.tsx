@@ -8,11 +8,11 @@ export function TabsBar() {
     useTabsStore();
 
   return (
-    <div className="flex items-center justify-between bg-gray-100 border-b border-gray-200">
+    <div className="flex items-center justify-between bg-muted border-b border-border">
       {/* Tabs */}
       <div className="flex-1 flex items-center overflow-x-auto scrollbar-hide">
         {tabs.length === 0 ? (
-          <div className="px-4 py-2 text-sm text-gray-500 italic">
+          <div className="px-4 py-2 text-sm text-muted-foreground italic">
             Aucun onglet ouvert
           </div>
         ) : (
@@ -26,9 +26,9 @@ export function TabsBar() {
         <button
           onClick={toggleHistoryPanel}
           className={`
-            flex items-center justify-center w-10 h-10 border-l border-gray-200
-            hover:bg-gray-200 transition-colors
-            ${historyPanelOpen ? 'bg-purple-50 text-purple-600' : 'text-gray-600'}
+            flex items-center justify-center w-10 h-10 border-l border-border
+            hover:bg-accent transition-colors
+            ${historyPanelOpen ? 'bg-purple-500/10 text-purple-500 dark:text-purple-400' : 'text-muted-foreground'}
           `}
           title={historyPanelOpen ? "Fermer l'historique" : "Ouvrir l'historique"}
         >
@@ -51,9 +51,9 @@ export function TabsBar() {
         <button
           onClick={toggleChatPanel}
           className={`
-            flex items-center justify-center w-10 h-10 border-l border-gray-200
-            hover:bg-gray-200 transition-colors
-            ${chatPanelOpen ? 'bg-blue-50 text-blue-600' : 'text-gray-600'}
+            flex items-center justify-center w-10 h-10 border-l border-border
+            hover:bg-accent transition-colors
+            ${chatPanelOpen ? 'bg-primary/10 text-primary' : 'text-muted-foreground'}
           `}
           title={chatPanelOpen ? 'Fermer le chat' : 'Ouvrir le chat'}
         >

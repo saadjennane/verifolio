@@ -1,146 +1,211 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useState, useEffect, useMemo } from 'react';
+import { ProfileSettings } from '@/components/settings/ProfileSettings';
 import { CompanySettings } from '@/components/settings/CompanySettings';
 import { ActivitiesSettings } from '@/components/settings/ActivitiesSettings';
 import { CustomFieldsSettings } from '@/components/settings/CustomFieldsSettings';
 import { TemplateSettings } from '@/components/settings/TemplateSettings';
 import { BriefTemplatesSettings } from '@/components/settings/BriefTemplatesSettings';
 import { ReviewTemplatesSettings } from '@/components/settings/ReviewTemplatesSettings';
+import { ProposalTemplatesSettings } from '@/components/settings/ProposalTemplatesSettings';
 import { VerifolioSettings } from '@/components/settings/VerifolioSettings';
 import { NavigationSettings } from '@/components/settings/NavigationSettings';
 import { TrashSettings } from '@/components/settings/TrashSettings';
 
-type SettingsTabType = 'company' | 'activities' | 'fields' | 'template' | 'brief-templates' | 'review-templates' | 'verifolio' | 'navigation' | 'trash';
+// Section types
+type SectionType = 'profile' | 'entreprise' | 'templates' | 'verifolio' | 'navigation' | 'trash';
+type EntrepriseTab = 'infos' | 'activities' | 'fields';
+type TemplatesTab = 'documents' | 'proposals' | 'briefs' | 'reviews';
 
-export function SettingsTab() {
-  const searchParams = useSearchParams();
-  const [activeTab, setActiveTab] = useState<SettingsTabType>('company');
+interface SettingsTabProps {
+  path?: string;
+}
 
-  // Handle URL param for tab selection
+export function SettingsTab({ path }: SettingsTabProps) {
+  // Parse query params from path
+  const params = useMemo(() => {
+    if (!path) return new URLSearchParams();
+    const queryIndex = path.indexOf('?');
+    if (queryIndex === -1) return new URLSearchParams();
+    return new URLSearchParams(path.slice(queryIndex + 1));
+  }, [path]);
+
+  const initialSection = (params.get('section') as SectionType) || 'profile';
+  const initialTab = params.get('tab') || '';
+
+  const [activeSection, setActiveSection] = useState<SectionType>(initialSection);
+  const [entrepriseTab, setEntrepriseTab] = useState<EntrepriseTab>(
+    (initialTab as EntrepriseTab) || 'infos'
+  );
+  const [templatesTab, setTemplatesTab] = useState<TemplatesTab>(
+    (initialTab as TemplatesTab) || 'documents'
+  );
+  const [isTemplateEditing, setIsTemplateEditing] = useState(false);
+
+  // Update state when path changes
   useEffect(() => {
-    const tab = searchParams.get('tab');
-    if (tab === 'brief-templates') {
-      setActiveTab('brief-templates');
+    const section = (params.get('section') as SectionType) || 'profile';
+    const tab = params.get('tab') || '';
+
+    setActiveSection(section);
+
+    if (section === 'entreprise' && tab) {
+      setEntrepriseTab(tab as EntrepriseTab);
     }
-  }, [searchParams]);
+    if (section === 'templates' && tab) {
+      setTemplatesTab(tab as TemplatesTab);
+    }
+  }, [params]);
+
+  // Get title based on section
+  const getSectionTitle = () => {
+    switch (activeSection) {
+      case 'profile':
+        return { title: 'Mon profil', subtitle: 'Gérez vos informations personnelles' };
+      case 'entreprise':
+        return { title: 'Entreprise', subtitle: 'Configurez les informations de votre entreprise' };
+      case 'templates':
+        return { title: 'Templates', subtitle: 'Gérez vos modèles de documents' };
+      case 'verifolio':
+        return { title: 'Mon Verifolio', subtitle: 'Configurez votre portfolio public' };
+      case 'navigation':
+        return { title: 'Navigation', subtitle: 'Personnalisez la navigation de l\'application' };
+      case 'trash':
+        return { title: 'Corbeille', subtitle: 'Gérez les éléments supprimés' };
+      default:
+        return { title: 'Paramètres', subtitle: 'Configurez votre compte' };
+    }
+  };
+
+  const { title, subtitle } = getSectionTitle();
+
+  // Check if we need full width (for template settings)
+  const needsFullWidth =
+    activeSection === 'templates' && templatesTab === 'documents';
+
+  // Hide header and tabs when editing a template
+  const showHeaderAndTabs = !(activeSection === 'templates' && templatesTab === 'documents' && isTemplateEditing);
 
   return (
     <div className="h-full overflow-auto p-6">
-      <div className={activeTab === 'template' ? 'max-w-full' : 'max-w-4xl mx-auto'}>
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Paramètres</h1>
-          <p className="text-gray-500 mt-1">Configurez votre entreprise et vos documents</p>
-        </div>
+      <div className={needsFullWidth ? 'max-w-full' : 'max-w-4xl mx-auto'}>
+        {/* Header - hidden when editing template */}
+        {showHeaderAndTabs && (
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-foreground">{title}</h1>
+            <p className="text-muted-foreground mt-1">{subtitle}</p>
+          </div>
+        )}
 
-        {/* Tabs */}
-        <div className="border-b border-gray-200 mb-6">
-          <nav className="flex gap-6">
-            <button
-              onClick={() => setActiveTab('company')}
-              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'company'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Entreprise
-            </button>
-            <button
-              onClick={() => setActiveTab('activities')}
-              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'activities'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Mes activités
-            </button>
-            <button
-              onClick={() => setActiveTab('fields')}
-              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'fields'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Champs personnalisés
-            </button>
-            <button
-              onClick={() => setActiveTab('template')}
-              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'template'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Modèle de document
-            </button>
-            <button
-              onClick={() => setActiveTab('brief-templates')}
-              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'brief-templates'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Templates de briefs
-            </button>
-            <button
-              onClick={() => setActiveTab('review-templates')}
-              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'review-templates'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Templates de reviews
-            </button>
-            <button
-              onClick={() => setActiveTab('verifolio')}
-              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'verifolio'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Mon Verifolio
-            </button>
-            <button
-              onClick={() => setActiveTab('navigation')}
-              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'navigation'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Navigation
-            </button>
-            <button
-              onClick={() => setActiveTab('trash')}
-              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'trash'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Corbeille
-            </button>
-          </nav>
-        </div>
+        {/* Sub-tabs for grouped sections */}
+        {activeSection === 'entreprise' && (
+          <div className="border-b border-border mb-6">
+            <nav className="flex gap-6">
+              <button
+                onClick={() => setEntrepriseTab('infos')}
+                className={`pb-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  entrepriseTab === 'infos'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Infos
+              </button>
+              <button
+                onClick={() => setEntrepriseTab('activities')}
+                className={`pb-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  entrepriseTab === 'activities'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Mes activités
+              </button>
+              <button
+                onClick={() => setEntrepriseTab('fields')}
+                className={`pb-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  entrepriseTab === 'fields'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Champs personnalisés
+              </button>
+            </nav>
+          </div>
+        )}
 
-        {/* Tab Content */}
-        {activeTab === 'company' && <CompanySettings />}
-        {activeTab === 'activities' && <ActivitiesSettings />}
-        {activeTab === 'fields' && <CustomFieldsSettings />}
-        {activeTab === 'template' && <TemplateSettings />}
-        {activeTab === 'brief-templates' && <BriefTemplatesSettings />}
-        {activeTab === 'review-templates' && <ReviewTemplatesSettings />}
-        {activeTab === 'verifolio' && <VerifolioSettings />}
-        {activeTab === 'navigation' && <NavigationSettings />}
-        {activeTab === 'trash' && <TrashSettings />}
+        {activeSection === 'templates' && showHeaderAndTabs && (
+          <div className="border-b border-border mb-6">
+            <nav className="flex gap-6">
+              <button
+                onClick={() => setTemplatesTab('documents')}
+                className={`pb-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  templatesTab === 'documents'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Factures / Devis
+              </button>
+              <button
+                onClick={() => setTemplatesTab('proposals')}
+                className={`pb-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  templatesTab === 'proposals'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Propositions
+              </button>
+              <button
+                onClick={() => setTemplatesTab('briefs')}
+                className={`pb-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  templatesTab === 'briefs'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Briefs
+              </button>
+              <button
+                onClick={() => setTemplatesTab('reviews')}
+                className={`pb-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  templatesTab === 'reviews'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Reviews
+              </button>
+            </nav>
+          </div>
+        )}
+
+        {/* Content */}
+        {activeSection === 'profile' && <ProfileSettings />}
+
+        {activeSection === 'entreprise' && (
+          <>
+            {entrepriseTab === 'infos' && <CompanySettings />}
+            {entrepriseTab === 'activities' && <ActivitiesSettings />}
+            {entrepriseTab === 'fields' && <CustomFieldsSettings />}
+          </>
+        )}
+
+        {activeSection === 'templates' && (
+          <>
+            {templatesTab === 'documents' && <TemplateSettings onEditModeChange={setIsTemplateEditing} />}
+            {templatesTab === 'proposals' && <ProposalTemplatesSettings />}
+            {templatesTab === 'briefs' && <BriefTemplatesSettings />}
+            {templatesTab === 'reviews' && <ReviewTemplatesSettings />}
+          </>
+        )}
+
+        {activeSection === 'verifolio' && <VerifolioSettings />}
+        {activeSection === 'navigation' && <NavigationSettings />}
+        {activeSection === 'trash' && <TrashSettings />}
       </div>
     </div>
   );

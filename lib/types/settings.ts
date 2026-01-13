@@ -59,8 +59,13 @@ export interface Company {
   updated_at: string;
 }
 
+// Preset layout IDs
+export type PresetLayoutId = 'classic' | 'modern' | 'minimal' | 'elegant' | 'professional' | 'creative';
+
 // Template configuration for rendering
 export interface TemplateConfig {
+  // Preset layout (default: classic)
+  presetId: PresetLayoutId;
   primaryColor: string;
   accentColor: string;
   fontFamily: 'system' | 'serif' | 'mono';
@@ -119,6 +124,7 @@ export interface TemplateConfig {
 
 // Default template config
 export const DEFAULT_TEMPLATE_CONFIG: TemplateConfig = {
+  presetId: 'classic',
   primaryColor: '#1e40af',
   accentColor: '#3b82f6',
   fontFamily: 'system',

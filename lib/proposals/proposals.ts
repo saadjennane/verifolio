@@ -182,6 +182,8 @@ export async function getProposal(
     return null;
   }
 
+  console.log('[getProposal] Returning proposal with preset_id:', proposal.preset_id);
+
   // Sort sections by position
   if (proposal.sections) {
     proposal.sections.sort(
@@ -441,4 +443,132 @@ export async function setProposalVariables(
   }
 
   return { success: true, data: [] };
+}
+
+// ============================================================================
+// Create Proposal from Structure Template
+// ============================================================================
+
+interface CreateFromStructureInput {
+  structure_template_id: string;
+  design_preset_id?: string;
+  title?: string;
+  deal_id?: string;
+  client_id?: string;
+}
+
+/**
+ * Create a new proposal from a structure template
+ * This copies the pages from the template with their placeholders
+ */
+export async function createProposalFromStructure(
+  supabase: Supabase,
+  userId: string,
+  input: CreateFromStructureInput
+): Promise<{ success: boolean; data?: Proposal; error?: string }> {
+  // Fetch the structure template with pages
+  const { data: template, error: templateError } = await supabase
+    .from('structure_templates')
+    .select(`
+      *,
+      pages:structure_template_pages(*)
+    `)
+    .eq('id', input.structure_template_id)
+    .single();
+
+  if (templateError || !template) {
+    return { success: false, error: 'Template de structure non trouvé' };
+  }
+
+  // Verify access (system template or owned by user)
+  if (!template.is_system && template.owner_user_id !== userId) {
+    return { success: false, error: 'Accès non autorisé au template' };
+  }
+
+  // Validate deal if provided
+  if (input.deal_id) {
+    const { data: deal } = await supabase
+      .from('deals')
+      .select('id')
+      .eq('id', input.deal_id)
+      .eq('user_id', userId)
+      .single();
+
+    if (!deal) {
+      return { success: false, error: 'Deal non trouvé' };
+    }
+  }
+
+  // Validate client if provided
+  if (input.client_id) {
+    const { data: client } = await supabase
+      .from('clients')
+      .select('id')
+      .eq('id', input.client_id)
+      .eq('user_id', userId)
+      .single();
+
+    if (!client) {
+      return { success: false, error: 'Client non trouvé' };
+    }
+  }
+
+  // Create the proposal
+  const { data: proposal, error: proposalError } = await supabase
+    .from('proposals')
+    .insert({
+      owner_user_id: userId,
+      deal_id: input.deal_id || null,
+      client_id: input.client_id || null,
+      template_id: null, // No design template, using preset_id instead
+      preset_id: input.design_preset_id || 'classic',
+      title: input.title || template.name,
+      theme_override: null,
+      visual_options_override: null,
+      public_token: generatePublicToken(),
+      status: 'DRAFT',
+    })
+    .select()
+    .single();
+
+  if (proposalError) {
+    console.error('[createProposalFromStructure] Error creating proposal:', proposalError);
+    return { success: false, error: 'Erreur lors de la création de la proposition' };
+  }
+
+  console.log('[createProposalFromStructure] Created proposal with preset_id:', proposal.preset_id);
+
+  // Copy pages from the structure template
+  const sortedPages = (template.pages || []).sort(
+    (a: { sort_order: number }, b: { sort_order: number }) => a.sort_order - b.sort_order
+  );
+
+  if (sortedPages.length > 0) {
+    const pagesToInsert = sortedPages.map((page: {
+      title: string;
+      sort_order: number;
+      is_cover: boolean;
+      content: unknown;
+    }, index: number) => ({
+      proposal_id: proposal.id,
+      title: page.title,
+      sort_order: index,
+      is_cover: page.is_cover,
+      is_visible: true,
+      content: page.content,
+    }));
+
+    const { error: pagesError } = await supabase
+      .from('proposal_pages')
+      .insert(pagesToInsert);
+
+    if (pagesError) {
+      console.error('[createProposalFromStructure] Error creating pages:', pagesError);
+      // Cleanup: delete the proposal
+      await supabase.from('proposals').delete().eq('id', proposal.id);
+      return { success: false, error: 'Erreur lors de la création des pages' };
+    }
+  }
+
+  return { success: true, data: proposal };
 }

@@ -59,6 +59,14 @@ export async function GET(request: Request, { params }: RouteParams) {
       return a.sort_order - b.sort_order;
     });
 
+    // Debug: log page content
+    if (sortedPages.length > 0) {
+      console.log('[GET pages] Total pages:', sortedPages.length);
+      sortedPages.forEach((page, i) => {
+        console.log(`[GET pages] Page ${i} "${page.title}": content type=${page.content?.type}, nodes=${page.content?.content?.length || 0}`);
+      });
+    }
+
     return NextResponse.json({ data: sortedPages });
   } catch (error) {
     console.error('GET /api/proposals/[id]/pages error:', error);

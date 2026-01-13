@@ -2,6 +2,7 @@ import type { RenderContext, RenderBlock } from '@/lib/render/buildRenderContext
 import type { TemplateConfig } from '@/lib/types/settings';
 import { DEFAULT_TEMPLATE_CONFIG } from '@/lib/types/settings';
 import { hexToRgba } from '@/lib/utils/color';
+import { getPreset, getDefaultPreset, type PresetColors } from '@/lib/templates/presets';
 
 // ============================================================================
 // Types
@@ -27,20 +28,40 @@ const CURRENCIES: Record<string, CurrencyConfig> = {
 // ============================================================================
 
 /**
- * Render a document (quote/invoice) to HTML following the canonical Verifolio template
+ * Render a document (quote/invoice) to HTML using the selected preset layout
  *
- * Structure:
- * - ZONE 1: En-tête (Logo + Nom entreprise + Coordonnées)
- * - ZONE 2: Infos document (Type + Numéro + Dates) - Bloc à droite
- * - ZONE 3: Bloc client
- * - ZONE 4: Tableau des lignes
- * - ZONE 5: Totaux
- * - ZONE 6: Montant total dû (mise en valeur)
- * - ZONE 7: Paiement / Banque
- * - ZONE 8: Cachet et signature
- * - ZONE 9: Footer (fixé en bas)
+ * Each preset has a completely different HTML structure.
+ * The config provides styling options (colors, font) applied to the chosen layout.
  */
 export function renderDocumentHtml(
+  context: RenderContext,
+  config: TemplateConfig = DEFAULT_TEMPLATE_CONFIG
+): string {
+  // Get the preset renderer based on config.presetId
+  const presetId = config.presetId || 'classic';
+  const preset = getPreset(presetId) || getDefaultPreset();
+
+  // Convert TemplateConfig to PresetColors
+  const colors: PresetColors = {
+    primaryColor: config.primaryColor || '#111111',
+    accentColor: config.accentColor || '#3b82f6',
+    fontFamily: config.fontFamily === 'system' ? 'sans' :
+                config.fontFamily === 'serif' ? 'serif' : 'mono',
+  };
+
+  // Use the preset's render function
+  return preset.render(context, colors);
+}
+
+// ============================================================================
+// Legacy Renderer (kept for backwards compatibility)
+// ============================================================================
+
+/**
+ * Legacy render function - renders using the classic layout
+ * @deprecated Use renderDocumentHtml with presetId instead
+ */
+export function renderDocumentHtmlLegacy(
   context: RenderContext,
   config: TemplateConfig = DEFAULT_TEMPLATE_CONFIG
 ): string {

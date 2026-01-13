@@ -527,7 +527,7 @@ export function ContextualChat() {
         )}
 
         {/* Boutons de confirmation rapide */}
-        {confirmationRequest.detected && !loading && (
+        {isHydrated && confirmationRequest.detected && !loading && (
           <div className="flex justify-start px-2 gap-2">
             {confirmationRequest.options.map((option) => (
               <button
@@ -535,10 +535,10 @@ export function ContextualChat() {
                 onClick={() => handleQuickReply(option)}
                 className={`px-4 py-2 text-sm font-medium rounded-lg border transition-colors ${
                   option === 'Oui'
-                    ? 'bg-green-50 hover:bg-green-100 text-green-700 border-green-200'
+                    ? 'bg-green-50 hover:bg-green-100 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800'
                     : option === 'Non'
-                    ? 'bg-red-50 hover:bg-red-100 text-red-700 border-red-200'
-                    : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200'
+                    ? 'bg-red-50 hover:bg-red-100 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800'
+                    : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700'
                 }`}
               >
                 {option}

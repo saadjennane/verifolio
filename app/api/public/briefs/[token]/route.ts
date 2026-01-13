@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { getBriefByToken } from '@/lib/briefs';
 import { logEventIfFirst } from '@/lib/tracking/events';
+import { createClient } from '@/lib/supabase/server';
 
 interface RouteParams {
   params: Promise<{ token: string }>;
@@ -45,10 +46,24 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     userAgent: userAgent || undefined,
   });
 
+  // Get user settings for logo
+  let companyLogo: string | null = null;
+  if (brief.show_logo) {
+    const supabase = await createClient();
+    const { data: settings } = await supabase
+      .from('user_settings')
+      .select('company_logo_url')
+      .eq('user_id', brief.user_id)
+      .single();
+
+    companyLogo = settings?.company_logo_url || null;
+  }
+
   // Remove sensitive fields
   const publicBrief = {
     id: brief.id,
     title: brief.title,
+    description: brief.description,
     status: brief.status,
     client: brief.client,
     deal: { title: brief.deal.title },
@@ -62,6 +77,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       response: q.response,
     })),
     responded_at: brief.responded_at,
+    // Theme options
+    theme_color: brief.theme_color || 'blue',
+    show_logo: brief.show_logo ?? true,
+    company_logo_url: companyLogo,
   };
 
   return NextResponse.json({ data: publicBrief });

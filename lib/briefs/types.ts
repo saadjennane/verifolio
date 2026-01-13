@@ -2,6 +2,8 @@
 // Brief Builder Types
 // ============================================================================
 
+import type { BriefThemeColor } from './themes';
+
 // Brief status enum
 export type BriefStatus = 'DRAFT' | 'SENT' | 'RESPONDED';
 
@@ -70,6 +72,9 @@ export interface BriefTemplate {
   name: string;
   description: string | null;
   is_default: boolean;
+  theme_color: BriefThemeColor;
+  show_logo: boolean;
+  show_brief_reminder: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -103,6 +108,10 @@ export interface Brief {
   description: string | null;
   status: BriefStatus;
   public_token: string | null;
+  theme_color: BriefThemeColor;
+  show_logo: boolean;
+  show_brief_reminder: boolean;
+  brief_reminder_text: string | null;
   created_at: string;
   sent_at: string | null;
   responded_at: string | null;
@@ -194,6 +203,8 @@ export interface UpdateTemplatePayload {
   name?: string;
   description?: string;
   is_default?: boolean;
+  theme_color?: BriefThemeColor;
+  show_logo?: boolean;
 }
 
 export interface CreateQuestionPayload {

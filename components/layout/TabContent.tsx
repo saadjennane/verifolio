@@ -247,7 +247,7 @@ export function TabContent() {
       return <InvoiceFormTab invoiceId={activeTab.entityId} />;
 
     case 'settings':
-      return <SettingsTab />;
+      return <SettingsTab path={activeTab.path} />;
 
     case 'missions':
       return <MissionsListTab />;

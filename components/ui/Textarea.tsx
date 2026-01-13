@@ -1,46 +1,55 @@
-'use client';
+"use client"
 
-import { forwardRef } from 'react';
+import * as React from "react"
+import { cn } from "@/lib/utils"
+import { Label } from "./label"
 
-interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+export interface TextareaProps extends React.ComponentProps<"textarea"> {
   label?: string;
   error?: string;
 }
 
-export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ className = '', label, error, id, ...props }, ref) => {
-    const textareaId = id || props.name;
+const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
+  ({ className, label, error, id, ...props }, ref) => {
+    const generatedId = React.useId();
+    const textareaId = id || generatedId;
+
+    const textareaElement = (
+      <textarea
+        id={textareaId}
+        ref={ref}
+        data-slot="textarea"
+        aria-invalid={!!error}
+        className={cn(
+          "border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 flex field-sizing-content min-h-16 w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+          error && "border-destructive",
+          className
+        )}
+        {...props}
+      />
+    );
+
+    if (!label && !error) {
+      return textareaElement;
+    }
 
     return (
-      <div className="w-full">
+      <div className="space-y-1.5">
         {label && (
-          <label
-            htmlFor={textareaId}
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
+          <Label htmlFor={textareaId} className="text-foreground">
             {label}
-          </label>
+            {props.required && <span className="text-destructive ml-0.5">*</span>}
+          </Label>
         )}
-        <textarea
-          ref={ref}
-          id={textareaId}
-          className={`
-            block w-full rounded-lg border px-3 py-2 text-sm
-            placeholder:text-gray-400
-            focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-            disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed
-            resize-none
-            ${error ? 'border-red-500' : 'border-gray-300'}
-            ${className}
-          `}
-          {...props}
-        />
+        {textareaElement}
         {error && (
-          <p className="mt-1 text-sm text-red-600">{error}</p>
+          <p className="text-sm text-destructive">{error}</p>
         )}
       </div>
     );
   }
 );
 
-Textarea.displayName = 'Textarea';
+Textarea.displayName = "Textarea";
+
+export { Textarea }
