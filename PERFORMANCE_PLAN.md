@@ -91,15 +91,11 @@
 ---
 
 ## Phase 5: Optimisations Avancées (Nice to have)
-**Durée estimée: 2-3 jours** ✅ PARTIELLEMENT COMPLÉTÉ
+**Durée estimée: 2-3 jours**
 
 ### 5.1 Virtualisation pour grandes listes
-- [x] Installé `react-window` + `@types/react-window`
-- [x] `components/ui/VirtualizedList.tsx` - Composant réutilisable créé:
-  - VirtualizedList: pour listes avec hauteur fixe
-  - AutoHeightVirtualizedList: pour hauteurs variables estimées
-  - Seuil configurable (défaut: 20 items)
-  - Auto-mesure du container parent
+- [ ] `react-window` v2 incompatible avec React 19 (attendre version stable)
+- [ ] Alternative: `@tanstack/react-virtual` à évaluer
 
 ### 5.2 Service worker pour cache offline
 - [ ] Configurer next-pwa (nécessite configuration PWA complète)

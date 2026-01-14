@@ -38,7 +38,6 @@
     "@tiptap/pm": "^3.14.0",
     "@tiptap/react": "^3.14.0",
     "@tiptap/starter-kit": "^3.14.0",
-    "@types/react-window": "^1.8.8",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.562.0",
@@ -48,7 +47,6 @@
     "puppeteer": "^24.34.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "react-window": "^2.2.5",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
     "zustand": "^5.0.9"
