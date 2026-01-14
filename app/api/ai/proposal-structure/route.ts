@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getUserId } from '@/lib/supabase/auth-helper';
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 
 // Liste des pages disponibles dans le catalogue
 const AVAILABLE_PAGES = [
@@ -114,36 +114,40 @@ export async function POST(request: Request) {
     }
 
     // Check for API key
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      console.error('ANTHROPIC_API_KEY not configured');
+      console.error('OPENAI_API_KEY not configured');
       return NextResponse.json(
         { error: 'Service IA non configuré' },
         { status: 503 }
       );
     }
 
-    // Initialize Anthropic client
-    const anthropic = new Anthropic({
+    // Initialize OpenAI client
+    const openai = new OpenAI({
       apiKey,
     });
 
-    // Call Claude API
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+    // Call OpenAI API
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
       max_tokens: 1024,
       messages: [
+        {
+          role: 'system',
+          content: SYSTEM_PROMPT,
+        },
         {
           role: 'user',
           content: prompt.trim(),
         },
       ],
-      system: SYSTEM_PROMPT,
+      response_format: { type: 'json_object' },
     });
 
     // Extract text content
-    const textContent = message.content.find(c => c.type === 'text');
-    if (!textContent || textContent.type !== 'text') {
+    const responseText = completion.choices[0]?.message?.content;
+    if (!responseText) {
       return NextResponse.json(
         { error: 'Réponse IA invalide' },
         { status: 500 }
@@ -154,7 +158,7 @@ export async function POST(request: Request) {
     let structure: StructureResponse;
     try {
       // Clean up the response (remove markdown code blocks if present)
-      let jsonText = textContent.text.trim();
+      let jsonText = responseText.trim();
       if (jsonText.startsWith('```json')) {
         jsonText = jsonText.slice(7);
       }
@@ -168,7 +172,7 @@ export async function POST(request: Request) {
 
       structure = JSON.parse(jsonText);
     } catch (parseError) {
-      console.error('Failed to parse AI response:', textContent.text);
+      console.error('Failed to parse AI response:', responseText);
       return NextResponse.json(
         { error: 'Impossible de parser la réponse IA' },
         { status: 500 }

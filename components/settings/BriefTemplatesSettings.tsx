@@ -50,7 +50,35 @@ export function BriefTemplatesSettings() {
     showBriefReminder: boolean;
   }) => {
     setIsCreating(true);
+    setError('');
+
     try {
+      // Step 1: If AI is selected, generate the structure first
+      let aiGeneratedBlocks: Array<{
+        type: string;
+        label: string;
+        position: number;
+        is_required: boolean;
+        config: Record<string, unknown>;
+      }> | null = null;
+
+      if (wizardData.useAI && wizardData.aiPrompt) {
+        const aiRes = await fetch('/api/ai/brief-structure', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: wizardData.aiPrompt }),
+        });
+
+        const aiData = await aiRes.json();
+        if (aiRes.ok && aiData.data?.blocks) {
+          aiGeneratedBlocks = aiData.data.blocks;
+        } else {
+          // AI failed but continue with empty template
+          console.warn('AI generation failed:', aiData.error);
+        }
+      }
+
+      // Step 2: Create the template
       const res = await fetch('/api/briefs/templates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -65,18 +93,40 @@ export function BriefTemplatesSettings() {
 
       const data = await res.json();
       if (res.ok && data.data?.id) {
-        setShowWizard(false);
+        const templateId = data.data.id;
 
-        // If AI was selected, we could call an AI endpoint here
-        // For now, just open the editor
-        // TODO: Implement AI generation
+        // Step 3: If we have AI-generated blocks, save them
+        if (aiGeneratedBlocks && aiGeneratedBlocks.length > 0) {
+          const questionsRes = await fetch(`/api/briefs/templates/${templateId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              questions: aiGeneratedBlocks.map((block, index) => ({
+                id: `temp-${Date.now()}-${index}`,
+                template_id: templateId,
+                type: block.type,
+                label: block.label,
+                position: index,
+                is_required: block.is_required || false,
+                config: block.config || {},
+                created_at: new Date().toISOString(),
+              })),
+            }),
+          });
+
+          if (!questionsRes.ok) {
+            console.warn('Failed to save AI-generated questions');
+          }
+        }
+
+        setShowWizard(false);
 
         // Open the template editor tab
         openTab({
           type: 'edit-brief-template',
-          path: `/briefs/templates/${data.data.id}`,
+          path: `/briefs/templates/${templateId}`,
           title: wizardData.name,
-          entityId: data.data.id,
+          entityId: templateId,
         }, true);
       } else {
         setError(data.error || `Erreur de creation (status: ${res.status})`);

@@ -15,10 +15,9 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
+import { SettingsCompletionWidget } from '@/components/settings/SettingsCompletionWidget';
 
 interface NavItem {
   type: TabType;
@@ -226,6 +225,11 @@ export function Sidebar() {
         </div>
       )}
 
+      {/* Settings Completion Widget */}
+      <div className={`${sidebarCollapsed ? 'px-2' : 'px-4'} py-2`}>
+        <SettingsCompletionWidget collapsed={sidebarCollapsed} />
+      </div>
+
       {/* User section */}
       <div className={`border-t border-border space-y-1 ${sidebarCollapsed ? 'p-2' : 'p-4'}`}>
         {/* Settings Dropdown Menu */}
@@ -285,6 +289,16 @@ export function Sidebar() {
                 </DropdownMenuItem>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
+
+            {/* Emails */}
+            <DropdownMenuItem
+              onClick={() => openTab({ type: 'settings', path: '/settings?section=email', title: 'Emails' }, true)}
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              Emails
+            </DropdownMenuItem>
 
             {/* Templates - Submenu */}
             <DropdownMenuSub>
@@ -350,29 +364,70 @@ export function Sidebar() {
 
             <DropdownMenuSeparator />
 
-            {/* Theme selector */}
+            {/* Theme selector - Toggle style */}
             <DropdownMenuLabel className="text-xs text-muted-foreground">Thème</DropdownMenuLabel>
             {mounted && (
-              <DropdownMenuRadioGroup value={theme || 'system'} onValueChange={setTheme}>
-                <DropdownMenuRadioItem value="light">
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                  </svg>
-                  Clair
-                </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="dark">
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                  </svg>
-                  Sombre
-                </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="system">
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  Système
-                </DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
+              <div className="px-2 py-1.5">
+                <div
+                  className="relative flex items-center h-9 rounded-full p-1 bg-muted"
+                  style={{ width: '100%' }}
+                >
+                  {/* Sliding indicator */}
+                  <span
+                    className={`
+                      absolute h-7 bg-background rounded-full shadow-sm transition-all duration-200
+                      ${theme === 'light' ? 'left-1 w-[calc(33.33%-4px)]' : ''}
+                      ${theme === 'dark' ? 'left-[calc(33.33%+2px)] w-[calc(33.33%-4px)]' : ''}
+                      ${(!theme || theme === 'system') ? 'left-[calc(66.66%+2px)] w-[calc(33.33%-4px)]' : ''}
+                    `}
+                  />
+
+                  {/* Light */}
+                  <button
+                    type="button"
+                    onClick={() => setTheme('light')}
+                    className={`
+                      relative z-10 flex items-center justify-center gap-1.5 flex-1 h-7 rounded-full transition-colors duration-200 text-xs
+                      ${theme === 'light' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}
+                    `}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                    <span className="hidden sm:inline">Clair</span>
+                  </button>
+
+                  {/* Dark */}
+                  <button
+                    type="button"
+                    onClick={() => setTheme('dark')}
+                    className={`
+                      relative z-10 flex items-center justify-center gap-1.5 flex-1 h-7 rounded-full transition-colors duration-200 text-xs
+                      ${theme === 'dark' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}
+                    `}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                    <span className="hidden sm:inline">Sombre</span>
+                  </button>
+
+                  {/* System */}
+                  <button
+                    type="button"
+                    onClick={() => setTheme('system')}
+                    className={`
+                      relative z-10 flex items-center justify-center gap-1.5 flex-1 h-7 rounded-full transition-colors duration-200 text-xs
+                      ${(!theme || theme === 'system') ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}
+                    `}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    <span className="hidden sm:inline">Auto</span>
+                  </button>
+                </div>
+              </div>
             )}
 
             <DropdownMenuSeparator />

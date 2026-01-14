@@ -2,6 +2,10 @@ interface SendEmailOptions {
   to: string;
   subject: string;
   html: string;
+  /** Freelancer name for the "from" display name */
+  fromName?: string;
+  /** Freelancer email for reply-to */
+  replyTo?: string;
   attachments?: {
     filename: string;
     content: Buffer;
@@ -15,12 +19,27 @@ interface SendEmailResult {
   error?: string;
 }
 
+/**
+ * Send email via Resend
+ *
+ * FROM: documents@verifolio.pro (or configured EMAIL_FROM)
+ * Display name: "{freelancer_name} via Verifolio" (if fromName provided)
+ * Reply-To: freelancer's email (if replyTo provided)
+ */
 export async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
   const apiKey = process.env.RESEND_API_KEY;
+
+  // Build the "from" address
+  const baseEmail = process.env.EMAIL_FROM || 'documents@verifolio.pro';
+  const fromAddress = options.fromName
+    ? `${options.fromName} via Verifolio <${baseEmail}>`
+    : `Verifolio <${baseEmail}>`;
 
   // Mode mock si pas de clé API
   if (!apiKey) {
     console.log('=== EMAIL MOCK ===');
+    console.log('From:', fromAddress);
+    console.log('Reply-To:', options.replyTo || '(none)');
     console.log('To:', options.to);
     console.log('Subject:', options.subject);
     console.log('HTML length:', options.html.length);
@@ -39,11 +58,16 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
   try {
     // Préparer le body JSON pour Resend
     const emailBody: Record<string, unknown> = {
-      from: process.env.EMAIL_FROM || 'Verifolio <onboarding@resend.dev>',
+      from: fromAddress,
       to: options.to.split(',').map(e => e.trim()),
       subject: options.subject,
       html: options.html,
     };
+
+    // Add reply-to if provided (replies go to freelancer)
+    if (options.replyTo) {
+      emailBody.reply_to = options.replyTo;
+    }
 
     // Ajouter les pièces jointes si présentes (en base64)
     if (options.attachments && options.attachments.length > 0) {
@@ -85,7 +109,6 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
 
 export function generateEmailHTML(type: 'quote' | 'invoice', numero: string, companyName: string): string {
   const isInvoice = type === 'invoice';
-  const documentType = isInvoice ? 'facture' : 'devis';
 
   return `
 <!DOCTYPE html>
@@ -94,37 +117,41 @@ export function generateEmailHTML(type: 'quote' | 'invoice', numero: string, com
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
-    <h1 style="color: #1a1a1a; font-size: 20px; margin-bottom: 16px;">
-      ${isInvoice ? 'Nouvelle facture' : 'Nouveau devis'}
-    </h1>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #1f2937; background-color: #f3f4f6; margin: 0; padding: 0;">
+  <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+    <div style="background: #ffffff; border-radius: 12px; padding: 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
 
-    <p style="margin-bottom: 16px;">
-      Bonjour,
-    </p>
+      <p style="margin: 0 0 20px 0; font-size: 16px;">
+        Bonjour,
+      </p>
 
-    <p style="margin-bottom: 16px;">
-      Veuillez trouver ci-joint ${isInvoice ? 'votre facture' : 'notre devis'} <strong>${numero}</strong>
-      de la part de <strong>${companyName}</strong>.
-    </p>
+      <p style="margin: 0 0 20px 0; font-size: 15px; color: #4b5563;">
+        Veuillez trouver ci-joint ${isInvoice ? 'votre facture' : 'notre devis'} <strong>${numero}</strong>.
+      </p>
 
-    <p style="margin-bottom: 16px;">
-      ${isInvoice
-        ? 'Merci de procéder au règlement dans les délais indiqués sur la facture.'
-        : 'N\'hésitez pas à nous contacter pour toute question concernant ce devis.'
-      }
-    </p>
+      <p style="margin: 0 0 20px 0; font-size: 15px; color: #4b5563;">
+        ${isInvoice
+          ? 'Merci de procéder au règlement dans les délais indiqués sur la facture.'
+          : 'N\'hésitez pas à nous contacter pour toute question concernant ce devis.'
+        }
+      </p>
 
-    <p style="color: #666; font-size: 14px; margin-top: 24px;">
-      Cordialement,<br>
-      ${companyName}
-    </p>
+      <p style="margin: 32px 0 0 0; font-size: 13px; color: #6b7280; font-style: italic;">
+        Vous pouvez répondre directement à cet email.
+      </p>
+
+      <!-- Signature -->
+      <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e5e7eb;">
+        <p style="margin: 0; font-size: 15px; color: #374151;">
+          ${companyName}
+        </p>
+        <p style="margin: 8px 0 0 0; font-size: 13px; color: #9ca3af;">
+          Envoyé via Verifolio<br>
+          <a href="https://verifolio.pro" style="color: #9ca3af; text-decoration: none;">https://verifolio.pro</a>
+        </p>
+      </div>
+    </div>
   </div>
-
-  <p style="color: #999; font-size: 12px; margin-top: 24px; text-align: center;">
-    Ce message a été envoyé automatiquement via Verifolio.
-  </p>
 </body>
 </html>
   `.trim();

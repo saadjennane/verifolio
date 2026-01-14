@@ -70,7 +70,10 @@ export async function POST(request: Request) {
       .eq('user_id', user.id)
       .single();
 
-    const companyName = company?.nom || 'Mon entreprise';
+    const companyName = company?.display_name || 'Mon entreprise';
+    // Email sender settings
+    const senderName = company?.email_sender_name || company?.display_name || 'Verifolio';
+    const replyToEmail = company?.email_reply_to || company?.email || user.email;
 
     if (docType === 'quote') {
       const { data: quote, error } = await supabase
@@ -174,11 +177,13 @@ export async function POST(request: Request) {
       },
     ] : [];
 
-    // Envoyer à tous les destinataires (joindre par virgule pour Resend)
+    // Envoyer à tous les destinataires
     const result = await sendEmail({
       to: recipientEmails.join(', '),
       subject,
       html: emailHtml,
+      fromName: senderName,
+      replyTo: replyToEmail,
       attachments,
     });
 

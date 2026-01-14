@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { ProfileSettings } from '@/components/settings/ProfileSettings';
 import { CompanySettings } from '@/components/settings/CompanySettings';
+import { EmailSettings } from '@/components/settings/EmailSettings';
 import { ActivitiesSettings } from '@/components/settings/ActivitiesSettings';
 import { CustomFieldsSettings } from '@/components/settings/CustomFieldsSettings';
 import { TemplateSettings } from '@/components/settings/TemplateSettings';
@@ -14,7 +15,7 @@ import { NavigationSettings } from '@/components/settings/NavigationSettings';
 import { TrashSettings } from '@/components/settings/TrashSettings';
 
 // Section types
-type SectionType = 'profile' | 'entreprise' | 'templates' | 'verifolio' | 'navigation' | 'trash';
+type SectionType = 'profile' | 'entreprise' | 'email' | 'templates' | 'verifolio' | 'navigation' | 'trash';
 type EntrepriseTab = 'infos' | 'activities' | 'fields';
 type TemplatesTab = 'documents' | 'proposals' | 'briefs' | 'reviews';
 
@@ -65,6 +66,8 @@ export function SettingsTab({ path }: SettingsTabProps) {
         return { title: 'Mon profil', subtitle: 'Gérez vos informations personnelles' };
       case 'entreprise':
         return { title: 'Entreprise', subtitle: 'Configurez les informations de votre entreprise' };
+      case 'email':
+        return { title: 'Emails', subtitle: 'Configurez l\'envoi des emails' };
       case 'templates':
         return { title: 'Templates', subtitle: 'Gérez vos modèles de documents' };
       case 'verifolio':
@@ -185,6 +188,7 @@ export function SettingsTab({ path }: SettingsTabProps) {
 
         {/* Content */}
         {activeSection === 'profile' && <ProfileSettings />}
+        {activeSection === 'email' && <EmailSettings />}
 
         {activeSection === 'entreprise' && (
           <>

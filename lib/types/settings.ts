@@ -40,6 +40,9 @@ export interface Company {
   date_format: DateFormat;
   invoice_number_pattern: string;
   quote_number_pattern: string;
+  // Email settings
+  email_sender_name: string | null; // Display name in "From" field
+  email_reply_to: string | null; // Reply-to email address
   // Template styling
   template_primary_color: string;
   template_accent_color: string;

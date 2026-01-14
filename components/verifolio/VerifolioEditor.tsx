@@ -5,6 +5,9 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import type { VerifolioProfile, VerifolioActivity, VerifolioPublicReview } from '@/lib/verifolio/types';
+import type { VerifolioThemeColor } from '@/lib/verifolio/themes';
+import { getVerifolioTheme } from '@/lib/verifolio/themes';
+import { VerifolioThemeSelector } from './VerifolioThemeSelector';
 
 // ============================================================================
 // Types
@@ -29,6 +32,7 @@ export function VerifolioEditor() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showDesign, setShowDesign] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createName, setCreateName] = useState('');
 
@@ -103,6 +107,43 @@ export function VerifolioEditor() {
       setSaving(false);
     }
   }
+
+  // Handle theme change
+  async function handleThemeChange(color: VerifolioThemeColor) {
+    if (!state.profile) return;
+
+    // Optimistic update
+    setState(prev => ({
+      ...prev,
+      profile: prev.profile ? { ...prev.profile, theme_color: color } : null,
+    }));
+
+    await fetch('/api/verifolio', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ theme_color: color }),
+    });
+  }
+
+  // Handle show logo change
+  async function handleShowLogoChange(show: boolean) {
+    if (!state.profile) return;
+
+    // Optimistic update
+    setState(prev => ({
+      ...prev,
+      profile: prev.profile ? { ...prev.profile, show_company_logo: show } : null,
+    }));
+
+    await fetch('/api/verifolio', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ show_company_logo: show }),
+    });
+  }
+
+  // Get current theme
+  const currentTheme = state.profile ? getVerifolioTheme(state.profile.theme_color) : null;
 
   // Loading state
   if (loading) {
@@ -179,6 +220,15 @@ export function VerifolioEditor() {
               </a>
             )}
             <button
+              onClick={() => setShowDesign(true)}
+              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Design"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+              </svg>
+            </button>
+            <button
               onClick={() => setShowSettings(true)}
               className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
               title="Paramètres"
@@ -243,6 +293,17 @@ export function VerifolioEditor() {
           onUpdate={loadData}
         />
       )}
+
+      {/* Design Panel */}
+      {showDesign && currentTheme && (
+        <DesignPanel
+          themeColor={state.profile.theme_color}
+          showLogo={state.profile.show_company_logo}
+          onThemeChange={handleThemeChange}
+          onShowLogoChange={handleShowLogoChange}
+          onClose={() => setShowDesign(false)}
+        />
+      )}
     </div>
   );
 }
@@ -297,7 +358,7 @@ function EditableHeader({ profile, onUpdate }: EditableHeaderProps) {
 
   const handleBlur = () => {
     setEditingField(null);
-    onUpdate();
+    // Don't call onUpdate - local state is already updated and autosave handles persistence
   };
 
   const hasAnyCTA = values.cta1_label || values.cta2_label;
@@ -618,6 +679,9 @@ function EditableActivities({ activities, onUpdate }: EditableActivitiesProps) {
   const [newDescription, setNewDescription] = useState('');
   const [newImageUrl, setNewImageUrl] = useState('');
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const addFileInputRef = useRef<HTMLInputElement>(null);
 
   const visibleActivities = activities.filter(a => a.is_visible);
 
@@ -643,6 +707,45 @@ function EditableActivities({ activities, onUpdate }: EditableActivitiesProps) {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function handleNewFileUpload(file: File) {
+    if (!file.type.startsWith('image/')) {
+      alert('Veuillez sélectionner une image');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('type', 'activity');
+
+      const res = await fetch('/api/verifolio/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setNewImageUrl(data.url);
+      } else {
+        const error = await res.json();
+        alert(error.error || 'Erreur lors de l\'upload');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('Erreur lors de l\'upload');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function handleNewDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleNewFileUpload(file);
   }
 
   async function handleToggleVisibility(id: string, isVisible: boolean) {
@@ -725,13 +828,67 @@ function EditableActivities({ activities, onUpdate }: EditableActivitiesProps) {
               rows={2}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-2 text-sm resize-none"
             />
-            <input
-              type="text"
-              value={newImageUrl}
-              onChange={(e) => setNewImageUrl(e.target.value)}
-              placeholder="URL de l'image (optionnel)"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-3 text-sm"
-            />
+
+            {/* Image Upload Zone */}
+            <div
+              onDrop={handleNewDrop}
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={(e) => { e.preventDefault(); setDragOver(false); }}
+              onClick={() => addFileInputRef.current?.click()}
+              className={`relative border-2 border-dashed rounded-lg mb-3 cursor-pointer transition-colors bg-white ${
+                dragOver
+                  ? 'border-blue-500 bg-blue-50'
+                  : newImageUrl
+                  ? 'border-gray-200'
+                  : 'border-gray-300 hover:border-blue-400'
+              }`}
+            >
+              <input
+                ref={addFileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleNewFileUpload(file);
+                }}
+                className="hidden"
+              />
+
+              {uploading ? (
+                <div className="flex items-center justify-center py-6">
+                  <svg className="animate-spin h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  <span className="ml-2 text-sm text-gray-600">Upload...</span>
+                </div>
+              ) : newImageUrl ? (
+                <div className="relative">
+                  <div className="relative h-24 rounded-lg overflow-hidden">
+                    <Image src={newImageUrl} alt="Preview" fill className="object-cover" />
+                  </div>
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 hover:opacity-100 transition-opacity rounded-lg">
+                    <span className="text-white text-sm font-medium">Changer</span>
+                  </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setNewImageUrl(''); }}
+                    className="absolute top-1 right-1 p-1 bg-red-600 text-white rounded-full hover:bg-red-700"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ) : (
+                <div className="py-6 text-center">
+                  <svg className="w-6 h-6 mx-auto text-gray-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <p className="text-xs text-gray-500">Glissez une image ou cliquez</p>
+                </div>
+              )}
+            </div>
+
             <div className="flex gap-2">
               <button
                 onClick={handleAdd}
@@ -741,7 +898,7 @@ function EditableActivities({ activities, onUpdate }: EditableActivitiesProps) {
                 {saving ? 'Ajout...' : 'Ajouter'}
               </button>
               <button
-                onClick={() => setShowAddForm(false)}
+                onClick={() => { setShowAddForm(false); setNewImageUrl(''); }}
                 className="px-3 py-2 bg-white text-gray-700 text-sm rounded-lg hover:bg-gray-50 border border-gray-300"
               >
                 Annuler
@@ -770,6 +927,9 @@ function EditableActivityCard({ activity, onToggleVisibility, onDelete, onUpdate
   const [title, setTitle] = useState(activity.title);
   const [description, setDescription] = useState(activity.description || '');
   const [imageUrl, setImageUrl] = useState(activity.image_url || '');
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function handleSave() {
     await fetch(`/api/verifolio/activities/${activity.id}`, {
@@ -785,6 +945,55 @@ function EditableActivityCard({ activity, onToggleVisibility, onDelete, onUpdate
     onUpdate();
   }
 
+  async function handleFileUpload(file: File) {
+    if (!file.type.startsWith('image/')) {
+      alert('Veuillez sélectionner une image');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('type', 'activity');
+
+      const res = await fetch('/api/verifolio/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setImageUrl(data.url);
+      } else {
+        const error = await res.json();
+        alert(error.error || 'Erreur lors de l\'upload');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('Erreur lors de l\'upload');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleFileUpload(file);
+  }
+
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    setDragOver(true);
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    e.preventDefault();
+    setDragOver(false);
+  }
+
   if (editing) {
     return (
       <div className="border-2 border-blue-500 rounded-xl p-4 bg-white">
@@ -792,6 +1001,7 @@ function EditableActivityCard({ activity, onToggleVisibility, onDelete, onUpdate
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
+          placeholder="Titre de l'activité"
           className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-2 text-sm font-medium"
         />
         <textarea
@@ -801,13 +1011,72 @@ function EditableActivityCard({ activity, onToggleVisibility, onDelete, onUpdate
           rows={2}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-2 text-sm resize-none"
         />
-        <input
-          type="text"
-          value={imageUrl}
-          onChange={(e) => setImageUrl(e.target.value)}
-          placeholder="URL de l'image"
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-3 text-sm"
-        />
+
+        {/* Image Upload Zone */}
+        <div
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onClick={() => fileInputRef.current?.click()}
+          className={`relative border-2 border-dashed rounded-lg mb-3 cursor-pointer transition-colors ${
+            dragOver
+              ? 'border-blue-500 bg-blue-50'
+              : imageUrl
+              ? 'border-gray-200 bg-gray-50'
+              : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50'
+          }`}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleFileUpload(file);
+            }}
+            className="hidden"
+          />
+
+          {uploading ? (
+            <div className="flex items-center justify-center py-8">
+              <svg className="animate-spin h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              <span className="ml-2 text-sm text-gray-600">Upload en cours...</span>
+            </div>
+          ) : imageUrl ? (
+            <div className="relative">
+              <div className="relative h-32 rounded-lg overflow-hidden">
+                <Image src={imageUrl} alt="Preview" fill className="object-cover" />
+              </div>
+              <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 hover:opacity-100 transition-opacity rounded-lg">
+                <span className="text-white text-sm font-medium">Changer l'image</span>
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setImageUrl('');
+                }}
+                className="absolute top-2 right-2 p-1 bg-red-600 text-white rounded-full hover:bg-red-700"
+                title="Supprimer l'image"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          ) : (
+            <div className="py-8 text-center">
+              <svg className="w-8 h-8 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <p className="text-sm text-gray-500">Glissez une image ou cliquez</p>
+              <p className="text-xs text-gray-400 mt-1">PNG, JPG, WebP jusqu'à 5 Mo</p>
+            </div>
+          )}
+        </div>
+
         <div className="flex gap-2">
           <button onClick={handleSave} className="flex-1 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
             Enregistrer
@@ -1051,6 +1320,58 @@ function SettingsDrawer({ profile, onClose, onUpdate }: SettingsDrawerProps) {
               {saving ? 'Enregistrement...' : 'Enregistrer'}
             </Button>
           </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ============================================================================
+// Design Panel
+// ============================================================================
+
+interface DesignPanelProps {
+  themeColor: VerifolioThemeColor;
+  showLogo: boolean;
+  onThemeChange: (color: VerifolioThemeColor) => void;
+  onShowLogoChange: (show: boolean) => void;
+  onClose: () => void;
+}
+
+function DesignPanel({ themeColor, showLogo, onThemeChange, onShowLogoChange, onClose }: DesignPanelProps) {
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-black/30 z-40"
+        onClick={onClose}
+      />
+
+      {/* Panel */}
+      <div className="fixed right-0 top-0 bottom-0 w-80 bg-white shadow-xl z-50 overflow-y-auto">
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-semibold text-gray-900">Design</h2>
+            <button
+              onClick={onClose}
+              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <VerifolioThemeSelector
+            selectedColor={themeColor}
+            showLogo={showLogo}
+            onColorChange={onThemeChange}
+            onShowLogoChange={onShowLogoChange}
+          />
+
+          <p className="mt-6 text-xs text-gray-400 text-center">
+            Les modifications sont sauvegardées automatiquement
+          </p>
         </div>
       </div>
     </>

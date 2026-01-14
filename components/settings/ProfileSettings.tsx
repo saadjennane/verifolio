@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Button, Input } from '@/components/ui';
+import { Button, Input, PhoneInput } from '@/components/ui';
+import { useSettingsCompletionStore } from '@/lib/stores/settings-completion-store';
 
 interface UserProfile {
   id?: string;
@@ -21,6 +22,7 @@ export function ProfileSettings() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const invalidateCache = useSettingsCompletionStore((state) => state.invalidateCache);
 
   useEffect(() => {
     fetchProfile();
@@ -65,6 +67,8 @@ export function ProfileSettings() {
         const data = await response.json();
         setProfile(data);
         setMessage({ type: 'success', text: 'Profil mis à jour avec succès' });
+        // Refresh completion widget
+        invalidateCache();
       } else {
         throw new Error('Erreur lors de la sauvegarde');
       }
@@ -220,12 +224,11 @@ export function ProfileSettings() {
         />
 
         <div className="grid grid-cols-2 gap-4">
-          <Input
+          <PhoneInput
             label="Téléphone"
-            type="tel"
             value={profile?.telephone || ''}
-            onChange={(e) => setProfile(prev => prev ? { ...prev, telephone: e.target.value } : null)}
-            placeholder="+33 6 12 34 56 78"
+            onChange={(value) => setProfile(prev => prev ? { ...prev, telephone: value } : null)}
+            defaultCountry="FR"
           />
           <Input
             label="Date d'anniversaire"

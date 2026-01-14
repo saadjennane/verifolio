@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { ProfileSettings } from '@/components/settings/ProfileSettings';
 import { CompanySettings } from '@/components/settings/CompanySettings';
+import { EmailSettings } from '@/components/settings/EmailSettings';
 import { CustomFieldsSettings } from '@/components/settings/CustomFieldsSettings';
 import { TemplateSettings } from '@/components/settings/TemplateSettings';
 import { NavigationSettings } from '@/components/settings/NavigationSettings';
@@ -10,10 +12,24 @@ import { TrashSettings } from '@/components/settings/TrashSettings';
 import { ReviewTemplatesSettings } from '@/components/settings/ReviewTemplatesSettings';
 import { VerifolioSettings } from '@/components/settings/VerifolioSettings';
 
-type SettingsTab = 'profile' | 'company' | 'fields' | 'template' | 'reviews' | 'verifolio' | 'navigation' | 'trash';
+type SettingsTab = 'profile' | 'company' | 'email' | 'fields' | 'template' | 'reviews' | 'verifolio' | 'navigation' | 'trash';
+
+const validTabs: SettingsTab[] = ['profile', 'company', 'email', 'fields', 'template', 'reviews', 'verifolio', 'navigation', 'trash'];
 
 export default function SettingsPage() {
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
+
+  // Lire le paramètre section de l'URL
+  useEffect(() => {
+    const section = searchParams.get('section');
+    console.log('[SettingsPage] section param:', section, 'activeTab:', activeTab);
+    if (section && validTabs.includes(section as SettingsTab)) {
+      setActiveTab(section as SettingsTab);
+    }
+  }, [searchParams]);
+
+  console.log('[SettingsPage] Rendering with activeTab:', activeTab);
 
   return (
     <div className="h-full overflow-auto p-6">
@@ -46,6 +62,16 @@ export default function SettingsPage() {
               }`}
             >
               Entreprise
+            </button>
+            <button
+              onClick={() => setActiveTab('email')}
+              className={`pb-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === 'email'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Emails
             </button>
             <button
               onClick={() => setActiveTab('fields')}
@@ -113,6 +139,7 @@ export default function SettingsPage() {
         {/* Tab Content */}
         {activeTab === 'profile' && <ProfileSettings />}
         {activeTab === 'company' && <CompanySettings />}
+        {activeTab === 'email' && <EmailSettings />}
         {activeTab === 'fields' && <CustomFieldsSettings />}
         {activeTab === 'template' && <TemplateSettings />}
         {activeTab === 'reviews' && <ReviewTemplatesSettings />}

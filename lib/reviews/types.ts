@@ -53,6 +53,8 @@ export interface Review {
   reliability_score: number;
   reliability_level: ReliabilityLevel;
   is_published: boolean;
+  is_professional_email: boolean | null;
+  publication_notified_at: string | null;
   created_at: string;
 }
 

@@ -2,6 +2,81 @@
 // Verifolio Public Profile Types
 // ============================================================================
 
+import type { VerifolioThemeColor } from './themes';
+
+// ----------------------------------------------------------------------------
+// Verifolio CTA (Call to Action)
+// ----------------------------------------------------------------------------
+
+export type VerifolioCTAIcon =
+  | 'email'
+  | 'portfolio'
+  | 'instagram'
+  | 'linkedin'
+  | 'website'
+  | 'calendar'
+  | 'phone'
+  | 'download'
+  | 'twitter'
+  | 'youtube'
+  | 'tiktok'
+  | 'github';
+
+export interface VerifolioCTA {
+  id: string;
+  profile_id: string;
+  label: string;
+  url: string;
+  icon: VerifolioCTAIcon | null;
+  variant: 'primary' | 'secondary';
+  sort_order: number;
+  created_at?: string;
+}
+
+export interface CreateVerifolioCTAInput {
+  label: string;
+  url: string;
+  icon?: VerifolioCTAIcon | null;
+  variant?: 'primary' | 'secondary';
+  sort_order?: number;
+}
+
+export interface UpdateVerifolioCTAInput {
+  label?: string;
+  url?: string;
+  icon?: VerifolioCTAIcon | null;
+  variant?: 'primary' | 'secondary';
+  sort_order?: number;
+}
+
+// ----------------------------------------------------------------------------
+// Verifolio Activity Media
+// ----------------------------------------------------------------------------
+
+export interface VerifolioActivityMedia {
+  id: string;
+  activity_id: string;
+  media_type: 'image' | 'video';
+  url: string;
+  caption: string | null;
+  sort_order: number;
+  created_at?: string;
+}
+
+export interface CreateVerifolioActivityMediaInput {
+  media_type: 'image' | 'video';
+  url: string;
+  caption?: string | null;
+  sort_order?: number;
+}
+
+export interface UpdateVerifolioActivityMediaInput {
+  media_type?: 'image' | 'video';
+  url?: string;
+  caption?: string | null;
+  sort_order?: number;
+}
+
 // ----------------------------------------------------------------------------
 // Verifolio Profile
 // ----------------------------------------------------------------------------
@@ -31,6 +106,10 @@ export interface VerifolioProfile {
   // Filters
   reviews_min_rating: number | null;
 
+  // Theme customization
+  theme_color: VerifolioThemeColor;
+  show_company_logo: boolean;
+
   created_at: string;
   updated_at: string;
 }
@@ -57,6 +136,8 @@ export interface UpdateVerifolioProfileInput {
   show_activities?: boolean;
   show_reviews?: boolean;
   reviews_min_rating?: number | null;
+  theme_color?: VerifolioThemeColor;
+  show_company_logo?: boolean;
 }
 
 // ----------------------------------------------------------------------------
@@ -73,6 +154,9 @@ export interface VerifolioActivity {
   image_url: string | null;
   sort_order: number;
   is_visible: boolean;
+  // Detail modal fields
+  details_text: string | null;
+  details_enabled: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -91,6 +175,8 @@ export interface UpdateVerifolioActivityInput {
   image_url?: string | null;
   sort_order?: number;
   is_visible?: boolean;
+  details_text?: string | null;
+  details_enabled?: boolean;
 }
 
 // ----------------------------------------------------------------------------
@@ -120,10 +206,12 @@ export interface VerifolioPublicReview {
   id: string;
   reviewer_name: string | null;
   reviewer_company: string | null;
+  reviewer_company_logo_url: string | null;
   reviewer_role: string | null;
   rating_overall: number | null;
   comment: string;
   consent_display_identity: boolean;
+  is_professional_email: boolean | null;
   created_at: string;
   // Linked activity (if any)
   activity_id: string | null;
@@ -135,6 +223,10 @@ export interface VerifolioPublicActivity {
   title: string;
   description: string | null;
   image_url: string | null;
+  // Detail modal fields
+  details_text: string | null;
+  details_enabled: boolean;
+  medias: VerifolioActivityMedia[];
 }
 
 export interface VerifolioPublicProfile {
@@ -146,7 +238,10 @@ export interface VerifolioPublicProfile {
   title: string | null;
   bio: string | null;
 
-  // CTAs
+  // CTAs (flexible, up to 8)
+  ctas: VerifolioCTA[];
+
+  // Legacy CTAs (deprecated, kept for backwards compatibility)
   cta1_label: string | null;
   cta1_url: string | null;
   cta2_label: string | null;
@@ -155,6 +250,11 @@ export interface VerifolioPublicProfile {
   // Sections
   show_activities: boolean;
   show_reviews: boolean;
+
+  // Theme customization
+  theme_color: VerifolioThemeColor;
+  show_company_logo: boolean;
+  company_logo_url: string | null; // From user's company settings
 
   // Data
   activities: VerifolioPublicActivity[];

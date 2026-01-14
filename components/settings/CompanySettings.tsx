@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button, PhoneInput } from '@/components/ui';
 import type { Company } from '@/lib/types/settings';
+import { useSettingsCompletionStore } from '@/lib/stores/settings-completion-store';
 
 // Logo constraints
 const MAX_SIZE_KB = 500;
@@ -26,6 +27,7 @@ export function CompanySettings() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const invalidateCache = useSettingsCompletionStore((state) => state.invalidateCache);
 
   useEffect(() => {
     fetchCompany();
@@ -67,6 +69,8 @@ export function CompanySettings() {
       if (res.ok) {
         setCompany(json.data);
         setMessage({ type: 'success', text: 'Paramètres enregistrés' });
+        // Refresh completion widget
+        invalidateCache();
       } else {
         setMessage({ type: 'error', text: json.error || 'Erreur lors de la sauvegarde' });
       }

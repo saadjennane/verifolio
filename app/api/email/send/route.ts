@@ -67,17 +67,21 @@ export async function POST(request: Request) {
     });
 
     // Générer l'email
-    const companyName = company?.nom || 'Mon entreprise';
+    const companyName = company?.display_name || 'Mon entreprise';
+    const senderName = company?.email_sender_name || company?.display_name || 'Verifolio';
+    const replyToEmail = company?.email_reply_to || company?.email || user.email;
     const emailHtml = generateEmailHTML(type, document.numero, companyName);
     const subject = type === 'invoice'
-      ? `Facture ${document.numero} - ${companyName}`
-      : `Devis ${document.numero} - ${companyName}`;
+      ? `[Verifolio] Facture ${document.numero} – ${document.client?.nom || companyName}`
+      : `[Verifolio] Devis – ${document.client?.nom || companyName}`;
 
     // Envoyer l'email
     const result = await sendEmail({
       to,
       subject,
       html: emailHtml,
+      fromName: senderName,
+      replyTo: replyToEmail,
       attachments: [
         {
           filename: `${document.numero}.pdf`,

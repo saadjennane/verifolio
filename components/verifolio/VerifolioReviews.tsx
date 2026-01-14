@@ -1,132 +1,194 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import type { VerifolioPublicReview, VerifolioPublicActivity } from '@/lib/verifolio/types';
 
 interface VerifolioReviewsProps {
   reviews: VerifolioPublicReview[];
   activities: VerifolioPublicActivity[];
+  isEditable?: boolean;
+  onActivityClick?: (activity: VerifolioPublicActivity) => void;
+  onUpdate?: () => void;
+  themeAccent?: string;
 }
 
-export function VerifolioReviews({ reviews, activities }: VerifolioReviewsProps) {
-  const [filterActivity, setFilterActivity] = useState<string | null>(null);
-  const [filterMinRating, setFilterMinRating] = useState<number | null>(null);
-
-  if (reviews.length === 0) {
+export function VerifolioReviews({
+  reviews,
+  activities,
+  isEditable = false,
+  onActivityClick,
+  onUpdate,
+  themeAccent = '#3b82f6',
+}: VerifolioReviewsProps) {
+  if (reviews.length === 0 && !isEditable) {
     return null;
   }
 
-  // Get unique activities from reviews
-  const reviewActivities = activities.filter((a) =>
-    reviews.some((r) => r.activity_id === a.id)
-  );
-
-  // Filter reviews
-  const filteredReviews = reviews.filter((review) => {
-    if (filterActivity && review.activity_id !== filterActivity) {
-      return false;
-    }
-    if (filterMinRating && review.rating_overall && review.rating_overall < filterMinRating) {
-      return false;
-    }
-    return true;
-  });
-
-  const hasFilters = reviewActivities.length > 0;
-
   return (
-    <section className="py-12 px-4 bg-gray-50">
-      <div className="max-w-4xl mx-auto">
-        <h2 className="text-2xl font-bold text-gray-900 text-center mb-8">
-          Avis clients
+    <section>
+      {/* Section title with lines */}
+      <div className="flex items-center gap-4 mb-6">
+        <div className="flex-1 h-px bg-gray-300" />
+        <h2
+          className="text-lg font-medium"
+          style={{ color: themeAccent }}
+        >
+          Ils m'ont fait confiance
         </h2>
+        <div className="flex-1 h-px bg-gray-300" />
+      </div>
 
-        {/* Filters */}
-        {hasFilters && (
-          <div className="flex flex-wrap justify-center gap-3 mb-8">
-            {/* Activity filter */}
-            {reviewActivities.length > 0 && (
-              <select
-                value={filterActivity || ''}
-                onChange={(e) => setFilterActivity(e.target.value || null)}
-                className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Toutes les activités</option>
-                {reviewActivities.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.title}
-                  </option>
-                ))}
-              </select>
-            )}
-
-            {/* Rating filter */}
-            <select
-              value={filterMinRating || ''}
-              onChange={(e) => setFilterMinRating(e.target.value ? Number(e.target.value) : null)}
-              className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Toutes les notes</option>
-              <option value="5">5 étoiles</option>
-              <option value="4">4+ étoiles</option>
-              <option value="3">3+ étoiles</option>
-            </select>
-          </div>
-        )}
-
-        {/* Reviews grid */}
-        {filteredReviews.length === 0 ? (
-          <p className="text-center text-gray-500">
-            Aucun avis correspondant aux critères
-          </p>
-        ) : (
-          <div className="grid gap-6 sm:grid-cols-2">
-            {filteredReviews.map((review) => (
-              <ReviewCard key={review.id} review={review} />
-            ))}
-          </div>
-        )}
+      {/* Reviews grid - 3 columns on desktop */}
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {reviews.map((review) => {
+          const activity = activities.find(a => a.id === review.activity_id);
+          return (
+            <ReviewCard
+              key={review.id}
+              review={review}
+              activity={activity}
+              isEditable={isEditable}
+              onActivityClick={onActivityClick}
+              onUpdate={onUpdate}
+              themeAccent={themeAccent}
+            />
+          );
+        })}
       </div>
     </section>
   );
 }
 
-function ReviewCard({ review }: { review: VerifolioPublicReview }) {
+interface ReviewCardProps {
+  review: VerifolioPublicReview;
+  activity?: VerifolioPublicActivity;
+  isEditable?: boolean;
+  onActivityClick?: (activity: VerifolioPublicActivity) => void;
+  onUpdate?: () => void;
+  themeAccent?: string;
+}
+
+function ReviewCard({
+  review,
+  activity,
+  isEditable = false,
+  onActivityClick,
+  onUpdate,
+  themeAccent = '#3b82f6',
+}: ReviewCardProps) {
+  const [editingLogo, setEditingLogo] = useState(false);
+  const [tempLogoUrl, setTempLogoUrl] = useState(review.reviewer_company_logo_url || '');
+
+  const handleLogoSave = async () => {
+    try {
+      await fetch(`/api/reviews/${review.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviewer_company_logo_url: tempLogoUrl || null }),
+      });
+      onUpdate?.();
+      setEditingLogo(false);
+    } catch (error) {
+      console.error('Logo save error:', error);
+    }
+  };
+
+  const handleViewActivity = () => {
+    if (activity && activity.details_enabled && onActivityClick) {
+      onActivityClick(activity);
+    }
+  };
+
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-      {/* Rating */}
-      {review.rating_overall && (
-        <div className="flex items-center gap-1 mb-3">
-          {[1, 2, 3, 4, 5].map((star) => (
-            <StarIcon
-              key={star}
-              filled={star <= review.rating_overall!}
-            />
-          ))}
-        </div>
-      )}
+    <div className="bg-white rounded-lg shadow-sm p-6 flex flex-col">
+      {/* Large quote mark */}
+      <div className="text-4xl text-gray-200 font-serif leading-none mb-2">"</div>
 
       {/* Comment */}
-      <blockquote className="text-gray-700 leading-relaxed mb-4">
-        "{review.comment}"
+      <blockquote className="text-gray-700 leading-relaxed italic flex-1 mb-4">
+        {review.comment}
       </blockquote>
 
-      {/* Author */}
-      <div className="flex items-center justify-between">
-        <div>
+      {/* Author section */}
+      <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
+        {/* Company logo */}
+        {editingLogo ? (
+          <div className="flex-shrink-0">
+            <div className="w-10 h-10 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 flex items-center justify-center overflow-hidden">
+              {tempLogoUrl && (
+                <Image src={tempLogoUrl} alt="" width={40} height={40} className="object-contain" />
+              )}
+            </div>
+            <input
+              type="text"
+              value={tempLogoUrl}
+              onChange={(e) => setTempLogoUrl(e.target.value)}
+              placeholder="URL du logo"
+              className="w-32 text-xs border rounded px-1 py-0.5 mt-1"
+            />
+            <div className="flex gap-1 mt-1">
+              <button
+                onClick={handleLogoSave}
+                className="text-xs bg-blue-600 text-white rounded px-2 py-0.5 hover:bg-blue-700"
+              >
+                OK
+              </button>
+              <button
+                onClick={() => {
+                  setEditingLogo(false);
+                  setTempLogoUrl(review.reviewer_company_logo_url || '');
+                }}
+                className="text-xs bg-gray-200 text-gray-700 rounded px-2 py-0.5 hover:bg-gray-300"
+              >
+                X
+              </button>
+            </div>
+          </div>
+        ) : review.reviewer_company_logo_url ? (
+          <div
+            onClick={isEditable ? () => setEditingLogo(true) : undefined}
+            className={`relative w-10 h-10 rounded-lg bg-gray-50 flex-shrink-0 overflow-hidden ${
+              isEditable ? 'cursor-pointer group' : ''
+            }`}
+          >
+            <Image
+              src={review.reviewer_company_logo_url}
+              alt={review.reviewer_company || ''}
+              width={40}
+              height={40}
+              className="object-contain"
+            />
+            {isEditable && (
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+              </div>
+            )}
+          </div>
+        ) : isEditable ? (
+          <button
+            onClick={() => setEditingLogo(true)}
+            className="w-10 h-10 rounded-lg border-2 border-dashed border-gray-300 flex-shrink-0 flex items-center justify-center text-gray-400 hover:border-blue-500 hover:text-blue-500 transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+        ) : null}
+
+        {/* Author info */}
+        <div className="flex-1 min-w-0">
           {review.consent_display_identity && review.reviewer_name ? (
             <>
-              <p className="font-medium text-gray-900">{review.reviewer_name}</p>
-              {review.reviewer_role && review.reviewer_company && (
-                <p className="text-sm text-gray-500">
-                  {review.reviewer_role}, {review.reviewer_company}
+              <p className="font-medium text-gray-900 truncate">{review.reviewer_name}</p>
+              {(review.reviewer_role || review.reviewer_company) && (
+                <p className="text-sm text-gray-500 truncate">
+                  {review.reviewer_role}
+                  {review.reviewer_role && review.reviewer_company && ', '}
+                  {review.reviewer_company}
                 </p>
-              )}
-              {review.reviewer_role && !review.reviewer_company && (
-                <p className="text-sm text-gray-500">{review.reviewer_role}</p>
-              )}
-              {!review.reviewer_role && review.reviewer_company && (
-                <p className="text-sm text-gray-500">{review.reviewer_company}</p>
               )}
             </>
           ) : (
@@ -134,21 +196,45 @@ function ReviewCard({ review }: { review: VerifolioPublicReview }) {
           )}
         </div>
 
-        {/* Activity tag */}
-        {review.activity_title && (
-          <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full">
-            {review.activity_title}
-          </span>
+        {/* Rating stars */}
+        {review.rating_overall && (
+          <div className="flex items-center gap-0.5 flex-shrink-0">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <StarIcon key={star} filled={star <= review.rating_overall!} size="sm" />
+            ))}
+          </div>
         )}
       </div>
+
+      {/* View activity link */}
+      {activity && activity.details_enabled && (
+        <button
+          onClick={handleViewActivity}
+          className="mt-3 text-sm flex items-center gap-1 group"
+          style={{ color: themeAccent }}
+        >
+          Voir la prestation
+          <svg className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      )}
+
+      {/* Neutral mention for personal email */}
+      {review.is_professional_email === false && (
+        <p className="mt-2 text-xs text-gray-400">
+          Témoignage rédigé via email personnel
+        </p>
+      )}
     </div>
   );
 }
 
-function StarIcon({ filled }: { filled: boolean }) {
+function StarIcon({ filled, size = 'md' }: { filled: boolean; size?: 'sm' | 'md' }) {
+  const sizeClass = size === 'sm' ? 'w-4 h-4' : 'w-5 h-5';
   return (
     <svg
-      className={`w-5 h-5 ${filled ? 'text-yellow-400' : 'text-gray-200'}`}
+      className={`${sizeClass} ${filled ? 'text-yellow-400' : 'text-gray-200'}`}
       fill="currentColor"
       viewBox="0 0 20 20"
     >

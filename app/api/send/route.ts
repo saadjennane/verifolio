@@ -181,9 +181,11 @@ export async function POST(request: Request) {
       .eq('id', user.id)
       .single();
 
-    const companyName = company?.nom || 'Mon entreprise';
-    const userDisplayName = userProfile?.display_name || company?.nom || 'Verifolio';
-    const replyToEmail = company?.email || userProfile?.email || user.email;
+    const companyName = company?.display_name || 'Mon entreprise';
+    // Use email_sender_name if configured, otherwise fall back to display_name or company name
+    const userDisplayName = company?.email_sender_name || userProfile?.display_name || company?.display_name || 'Verifolio';
+    // Use email_reply_to if configured, otherwise fall back to company email or user email
+    const replyToEmail = company?.email_reply_to || company?.email || userProfile?.email || user.email;
 
     // Obtenir ou créer le lien public
     const { link, error: linkError } = await getOrCreatePublicLink(
@@ -261,15 +263,15 @@ export async function POST(request: Request) {
       .single();
 
     // Envoyer l'email via Resend
-    // From: "{user_display_name} via Verifolio" <notifications@verifolio.app>
-    const fromAddress = `${userDisplayName} via Verifolio <${process.env.EMAIL_FROM || 'notifications@verifolio.app'}>`;
-
+    // From: "{user_display_name} via Verifolio" <documents@verifolio.pro>
+    // Reply-To: replyToEmail (configured or company email)
     const emailResult = await sendEmail({
       to: to_emails.join(', '),
       subject,
       html: htmlContent,
+      fromName: userDisplayName,
+      replyTo: replyToEmail,
       attachments: attachments.length > 0 ? attachments : undefined,
-      // Note: replyTo devrait être ajouté au sender.ts si nécessaire
     });
 
     // Mettre à jour le statut dans outbound_messages

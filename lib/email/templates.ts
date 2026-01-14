@@ -1,12 +1,19 @@
 /**
  * Templates email pour le module Send
  * 5 templates pour: Brief, Proposal, Quote, Invoice, Review Request
+ *
+ * Rules:
+ * - FROM: documents@verifolio.pro with display name "{freelancer} via Verifolio"
+ * - Reply-To: freelancer's email
+ * - Subject format: "[Verifolio] Type – {{client_name}}"
+ * - Signature: freelancer name + "Envoyé via Verifolio" + https://verifolio.pro
  */
 
 import type { ResourceType, EmailTemplateVariables } from '@/lib/send/types';
 
 // ============================================================================
 // SUJETS PAR DEFAUT
+// Format: [Verifolio] Type – {{client_name}}
 // ============================================================================
 
 export function getDefaultSubject(
@@ -15,17 +22,17 @@ export function getDefaultSubject(
 ): string {
   switch (type) {
     case 'brief':
-      return `Brief a remplir — ${vars.client_name || 'Votre projet'}`;
+      return `[Verifolio] Brief projet – ${vars.client_name || 'Votre projet'}`;
     case 'proposal':
-      return `Proposition — ${vars.deal_title || 'Votre projet'}`;
+      return `[Verifolio] Proposition – ${vars.client_name || vars.deal_title || 'Votre projet'}`;
     case 'quote':
-      return `Devis — ${vars.quote_number || 'Nouveau devis'}`;
+      return `[Verifolio] Devis – ${vars.client_name || 'Nouveau devis'}`;
     case 'invoice':
-      return `Facture — ${vars.invoice_number || 'Nouvelle facture'}`;
+      return `[Verifolio] Facture ${vars.invoice_number || ''} – ${vars.client_name || 'Nouvelle facture'}`.replace('  –', ' –');
     case 'review_request':
-      return `Votre avis — ${vars.mission_title || 'Notre collaboration'}`;
+      return `[Verifolio] Votre témoignage – ${vars.user_display_name || vars.company_name || ''}`;
     default:
-      return 'Document de ' + vars.company_name;
+      return `[Verifolio] Document – ${vars.client_name || vars.company_name}`;
   }
 }
 
@@ -137,24 +144,22 @@ export function generateSendEmailHTML(
         </a>
       </p>
 
+      <!-- Reply info -->
+      <p style="margin: 32px 0 0 0; font-size: 13px; color: #6b7280; font-style: italic;">
+        Vous pouvez répondre directement à cet email, votre message sera transmis à ${escapeHtml(vars.user_display_name)}.
+      </p>
+
       <!-- Signature -->
-      <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #e5e7eb;">
+      <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e5e7eb;">
         <p style="margin: 0; font-size: 15px; color: #374151;">
-          Cordialement,<br>
-          <strong>${escapeHtml(vars.user_display_name)}</strong>
+          ${escapeHtml(vars.user_display_name)}
         </p>
-        ${vars.company_name && vars.company_name !== vars.user_display_name ? `
-        <p style="margin: 4px 0 0 0; font-size: 14px; color: #6b7280;">
-          ${escapeHtml(vars.company_name)}
+        <p style="margin: 8px 0 0 0; font-size: 13px; color: #9ca3af;">
+          Envoyé via Verifolio<br>
+          <a href="https://verifolio.pro" style="color: #9ca3af; text-decoration: none;">https://verifolio.pro</a>
         </p>
-        ` : ''}
       </div>
     </div>
-
-    <!-- Footer -->
-    <p style="margin: 24px 0 0 0; text-align: center; font-size: 12px; color: #9ca3af;">
-      Envoye via <a href="https://verifolio.app" style="color: #6b7280; text-decoration: none;">Verifolio</a>
-    </p>
   </div>
 </body>
 </html>
@@ -197,4 +202,84 @@ function escapeHtml(text: string): string {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;')
     .replace(/\n/g, '<br>');
+}
+
+// ============================================================================
+// REVIEW PUBLICATION NOTIFICATION EMAIL
+// ============================================================================
+
+export interface ReviewPublishedEmailVariables {
+  reviewer_name: string | null;
+  freelance_name: string;
+  verifolio_url: string;
+  freelance_email?: string;
+}
+
+/**
+ * Generate email HTML for notifying the reviewer that their testimonial is published
+ * This is sent automatically when a review is published on Verifolio
+ */
+export function generateReviewPublishedEmail(vars: ReviewPublishedEmailVariables): string {
+  const greeting = vars.reviewer_name ? `Bonjour ${escapeHtml(vars.reviewer_name)},` : 'Bonjour,';
+
+  return `
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Votre témoignage est en ligne</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #1f2937; background-color: #f3f4f6; margin: 0; padding: 0;">
+  <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+    <div style="background: #ffffff; border-radius: 12px; padding: 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+
+      <!-- Greeting -->
+      <p style="margin: 0 0 20px 0; font-size: 16px;">
+        ${greeting}
+      </p>
+
+      <!-- Main message -->
+      <p style="margin: 0 0 28px 0; font-size: 15px; color: #4b5563;">
+        Votre témoignage pour <strong>${escapeHtml(vars.freelance_name)}</strong> est désormais visible sur sa page Verifolio.
+      </p>
+
+      <!-- CTA Button -->
+      <div style="text-align: center; margin: 32px 0;">
+        <a href="${vars.verifolio_url}"
+           style="display: inline-block; background: #2563eb; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 15px;">
+          Voir mon témoignage
+        </a>
+      </div>
+
+      <!-- Link fallback -->
+      <p style="margin: 24px 0 0 0; font-size: 12px; color: #9ca3af; text-align: center;">
+        Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :<br>
+        <a href="${vars.verifolio_url}" style="color: #2563eb; word-break: break-all;">
+          ${vars.verifolio_url}
+        </a>
+      </p>
+
+      <!-- Contact info -->
+      <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #e5e7eb;">
+        <p style="margin: 0; font-size: 14px; color: #6b7280;">
+          Si vous souhaitez apporter une modification ou retirer votre témoignage, contactez directement ${escapeHtml(vars.freelance_name)}${vars.freelance_email ? ` à <a href="mailto:${vars.freelance_email}" style="color: #2563eb;">${vars.freelance_email}</a>` : ''}.
+        </p>
+      </div>
+
+      <!-- Signature -->
+      <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e5e7eb;">
+        <p style="margin: 0; font-size: 15px; color: #374151;">
+          ${escapeHtml(vars.freelance_name)}
+        </p>
+        <p style="margin: 8px 0 0 0; font-size: 13px; color: #9ca3af;">
+          Envoyé via Verifolio<br>
+          <a href="https://verifolio.pro" style="color: #9ca3af; text-decoration: none;">https://verifolio.pro</a>
+        </p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+  `.trim();
 }

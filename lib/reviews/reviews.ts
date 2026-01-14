@@ -1,5 +1,8 @@
 import { createClient } from '@/lib/supabase/server';
 import type { Review, CreateReviewPayload, ReliabilityLevel } from './types';
+import { isProfessionalEmail } from './email-verification';
+import { sendEmail } from '@/lib/email/sender';
+import { generateReviewPublishedEmail } from '@/lib/email/templates';
 
 /**
  * Calcule le score de fiabilité d'une review (0-100)
@@ -141,6 +144,9 @@ export async function createReviewFromPublicToken(
   const reliabilityLevel = getReliabilityLevel(reliabilityScore);
   const overallRating = calculateOverallRating(payload);
 
+  // Detect email type (professional vs generic)
+  const isProfessional = isProfessionalEmail(payload.reviewer_email);
+
   // Créer la review
   const { data: review, error: reviewError } = await supabase
     .from('reviews')
@@ -165,6 +171,7 @@ export async function createReviewFromPublicToken(
       reliability_score: reliabilityScore,
       reliability_level: reliabilityLevel,
       is_published: false,
+      is_professional_email: isProfessional,
     })
     .select()
     .single();
@@ -194,6 +201,7 @@ export async function createReviewFromPublicToken(
 
 /**
  * Publie ou dépublie une review
+ * When publishing, sends a notification email to the reviewer
  */
 export async function publishReview(
   reviewId: string,
@@ -208,6 +216,18 @@ export async function publishReview(
     return { success: false, error: 'Non authentifié' };
   }
 
+  // Get the review first to check if we need to send notification
+  const { data: existingReview } = await supabase
+    .from('reviews')
+    .select('*, user:users!user_id(email)')
+    .eq('id', reviewId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (!existingReview) {
+    return { success: false, error: 'Avis introuvable' };
+  }
+
   const { data: review, error } = await supabase
     .from('reviews')
     .update({ is_published: isPublished })
@@ -218,6 +238,64 @@ export async function publishReview(
 
   if (error || !review) {
     return { success: false, error: 'Erreur lors de la mise à jour' };
+  }
+
+  // Send notification email if publishing and not already notified
+  if (isPublished && !existingReview.publication_notified_at && existingReview.reviewer_email) {
+    try {
+      // Get user profile and verifolio slug
+      const { data: profile } = await supabase
+        .from('verifolio_profiles')
+        .select('slug, display_name')
+        .eq('user_id', user.id)
+        .eq('is_published', true)
+        .single();
+
+      const { data: userSettings } = await supabase
+        .from('user_settings')
+        .select('company_name')
+        .eq('user_id', user.id)
+        .single();
+
+      if (profile?.slug) {
+        const verifolioUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://verifolio.app'}/verifolio/${profile.slug}`;
+        const freelanceName = profile.display_name || userSettings?.company_name || 'ce professionnel';
+
+        // Get company settings for email configuration
+        const { data: company } = await supabase
+          .from('companies')
+          .select('email_sender_name, display_name, email_reply_to, email')
+          .eq('user_id', user.id)
+          .single();
+
+        const senderName = company?.email_sender_name || company?.display_name || freelanceName;
+        const replyToEmail = company?.email_reply_to || company?.email || user.email;
+
+        const emailHtml = generateReviewPublishedEmail({
+          reviewer_name: existingReview.consent_display_identity ? existingReview.reviewer_name : null,
+          freelance_name: freelanceName,
+          verifolio_url: verifolioUrl,
+          freelance_email: replyToEmail,
+        });
+
+        await sendEmail({
+          to: existingReview.reviewer_email,
+          subject: `[Verifolio] Votre témoignage – ${freelanceName}`,
+          html: emailHtml,
+          fromName: senderName,
+          replyTo: replyToEmail,
+        });
+
+        // Mark as notified
+        await supabase
+          .from('reviews')
+          .update({ publication_notified_at: new Date().toISOString() })
+          .eq('id', reviewId);
+      }
+    } catch (emailError) {
+      // Don't fail the publish if email fails, just log it
+      console.error('Error sending publication notification email:', emailError);
+    }
   }
 
   return { success: true, data: review as Review };
