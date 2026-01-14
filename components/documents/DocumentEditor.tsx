@@ -129,15 +129,29 @@ export function DocumentEditor({ type, documentId, dealId, missionId }: Document
         return;
       }
 
-      // Load company
-      const { data: companyData } = await supabase
-        .from('companies')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
+      // OPTIMIZED: Parallel queries for initial data load
+      // Was: 4-6 sequential queries, now: 1 parallel batch
+      const [
+        companyResult,
+        customFieldDefsResult,
+        clientsResult,
+      ] = await Promise.all([
+        supabase.from('companies').select('*').eq('user_id', user.id).single(),
+        supabase.from('custom_fields').select('id, key, label').eq('user_id', user.id).eq('scope', 'company'),
+        supabase.from('clients').select('*').is('deleted_at', null).order('nom'),
+      ]);
+
+      const companyData = companyResult.data;
+      const customFieldDefs = customFieldDefsResult.data;
+      const clientsData = clientsResult.data;
 
       if (companyData) {
         setCompany(companyData);
+      }
+
+      console.log('[DocumentEditor] Clients loaded:', clientsData?.length, 'clients');
+      if (clientsData) {
+        setClients(clientsData);
       }
 
       // Build template config from company settings
@@ -161,14 +175,7 @@ export function DocumentEditor({ type, documentId, dealId, missionId }: Document
 
       setTemplateConfig(companyTemplateConfig);
 
-      // Load company custom fields (ICE, RC, etc.)
-      const { data: customFieldDefs } = await supabase
-        .from('custom_fields')
-        .select('id, key, label')
-        .eq('user_id', user.id)
-        .eq('scope', 'company');
-
-      // Load company custom field values (entity_type='company', entity_id=company.id)
+      // Load company custom field values (depends on companyData)
       if (companyData && customFieldDefs) {
         const { data: customFieldValues } = await supabase
           .from('custom_field_values')
@@ -201,18 +208,6 @@ export function DocumentEditor({ type, documentId, dealId, missionId }: Document
         showNotes: companyTemplateConfig.showNotes ?? true,
         showSignature: companyTemplateConfig.showSignatureBlock ?? true,
       }));
-
-      // Load clients
-      const { data: clientsData } = await supabase
-        .from('clients')
-        .select('*')
-        .is('deleted_at', null)
-        .order('nom');
-
-      console.log('[DocumentEditor] Clients loaded:', clientsData?.length, 'clients');
-      if (clientsData) {
-        setClients(clientsData);
-      }
 
       // If editing, load the document
       if (documentId) {
@@ -362,20 +357,14 @@ export function DocumentEditor({ type, documentId, dealId, missionId }: Document
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Load client custom field definitions
-      const { data: clientFieldDefs } = await supabase
-        .from('custom_fields')
-        .select('id, key, label')
-        .eq('user_id', user.id)
-        .eq('scope', 'client');
+      // OPTIMIZED: Parallel queries for client fields
+      const [clientFieldDefsResult, clientFieldValuesResult] = await Promise.all([
+        supabase.from('custom_fields').select('id, key, label').eq('user_id', user.id).eq('scope', 'client'),
+        supabase.from('custom_field_values').select('field_id, value_text').eq('user_id', user.id).eq('entity_type', 'client').eq('entity_id', client.id),
+      ]);
 
-      // Load client custom field values
-      const { data: clientFieldValues } = await supabase
-        .from('custom_field_values')
-        .select('field_id, value_text')
-        .eq('user_id', user.id)
-        .eq('entity_type', 'client')
-        .eq('entity_id', client.id);
+      const clientFieldDefs = clientFieldDefsResult.data;
+      const clientFieldValues = clientFieldValuesResult.data;
 
       if (clientFieldDefs && clientFieldValues) {
         const fields = clientFieldDefs

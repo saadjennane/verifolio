@@ -1,8 +1,12 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, memo } from 'react';
 import Image from 'next/image';
 import type { VerifolioPublicActivity, VerifolioPublicReview } from '@/lib/verifolio/types';
+
+// Performance: Debounce settings
+const AUTOSAVE_DEBOUNCE_MS = 2000;
+const AUTOSAVE_MAX_WAIT_MS = 5000;
 
 interface VerifolioActivitiesProps {
   activities: VerifolioPublicActivity[];
@@ -63,7 +67,7 @@ interface ActivityCardProps {
   onUpdate?: () => void;
 }
 
-function ActivityCard({
+const ActivityCard = memo(function ActivityCard({
   activity,
   reviewCount,
   isEditable = false,
@@ -78,12 +82,19 @@ function ActivityCard({
   const [editingImage, setEditingImage] = useState(false);
   const [tempImageUrl, setTempImageUrl] = useState(activity.image_url || '');
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSaveRef = useRef<number>(0);
 
   const autosave = useCallback(async (field: string, value: string) => {
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
-    saveTimeoutRef.current = setTimeout(async () => {
+
+    const now = Date.now();
+    const timeSinceLastSave = now - lastSaveRef.current;
+
+    // If max wait exceeded, save immediately
+    if (timeSinceLastSave >= AUTOSAVE_MAX_WAIT_MS) {
+      lastSaveRef.current = now;
       try {
         await fetch(`/api/verifolio/activities/${activity.id}`, {
           method: 'PATCH',
@@ -94,7 +105,23 @@ function ActivityCard({
       } catch (error) {
         console.error('Autosave error:', error);
       }
-    }, 500);
+      return;
+    }
+
+    // Otherwise debounce
+    saveTimeoutRef.current = setTimeout(async () => {
+      lastSaveRef.current = Date.now();
+      try {
+        await fetch(`/api/verifolio/activities/${activity.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ [field]: value || null }),
+        });
+        onUpdate?.();
+      } catch (error) {
+        console.error('Autosave error:', error);
+      }
+    }, AUTOSAVE_DEBOUNCE_MS);
   }, [activity.id, onUpdate]);
 
   const handleChange = (field: string, value: string) => {
@@ -172,6 +199,8 @@ function ActivityCard({
               alt={activity.title}
               fill
               className="object-cover"
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              quality={85}
             />
             {isEditable && (
               <button
@@ -279,4 +308,6 @@ function ActivityCard({
       </div>
     </div>
   );
-}
+});
+
+ActivityCard.displayName = 'ActivityCard';

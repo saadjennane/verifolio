@@ -40,8 +40,10 @@ const QuoteDetailTab = dynamic(() => import('@/components/tabs/QuoteDetailTab').
   loading: () => <TabLoading />,
 });
 
+// Heavy form - disable SSR to reduce initial bundle
 const QuoteFormTab = dynamic(() => import('@/components/tabs/QuoteFormTab').then(m => ({ default: m.QuoteFormTab })), {
   loading: () => <TabLoading />,
+  ssr: false,
 });
 
 const InvoicesListTab = dynamic(() => import('@/components/tabs/InvoicesListTab').then(m => ({ default: m.InvoicesListTab })), {
@@ -52,8 +54,10 @@ const InvoiceDetailTab = dynamic(() => import('@/components/tabs/InvoiceDetailTa
   loading: () => <TabLoading />,
 });
 
+// Heavy form - disable SSR to reduce initial bundle
 const InvoiceFormTab = dynamic(() => import('@/components/tabs/InvoiceFormTab').then(m => ({ default: m.InvoiceFormTab })), {
   loading: () => <TabLoading />,
+  ssr: false,
 });
 
 const SettingsTab = dynamic(() => import('@/components/tabs/SettingsTab').then(m => ({ default: m.SettingsTab })), {
@@ -108,8 +112,10 @@ const NewProposalTab = dynamic(() => import('@/components/tabs/NewProposalTab').
   loading: () => <TabLoading />,
 });
 
+// Heavy editor - disable SSR to reduce initial bundle
 const ProposalEditorTab = dynamic(() => import('@/components/tabs/ProposalEditorTab').then(m => ({ default: m.ProposalEditorTab })), {
   loading: () => <TabLoading />,
+  ssr: false,
 });
 
 const ProposalTemplatesTab = dynamic(() => import('@/components/tabs/ProposalTemplatesTab').then(m => ({ default: m.ProposalTemplatesTab })), {
@@ -124,8 +130,10 @@ const NewBriefTab = dynamic(() => import('@/components/tabs/NewBriefTab').then(m
   loading: () => <TabLoading />,
 });
 
+// Heavy editor - disable SSR to reduce initial bundle
 const BriefTemplateEditorTab = dynamic(() => import('@/components/tabs/BriefTemplateEditorTab').then(m => ({ default: m.BriefTemplateEditorTab })), {
   loading: () => <TabLoading />,
+  ssr: false,
 });
 
 const BriefTemplatesTab = dynamic(() => import('@/components/tabs/BriefTemplatesTab').then(m => ({ default: m.BriefTemplatesTab })), {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ProfileSettings } from '@/components/settings/ProfileSettings';
 import { CompanySettings } from '@/components/settings/CompanySettings';
@@ -16,7 +16,8 @@ type SettingsTab = 'profile' | 'company' | 'email' | 'fields' | 'template' | 're
 
 const validTabs: SettingsTab[] = ['profile', 'company', 'email', 'fields', 'template', 'reviews', 'verifolio', 'navigation', 'trash'];
 
-export default function SettingsPage() {
+// Wrapper component to handle useSearchParams inside Suspense
+function SettingsPageContent() {
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
 
@@ -148,5 +149,30 @@ export default function SettingsPage() {
         {activeTab === 'trash' && <TrashSettings />}
       </div>
     </div>
+  );
+}
+
+// Loading fallback for Suspense
+function SettingsLoading() {
+  return (
+    <div className="h-full overflow-auto p-6">
+      <div className="max-w-4xl mx-auto">
+        <div className="mb-6">
+          <div className="h-8 w-32 bg-gray-200 rounded animate-pulse" />
+          <div className="h-4 w-64 bg-gray-200 rounded animate-pulse mt-2" />
+        </div>
+        <div className="h-10 bg-gray-200 rounded animate-pulse mb-6" />
+        <div className="h-64 bg-gray-100 rounded animate-pulse" />
+      </div>
+    </div>
+  );
+}
+
+// Main export with Suspense wrapper
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={<SettingsLoading />}>
+      <SettingsPageContent />
+    </Suspense>
   );
 }
