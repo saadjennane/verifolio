@@ -32,6 +32,15 @@ Ce document contient les cas de test pour chaque fonctionnalité de l'applicatio
 - [ ] Restaurer un client depuis la corbeille
 - [ ] Supprimer définitivement un client
 
+### 1.5 Comportement LLM
+- [ ] **Chat**: "Crée un client Jean Dupont" → Appelle `create_client` avec le nom
+- [ ] **Chat**: "Crée un client entreprise ACME avec SIRET 12345678901234" → Crée client type entreprise
+- [ ] **Chat**: "Modifie l'email du client X" → Appelle `update_client`
+- [ ] **Chat**: "Liste mes clients" → Appelle `list_clients`
+- [ ] **Chat**: "Supprime le client X" → Appelle `delete_client` (soft delete)
+- [ ] **Contexte**: Sur la page client, le LLM a accès aux infos du client courant
+- [ ] **Validation**: Le LLM refuse de créer un client sans nom
+
 ---
 
 ## 2. Gestion des Contacts
@@ -55,6 +64,12 @@ Ce document contient les cas de test pour chaque fonctionnalité de l'applicatio
 ### 2.4 Suppression
 - [ ] Supprimer un contact
 - [ ] Vérifier les liens avec deals/missions
+
+### 2.5 Comportement LLM
+- [ ] **Chat**: "Ajoute un contact Marie Martin pour ACME" → Appelle `create_contact`
+- [ ] **Chat**: "Le contact principal d'ACME c'est Pierre" → Met à jour `is_primary`
+- [ ] **Chat**: "Ajoute le rôle facturation à Marie" → Appelle `update_contact`
+- [ ] **Contexte**: Sur la page client, le LLM peut lister les contacts associés
 
 ---
 
@@ -84,6 +99,15 @@ Ce document contient les cas de test pour chaque fonctionnalité de l'applicatio
 - [ ] Voir la liste des deals
 - [ ] Filtrer par statut
 - [ ] Voir le détail avec timeline
+
+### 3.5 Comportement LLM
+- [ ] **Chat**: "Crée un deal pour ACME de 5000€" → Appelle `create_deal`
+- [ ] **Chat**: "Marque le deal X comme gagné" → Appelle `update_deal_status`
+- [ ] **Chat**: "Ajoute le tag urgent au deal" → Appelle `add_deal_tag`
+- [ ] **Chat**: "Crée une mission depuis ce deal" → Appelle `create_mission_from_deal`
+- [ ] **Contexte**: Sur la page deal, le LLM connaît le statut et montant
+- [ ] **Suggestions IA**: Détection automatique des deals urgents à relancer
+- [ ] **Validation**: Le LLM refuse de créer une mission si le deal n'est pas gagné
 
 ---
 
@@ -118,6 +142,15 @@ Ce document contient les cas de test pour chaque fonctionnalité de l'applicatio
 - [ ] Vérifier les totaux
 - [ ] Accéder au PDF via lien public
 
+### 4.5 Comportement LLM
+- [ ] **Chat**: "Crée un devis pour ACME" → Appelle `create_quote`
+- [ ] **Chat**: "Ajoute une ligne développement web 5 jours à 500€" → Appelle `add_quote_line`
+- [ ] **Chat**: "Envoie le devis au client" → Appelle `send_quote`
+- [ ] **Chat**: "Le devis a été accepté" → Appelle `update_quote_status`
+- [ ] **Contexte**: Sur la page devis, le LLM connaît les lignes et totaux
+- [ ] **Devise**: Le LLM utilise la devise configurée (EUR, USD, etc.)
+- [ ] **Calcul**: Le LLM calcule correctement HT/TVA/TTC
+
 ---
 
 ## 5. Factures
@@ -144,6 +177,14 @@ Ce document contient les cas de test pour chaque fonctionnalité de l'applicatio
 - [ ] Générer le PDF
 - [ ] Vérifier la numérotation automatique
 - [ ] Accéder au PDF via lien public
+
+### 5.5 Comportement LLM
+- [ ] **Chat**: "Crée une facture depuis le devis X" → Appelle `create_invoice_from_quote`
+- [ ] **Chat**: "La facture a été payée" → Appelle `update_invoice_status`
+- [ ] **Chat**: "Envoie un rappel pour la facture en retard" → Appelle `send_invoice_reminder`
+- [ ] **Suggestions IA**: Détection automatique des factures en retard de paiement
+- [ ] **Suggestions IA**: Rappel des factures à échéance proche
+- [ ] **Contexte**: Sur la page facture, le LLM connaît le statut de paiement
 
 ---
 
@@ -172,6 +213,13 @@ Ce document contient les cas de test pour chaque fonctionnalité de l'applicatio
 ### 6.4 Verifolio
 - [ ] Marquer comme visible sur Verifolio
 - [ ] Masquer de Verifolio
+
+### 6.5 Comportement LLM
+- [ ] **Chat**: "Crée une mission pour le deal X" → Appelle `create_mission_from_deal`
+- [ ] **Chat**: "La mission est livrée" → Appelle `update_mission_status`
+- [ ] **Chat**: "Facture la mission" → Crée une facture liée
+- [ ] **Chat**: "Affiche cette mission sur mon Verifolio" → Met `visible_on_verifolio = true`
+- [ ] **Contexte**: Sur la page mission, le LLM connaît le contexte et les factures liées
 
 ---
 
@@ -211,6 +259,22 @@ Ce document contient les cas de test pour chaque fonctionnalité de l'applicatio
 - [ ] Accepter via le lien public
 - [ ] Refuser via le lien public
 
+### 7.6 Comportement LLM - Génération de structure IA
+- [ ] **Génération**: Entrer un mini-prompt (ex: "Proposition pour refonte site e-commerce")
+- [ ] **Validation prompt**: Le prompt doit avoir au moins 5 caractères
+- [ ] **Pages générées**: L'IA génère une liste de pages pertinentes
+- [ ] **Couverture obligatoire**: La page "Couverture" est toujours ajoutée en premier
+- [ ] **Catalogue de pages**: L'IA ne génère que des pages du catalogue (25 types)
+- [ ] **Filtrage**: Les pages invalides sont automatiquement filtrées
+- [ ] **Format JSON**: L'IA retourne un JSON valide avec `{ pages: [...] }`
+- [ ] **Gestion erreurs**: Message d'erreur si l'API OpenAI échoue
+- [ ] **Timeout**: Timeout de 60s pour la génération
+
+### 7.7 Comportement LLM - Chat
+- [ ] **Chat**: "Crée une proposition pour ACME" → Appelle `create_proposal`
+- [ ] **Chat**: "Envoie la proposition" → Génère le token public
+- [ ] **Contexte**: Sur la page proposition, le LLM connaît les pages et le statut
+
 ---
 
 ## 8. Briefs (Questionnaires Client)
@@ -237,6 +301,24 @@ Ce document contient les cas de test pour chaque fonctionnalité de l'applicatio
 - [ ] Répondre à toutes les questions
 - [ ] Soumettre le brief
 - [ ] Voir les réponses côté admin
+
+### 8.4 Comportement LLM - Génération de structure IA
+- [ ] **Génération**: Entrer une description (ex: "Brief pour projet mobile banking")
+- [ ] **Types de blocs**: L'IA génère des blocs valides parmi 11 types:
+  - `title`, `description`, `separator`, `media`
+  - `text_short`, `text_long`, `number`
+  - `address`, `time`, `date`, `selection`, `rating`
+- [ ] **Configuration selection**: Génère `selection_type` (dropdown/radio/multiple) et `options`
+- [ ] **Configuration date**: Génère `mode` (single/range/multiple/flexible)
+- [ ] **Labels obligatoires**: Chaque bloc a un `label` non vide
+- [ ] **Blocs requis**: L'IA peut marquer des blocs comme `required: true`
+- [ ] **Format JSON**: Retourne `{ blocks: [...] }` valide
+- [ ] **Filtrage**: Les blocs avec types invalides sont supprimés
+- [ ] **Max tokens**: Limité à 2048 tokens pour la réponse
+
+### 8.5 Comportement LLM - Chat
+- [ ] **Chat**: "Crée un brief pour le projet X" → Appelle `create_brief`
+- [ ] **Chat**: "Envoie le brief au client" → Génère le lien et envoie l'email
 
 ---
 
@@ -268,6 +350,13 @@ Ce document contient les cas de test pour chaque fonctionnalité de l'applicatio
 - [ ] Créer un template avec critères personnalisés
 - [ ] Définir les notes à afficher
 - [ ] Configurer l'affichage des commentaires
+
+### 9.5 Comportement LLM
+- [ ] **Chat**: "Demande une review pour la facture X" → Appelle `create_review_request`
+- [ ] **Chat**: "Envoie un rappel pour les reviews en attente" → Appelle `send_review_reminder`
+- [ ] **Chat**: "Publie la review de Marie" → Appelle `publish_review`
+- [ ] **Suggestions IA**: Détection automatique des factures payées sans review demandée
+- [ ] **Suggestions IA**: Suggestion de demander une review après paiement
 
 ---
 
@@ -311,6 +400,12 @@ Ce document contient les cas de test pour chaque fonctionnalité de l'applicatio
 - [ ] Dépublier le Verifolio
 - [ ] Accéder au lien public
 - [ ] Vérifier l'affichage mobile
+
+### 10.7 Comportement LLM
+- [ ] **Chat**: "Publie mon Verifolio" → Met `is_published = true`
+- [ ] **Chat**: "Change le thème en bleu" → Met à jour `theme_color`
+- [ ] **Chat**: "Ajoute une activité Développement Web" → Crée une activité
+- [ ] **Contexte**: Le LLM connaît l'état de publication et les sections actives
 
 ---
 
@@ -361,6 +456,11 @@ Ce document contient les cas de test pour chaque fonctionnalité de l'applicatio
 - [ ] Restaurer un élément
 - [ ] Supprimer définitivement
 
+### 11.9 Comportement LLM
+- [ ] **Devise**: Le LLM utilise la devise configurée dans les calculs
+- [ ] **TVA**: Le LLM applique le taux de TVA par défaut
+- [ ] **Contexte entreprise**: Le LLM connaît le nom de l'entreprise pour les documents
+
 ---
 
 ## 12. Fournisseurs et Dépenses
@@ -390,6 +490,24 @@ Ce document contient les cas de test pour chaque fonctionnalité de l'applicatio
 - [ ] Lier à un fournisseur
 - [ ] Filtrer par catégorie
 
+### 12.5 Comportement LLM - OCR/Vision (GPT-4o)
+- [ ] **Upload image**: Uploader une image de devis/facture fournisseur
+- [ ] **Extraction données**: L'IA extrait automatiquement:
+  - Informations fournisseur (nom, SIRET, email, adresse)
+  - Numéro de document
+  - Date et date d'échéance
+  - Montants (HT, TVA, TTC)
+  - Lignes de détail (description, quantité, prix)
+- [ ] **Matching fournisseur**: Recherche automatique par SIRET, email ou nom (fuzzy)
+- [ ] **Score de confiance**: Affichage du score de confiance (0-1)
+- [ ] **Formats supportés**: Images (PNG, JPG), PDF
+- [ ] **Gestion erreurs**: Message si l'image est illisible
+- [ ] **Distance Levenshtein**: Matching fuzzy des noms de fournisseurs
+
+### 12.6 Comportement LLM - Chat
+- [ ] **Chat**: "Crée un fournisseur" → Appelle `create_supplier`
+- [ ] **Chat**: "Ajoute cette dépense" → Appelle `create_expense`
+
 ---
 
 ## 13. Tâches
@@ -409,6 +527,11 @@ Ce document contient les cas de test pour chaque fonctionnalité de l'applicatio
 - [ ] Filtrer par statut
 - [ ] Filtrer par entité liée
 - [ ] Voir les tâches en retard
+
+### 13.4 Comportement LLM
+- [ ] **Chat**: "Crée une tâche rappeler ACME demain" → Appelle `create_task`
+- [ ] **Chat**: "Marque la tâche X comme terminée" → Appelle `complete_task`
+- [ ] **Chat**: "Quelles sont mes tâches en retard?" → Appelle `list_tasks` avec filtre
 
 ---
 
@@ -471,6 +594,11 @@ Ce document contient les cas de test pour chaque fonctionnalité de l'applicatio
 - [ ] Tester avec 50+ lignes de devis
 - [ ] Tester avec 10+ pages de proposition
 
+### 16.3 Performance LLM
+- [ ] **Timeout chat**: 60 secondes maximum pour une réponse
+- [ ] **Timeout structure IA**: 60 secondes pour génération de pages
+- [ ] **Timeout OCR**: Temps raisonnable pour extraction d'image
+
 ---
 
 ## 17. Sécurité
@@ -485,11 +613,91 @@ Ce document contient les cas de test pour chaque fonctionnalité de l'applicatio
 - [ ] Liens publics fonctionnent sans connexion
 - [ ] Actions sensibles protégées
 
+### 17.3 Sécurité LLM
+- [ ] **Isolation données**: Le LLM n'accède qu'aux données de l'utilisateur connecté
+- [ ] **Modes de chat**: Respect des permissions selon le mode (AUTO, CONFIRM, READ_ONLY)
+- [ ] **Validation outils**: Le LLM ne peut pas appeler des outils non autorisés
+- [ ] **Clé API**: OpenAI API key stockée côté serveur uniquement
+
 ---
 
-## 18. Workflow Complet E2E
+## 18. Système de Suggestions IA
 
-### 18.1 Parcours client complet
+### 18.1 Types de suggestions
+- [ ] **Action**: Suggestions d'actions à effectuer
+- [ ] **Reminder**: Rappels automatiques
+- [ ] **Warning**: Alertes importantes
+- [ ] **Optimization**: Suggestions d'amélioration
+
+### 18.2 Priorités
+- [ ] **Low**: Suggestions peu urgentes
+- [ ] **Medium**: Suggestions normales
+- [ ] **High**: Suggestions importantes
+- [ ] **Urgent**: Suggestions critiques
+
+### 18.3 Détection automatique
+- [ ] **Factures en retard**: Détection via `detect_invoice_suggestions()`
+- [ ] **Rappels factures**: Détection via `detect_invoice_reminder_suggestions()`
+- [ ] **Deals urgents**: Détection via `detect_urgent_deal_suggestions()`
+- [ ] **Demandes review**: Détection via `detect_review_request_suggestions()`
+
+### 18.4 Workflow suggestions
+- [ ] Affichage des suggestions dans le chat
+- [ ] Accepter une suggestion → Exécute l'action
+- [ ] Rejeter une suggestion → Masque la suggestion
+- [ ] Statistiques des suggestions acceptées/rejetées
+
+### 18.5 Tests suggestions
+- [ ] **Facture impayée > 30j**: Génère suggestion "warning" urgente
+- [ ] **Facture à échéance < 7j**: Génère suggestion "reminder"
+- [ ] **Deal sans activité > 14j**: Génère suggestion "action"
+- [ ] **Mission payée sans review**: Génère suggestion "action"
+
+---
+
+## 19. Assistant Chat LLM
+
+### 19.1 Modes de fonctionnement
+- [ ] **AUTO**: Exécute les actions automatiquement
+- [ ] **CONFIRM**: Demande confirmation avant chaque action
+- [ ] **READ_ONLY**: Répond aux questions sans modifier les données
+- [ ] **DISABLED**: Chat désactivé
+
+### 19.2 Contexte intelligent
+- [ ] **Page courante**: Le LLM sait sur quelle page l'utilisateur se trouve
+- [ ] **Entité active**: Le LLM connaît le client/deal/mission courant
+- [ ] **Statuts**: Le LLM connaît les statuts des entités
+- [ ] **Devise**: Le LLM utilise la devise configurée
+
+### 19.3 Outils disponibles (20+)
+- [ ] `create_client`, `update_client`, `delete_client`, `list_clients`
+- [ ] `create_contact`, `update_contact`
+- [ ] `create_deal`, `update_deal`, `update_deal_status`, `add_deal_tag`
+- [ ] `create_quote`, `add_quote_line`, `send_quote`, `update_quote_status`
+- [ ] `create_invoice`, `create_invoice_from_quote`, `send_invoice`, `update_invoice_status`
+- [ ] `create_mission`, `create_mission_from_deal`, `update_mission_status`
+- [ ] `create_proposal`, `create_brief`, `create_review_request`
+- [ ] `create_task`, `complete_task`, `list_tasks`
+
+### 19.4 Tests du chat
+- [ ] **Conversation naturelle**: "Bonjour, comment vas-tu?"
+- [ ] **Création simple**: "Crée un client Test"
+- [ ] **Création complexe**: "Crée un devis de 3 lignes pour ACME"
+- [ ] **Workflow**: "Crée un deal, puis un devis, puis envoie-le"
+- [ ] **Questions**: "Quel est le montant total des factures impayées?"
+- [ ] **Erreurs**: "Crée un client" (sans nom) → Demande le nom
+- [ ] **Permissions**: En mode READ_ONLY, refuse de créer des entités
+
+### 19.5 Retry et fallback
+- [ ] **Tool calling**: Si le LLM suggère mais n'exécute pas, retry automatique
+- [ ] **Timeout**: Gestion du timeout 60s avec message d'erreur
+- [ ] **API error**: Message d'erreur si OpenAI est indisponible
+
+---
+
+## 20. Workflow Complet E2E
+
+### 20.1 Parcours client complet
 1. [ ] Créer un client
 2. [ ] Créer un contact pour ce client
 3. [ ] Créer un deal lié au client
@@ -506,6 +714,20 @@ Ce document contient les cas de test pour chaque fonctionnalité de l'applicatio
 14. [ ] Soumettre la review (lien public)
 15. [ ] Publier la review sur Verifolio
 
+### 20.2 Parcours E2E avec LLM
+1. [ ] **Chat**: "Crée un client ACME avec contact Jean"
+2. [ ] **Chat**: "Crée un deal de 5000€ pour ACME"
+3. [ ] **Chat**: "Génère une proposition" → Utilise IA pour structure
+4. [ ] **Chat**: "Envoie la proposition"
+5. [ ] **Public**: Accepter via lien
+6. [ ] **Chat**: "Crée un devis avec les mêmes lignes"
+7. [ ] **Chat**: "Marque le deal comme gagné"
+8. [ ] **Chat**: "Crée la mission"
+9. [ ] **Chat**: "Facture la mission"
+10. [ ] **Suggestion IA**: "Demander une review?" → Accepter
+11. [ ] **Public**: Soumettre la review
+12. [ ] **Chat**: "Publie la review"
+
 ---
 
 ## Notes de Test
@@ -519,7 +741,22 @@ Ce document contient les cas de test pour chaque fonctionnalité de l'applicatio
 - Tester les cas limites (champs vides, caractères spéciaux)
 - Tester les formats internationaux (téléphones, adresses)
 
+### Configuration LLM requise
+- Variable d'environnement: `OPENAI_API_KEY`
+- Modèles utilisés:
+  - `gpt-4o-mini`: Chat, génération de structure
+  - `gpt-4o`: OCR/Vision pour extraction de documents
+
 ### Rapport de bugs
 - Inclure les étapes de reproduction
 - Inclure l'environnement (navigateur, résolution)
 - Inclure des captures d'écran si nécessaire
+- Pour bugs LLM: inclure le prompt et la réponse
+
+### Modèles IA et limites
+| Fonctionnalité | Modèle | Max Tokens | Timeout |
+|----------------|--------|------------|---------|
+| Chat assistant | gpt-4o-mini | - | 60s |
+| Structure proposition | gpt-4o-mini | 1024 | 60s |
+| Structure brief | gpt-4o-mini | 2048 | 60s |
+| OCR documents | gpt-4o | - | 60s |
