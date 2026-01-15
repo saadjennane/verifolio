@@ -38,12 +38,12 @@ const navItems: NavItem[] = [
     ),
   },
   {
-    type: 'clients',
-    path: '/clients',
-    title: 'Clients',
+    type: 'companies',
+    path: '/companies',
+    title: 'Entreprises',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
       </svg>
     ),
   },
@@ -149,7 +149,14 @@ export function Sidebar() {
     }
     // Pour les listes, vérifier si l'onglet actif est du même type ou un sous-type
     const typeMap: Record<string, string[]> = {
-      clients: ['clients', 'client', 'new-client', 'edit-client'],
+      companies: [
+        'companies',
+        'clients', 'client', 'new-client', 'edit-client',
+        'suppliers', 'supplier', 'new-supplier', 'edit-supplier',
+        'supplier-consultations', 'supplier-consultation', 'new-supplier-consultation',
+        'supplier-quotes', 'supplier-quote', 'new-supplier-quote',
+        'supplier-invoices', 'supplier-invoice', 'new-supplier-invoice',
+      ],
       contacts: ['contacts', 'contact', 'new-contact', 'edit-contact'],
       deals: ['deals', 'deal', 'new-deal', 'edit-deal'],
       missions: ['missions', 'mission', 'new-mission', 'edit-mission'],
@@ -159,11 +166,6 @@ export function Sidebar() {
         'invoices', 'invoice', 'new-invoice', 'edit-invoice',
         'proposals', 'proposal', 'new-proposal', 'edit-proposal', 'proposal-templates', 'edit-proposal-template',
         'briefs', 'brief', 'new-brief', 'edit-brief', 'brief-templates', 'edit-brief-template',
-        // Suppliers & Expenses
-        'suppliers', 'supplier', 'new-supplier', 'edit-supplier',
-        'supplier-consultations', 'supplier-consultation', 'new-supplier-consultation',
-        'supplier-quotes', 'supplier-quote', 'new-supplier-quote',
-        'supplier-invoices', 'supplier-invoice', 'new-supplier-invoice',
         'expenses', 'expense', 'new-expense',
       ],
       todos: ['todos', 'todo', 'new-todo'],

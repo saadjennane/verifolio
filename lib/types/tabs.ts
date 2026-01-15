@@ -1,5 +1,6 @@
 export type TabType =
   | 'dashboard'
+  | 'companies'
   | 'clients'
   | 'client'
   | 'new-client'
@@ -86,6 +87,7 @@ export interface TabConfig {
 
 export const TAB_ICONS: Record<TabType, string> = {
   dashboard: 'home',
+  companies: 'building',
   clients: 'users',
   client: 'user',
   'new-client': 'user-plus',
@@ -158,6 +160,11 @@ export function pathToTabConfig(pathname: string): TabConfig | null {
   // Dashboard
   if (pathname === '/' || pathname === '/dashboard') {
     return { type: 'dashboard', path: '/', title: 'Dashboard' };
+  }
+
+  // Companies (unified clients/suppliers view)
+  if (pathname === '/companies' || pathname.startsWith('/companies?')) {
+    return { type: 'companies', path: '/companies', title: 'Entreprises' };
   }
 
   // Clients
