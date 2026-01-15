@@ -27,6 +27,7 @@ interface FieldWithMeta extends CustomField {
   appliesTo: {
     company: boolean;
     client: boolean;
+    supplier: boolean;
   };
 }
 
@@ -56,6 +57,7 @@ export function CustomFieldsSettings() {
     appliesTo: {
       company: true,
       client: false,
+      supplier: false,
     },
   });
 
@@ -79,6 +81,8 @@ export function CustomFieldsSettings() {
               existing.companyValue = field.value || '';
             } else if (field.scope === 'client') {
               existing.appliesTo.client = true;
+            } else if (field.scope === 'supplier') {
+              existing.appliesTo.supplier = true;
             }
           } else {
             fieldMap.set(field.key, {
@@ -87,6 +91,7 @@ export function CustomFieldsSettings() {
               appliesTo: {
                 company: field.scope === 'company',
                 client: field.scope === 'client',
+                supplier: field.scope === 'supplier',
               },
             });
           }
@@ -114,7 +119,7 @@ export function CustomFieldsSettings() {
     setFormData({
       label: '',
       companyValue: '',
-      appliesTo: { company: true, client: false },
+      appliesTo: { company: true, client: false, supplier: false },
     });
     setEditingField(null);
     setShowForm(false);
@@ -136,7 +141,7 @@ export function CustomFieldsSettings() {
       return;
     }
 
-    if (!formData.appliesTo.company && !formData.appliesTo.client) {
+    if (!formData.appliesTo.company && !formData.appliesTo.client && !formData.appliesTo.supplier) {
       setMessage({ type: 'error', text: 'Sélectionnez au moins une cible' });
       return;
     }
@@ -221,6 +226,26 @@ export function CustomFieldsSettings() {
       }
     }
 
+    if (formData.appliesTo.supplier) {
+      const res = await fetch('/api/settings/fields', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          label: formData.label,
+          key,
+          scope: 'supplier',
+          field_type: 'text',
+          is_active: true,
+          is_visible_default: true,
+        }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        createdFields.push(json.data);
+      }
+    }
+
     // Recharger les champs pour avoir les valeurs à jour
     await fetchFields();
     resetForm();
@@ -240,7 +265,8 @@ export function CustomFieldsSettings() {
     for (const f of existingFields) {
       const shouldKeep =
         (f.scope === 'company' && formData.appliesTo.company) ||
-        (f.scope === 'client' && formData.appliesTo.client);
+        (f.scope === 'client' && formData.appliesTo.client) ||
+        (f.scope === 'supplier' && formData.appliesTo.supplier);
 
       if (!shouldKeep) {
         await fetch(`/api/settings/fields/${f.id}`, {
@@ -253,6 +279,7 @@ export function CustomFieldsSettings() {
     // Create fields that don't exist yet
     const hasCompany = existingFields.some((f: CustomField) => f.scope === 'company');
     const hasClient = existingFields.some((f: CustomField) => f.scope === 'client');
+    const hasSupplier = existingFields.some((f: CustomField) => f.scope === 'supplier');
 
     if (formData.appliesTo.company && !hasCompany) {
       const createRes = await fetch('/api/settings/fields', {
@@ -288,6 +315,22 @@ export function CustomFieldsSettings() {
           label: formData.label,
           key: editingField.key,
           scope: 'client',
+          field_type: 'text',
+          is_active: true,
+          is_visible_default: true,
+        }),
+      });
+    }
+
+    if (formData.appliesTo.supplier && !hasSupplier) {
+      await fetch('/api/settings/fields', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          label: formData.label,
+          key: editingField.key,
+          scope: 'supplier',
           field_type: 'text',
           is_active: true,
           is_visible_default: true,
@@ -429,13 +472,17 @@ export function CustomFieldsSettings() {
                   <span className="text-sm text-gray-700">Clients</span>
                 </label>
 
-                <label className="flex items-center gap-2 cursor-not-allowed opacity-50">
+                <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
-                    disabled
-                    className="rounded border-gray-300"
+                    checked={formData.appliesTo.supplier}
+                    onChange={e => setFormData(prev => ({
+                      ...prev,
+                      appliesTo: { ...prev.appliesTo, supplier: e.target.checked }
+                    }))}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
-                  <span className="text-sm text-gray-500">Fournisseurs (bientôt)</span>
+                  <span className="text-sm text-gray-700">Fournisseurs</span>
                 </label>
               </div>
             </div>
@@ -460,6 +507,11 @@ export function CustomFieldsSettings() {
             {formData.appliesTo.client && (
               <p className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
                 Pour les clients, la valeur sera saisie sur chaque fiche client.
+              </p>
+            )}
+            {formData.appliesTo.supplier && (
+              <p className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
+                Pour les fournisseurs, la valeur sera saisie sur chaque fiche fournisseur.
               </p>
             )}
           </div>
@@ -504,6 +556,11 @@ export function CustomFieldsSettings() {
                         {field.appliesTo.client && (
                           <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">
                             Clients
+                          </span>
+                        )}
+                        {field.appliesTo.supplier && (
+                          <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">
+                            Fournisseurs
                           </span>
                         )}
                       </div>

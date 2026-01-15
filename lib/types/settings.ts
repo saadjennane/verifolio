@@ -3,7 +3,7 @@
 // ============================================================================
 
 // Enums matching database
-export type CustomFieldScope = 'company' | 'client' | 'document';
+export type CustomFieldScope = 'company' | 'client' | 'document' | 'supplier';
 export type CustomFieldType = 'text';
 export type EntityType = 'company' | 'client' | 'quote' | 'invoice';
 export type ClientType = 'particulier' | 'entreprise';
