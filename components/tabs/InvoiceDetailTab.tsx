@@ -74,8 +74,8 @@ export function InvoiceDetailTab({ invoiceId }: InvoiceDetailTabProps) {
     fetchInvoice();
   }, [invoiceId, updateTabTitle]);
 
-  const handleBackToInvoices = () => {
-    openTab({ type: 'invoices', path: '/invoices', title: 'Factures' }, true);
+  const handleBackToDocuments = () => {
+    openTab({ type: 'documents', path: '/documents', title: 'Documents' }, true);
   };
 
   const handleEdit = () => {
@@ -107,10 +107,10 @@ export function InvoiceDetailTab({ invoiceId }: InvoiceDetailTabProps) {
       return;
     }
 
-    // Close current tab and go back to invoices list
+    // Close current tab and go back to documents list
     const currentTab = tabs.find(t => t.id === activeTabId);
     if (currentTab) closeTab(currentTab.id);
-    openTab({ type: 'invoices', path: '/invoices', title: 'Factures' }, true);
+    openTab({ type: 'documents', path: '/documents', title: 'Documents' }, true);
   };
 
   if (loading) {
@@ -126,7 +126,7 @@ export function InvoiceDetailTab({ invoiceId }: InvoiceDetailTabProps) {
       <div className="flex flex-col items-center justify-center h-full text-gray-500">
         <p className="text-lg mb-4">Facture non trouvée</p>
         <button
-          onClick={handleBackToInvoices}
+          onClick={handleBackToDocuments}
           className="text-blue-600 hover:text-blue-700"
         >
           Retour aux factures
@@ -143,7 +143,7 @@ export function InvoiceDetailTab({ invoiceId }: InvoiceDetailTabProps) {
         {/* Header */}
         <div className="mb-6">
           <button
-            onClick={handleBackToInvoices}
+            onClick={handleBackToDocuments}
             className="text-sm text-gray-500 hover:text-gray-700"
           >
             ← Retour aux factures

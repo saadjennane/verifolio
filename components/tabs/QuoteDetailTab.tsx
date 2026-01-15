@@ -72,8 +72,8 @@ export function QuoteDetailTab({ quoteId }: QuoteDetailTabProps) {
     fetchQuote();
   }, [quoteId, updateTabTitle]);
 
-  const handleBackToQuotes = () => {
-    openTab({ type: 'quotes', path: '/quotes', title: 'Devis' }, true);
+  const handleBackToDocuments = () => {
+    openTab({ type: 'documents', path: '/documents', title: 'Documents' }, true);
   };
 
   const handleEdit = () => {
@@ -105,10 +105,10 @@ export function QuoteDetailTab({ quoteId }: QuoteDetailTabProps) {
       return;
     }
 
-    // Close current tab and go back to quotes list
+    // Close current tab and go back to documents list
     const currentTab = tabs.find(t => t.id === activeTabId);
     if (currentTab) closeTab(currentTab.id);
-    openTab({ type: 'quotes', path: '/quotes', title: 'Devis' }, true);
+    openTab({ type: 'documents', path: '/documents', title: 'Documents' }, true);
   };
 
   if (loading) {
@@ -124,7 +124,7 @@ export function QuoteDetailTab({ quoteId }: QuoteDetailTabProps) {
       <div className="flex flex-col items-center justify-center h-full text-gray-500">
         <p className="text-lg mb-4">Devis non trouvé</p>
         <button
-          onClick={handleBackToQuotes}
+          onClick={handleBackToDocuments}
           className="text-blue-600 hover:text-blue-700"
         >
           Retour aux devis
@@ -141,7 +141,7 @@ export function QuoteDetailTab({ quoteId }: QuoteDetailTabProps) {
         {/* Header */}
         <div className="mb-6">
           <button
-            onClick={handleBackToQuotes}
+            onClick={handleBackToDocuments}
             className="text-sm text-gray-500 hover:text-gray-700"
           >
             ← Retour aux devis
