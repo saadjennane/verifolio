@@ -80,7 +80,7 @@ export function QuotePublicViewer({ quote, company, token }: QuotePublicViewerPr
         <p className="text-center text-sm text-gray-500">
           Document généré via{' '}
           <a
-            href="https://verifolio.app"
+            href="https://verifolio.pro"
             target="_blank"
             rel="noopener noreferrer"
             className="text-blue-600 hover:underline"

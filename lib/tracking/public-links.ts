@@ -208,7 +208,7 @@ export async function getLinksForResource(
  */
 export function buildPublicUrl(resourceType: ResourceType, token: string): string {
   const config = DOCUMENT_SEND_CONFIGS[resourceType];
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://verifolio.app';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://verifolio.pro';
   return `${baseUrl}${config.viewer_path}/${token}`;
 }
 

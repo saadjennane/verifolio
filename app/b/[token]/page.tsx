@@ -7,7 +7,7 @@ interface PageProps {
 
 async function getBriefByToken(token: string) {
   // Fetch brief data from public API endpoint
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://verifolio.pro';
   const res = await fetch(`${baseUrl}/api/public/briefs/${token}`, {
     cache: 'no-store',
   });

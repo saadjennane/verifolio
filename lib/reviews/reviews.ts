@@ -258,7 +258,7 @@ export async function publishReview(
         .single();
 
       if (profile?.slug) {
-        const verifolioUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://verifolio.app'}/verifolio/${profile.slug}`;
+        const verifolioUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://verifolio.pro'}/verifolio/${profile.slug}`;
         const freelanceName = profile.display_name || userSettings?.company_name || 'ce professionnel';
 
         // Get company settings for email configuration
