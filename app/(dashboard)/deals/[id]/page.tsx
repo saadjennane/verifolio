@@ -100,31 +100,62 @@ export default function DealDetailPage({
   async function addTag() {
     if (!newTag.trim()) return;
 
+    const tagToAdd = newTag.trim();
+    const tempId = `temp-${Date.now()}`;
+
+    // Optimistic update with full DealTag shape
+    setDeal(prev => prev ? {
+      ...prev,
+      tags: [...(prev.tags || []), {
+        id: tempId,
+        deal_id: id,
+        tag: tagToAdd,
+        color: 'gray',
+        created_at: new Date().toISOString(),
+      }]
+    } : null);
+    setNewTag('');
+
     try {
       const res = await fetch(`/api/deals/${id}/tags`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tag: newTag.trim() }),
+        body: JSON.stringify({ tag: tagToAdd }),
       });
 
-      if (!res.ok) throw new Error('Failed to add tag');
-
-      setNewTag('');
-      await loadDeal();
+      if (!res.ok) {
+        // Rollback on error
+        setDeal(prev => prev ? {
+          ...prev,
+          tags: (prev.tags || []).filter(t => t.tag !== tagToAdd)
+        } : null);
+        throw new Error('Failed to add tag');
+      }
     } catch (error) {
       console.error('Error adding tag:', error);
     }
   }
 
   async function removeTag(tag: string) {
+    // Store for rollback
+    const previousTags = deal?.tags || [];
+
+    // Optimistic update
+    setDeal(prev => prev ? {
+      ...prev,
+      tags: (prev.tags || []).filter(t => t.tag !== tag)
+    } : null);
+
     try {
       const res = await fetch(`/api/deals/${id}/tags?tag=${encodeURIComponent(tag)}`, {
         method: 'DELETE',
       });
 
-      if (!res.ok) throw new Error('Failed to remove tag');
-
-      await loadDeal();
+      if (!res.ok) {
+        // Rollback on error
+        setDeal(prev => prev ? { ...prev, tags: previousTags } : null);
+        throw new Error('Failed to remove tag');
+      }
     } catch (error) {
       console.error('Error removing tag:', error);
     }
@@ -133,32 +164,64 @@ export default function DealDetailPage({
   async function addBadge() {
     if (!newBadge.trim()) return;
 
+    const badgeToAdd = newBadge.trim();
+    const variantToAdd = newBadgeVariant;
+    const tempId = `temp-${Date.now()}`;
+
+    // Optimistic update with full DealBadge shape
+    setDeal(prev => prev ? {
+      ...prev,
+      badges: [...(prev.badges || []), {
+        id: tempId,
+        deal_id: id,
+        badge: badgeToAdd,
+        variant: variantToAdd,
+        created_at: new Date().toISOString(),
+      }]
+    } : null);
+    setNewBadge('');
+    setNewBadgeVariant('gray');
+
     try {
       const res = await fetch(`/api/deals/${id}/badges`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ badge: newBadge.trim(), variant: newBadgeVariant }),
+        body: JSON.stringify({ badge: badgeToAdd, variant: variantToAdd }),
       });
 
-      if (!res.ok) throw new Error('Failed to add badge');
-
-      setNewBadge('');
-      setNewBadgeVariant('gray');
-      await loadDeal();
+      if (!res.ok) {
+        // Rollback on error
+        setDeal(prev => prev ? {
+          ...prev,
+          badges: (prev.badges || []).filter(b => b.badge !== badgeToAdd)
+        } : null);
+        throw new Error('Failed to add badge');
+      }
     } catch (error) {
       console.error('Error adding badge:', error);
     }
   }
 
   async function removeBadge(badge: string) {
+    // Store for rollback
+    const previousBadges = deal?.badges || [];
+
+    // Optimistic update
+    setDeal(prev => prev ? {
+      ...prev,
+      badges: (prev.badges || []).filter(b => b.badge !== badge)
+    } : null);
+
     try {
       const res = await fetch(`/api/deals/${id}/badges?badge=${encodeURIComponent(badge)}`, {
         method: 'DELETE',
       });
 
-      if (!res.ok) throw new Error('Failed to remove badge');
-
-      await loadDeal();
+      if (!res.ok) {
+        // Rollback on error
+        setDeal(prev => prev ? { ...prev, badges: previousBadges } : null);
+        throw new Error('Failed to remove badge');
+      }
     } catch (error) {
       console.error('Error removing badge:', error);
     }

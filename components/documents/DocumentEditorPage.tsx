@@ -404,15 +404,35 @@ function LineItemsTable({
                 </td>
 
                 {/* Description */}
-                <td className="py-2 px-2 border-r border-gray-200">
-                  <input
-                    type="text"
+                <td className="py-2 px-2 border-r border-gray-200 align-top">
+                  <textarea
                     value={item.description}
-                    onChange={(e) => onUpdateItem(index, 'description', e.target.value)}
-                    onKeyDown={(e) => handleKeyDown(e, index, 'description')}
-                    onFocus={() => setFocusedCell({ row: index, col: 'description' })}
+                    onChange={(e) => {
+                      onUpdateItem(index, 'description', e.target.value);
+                      // Auto-resize textarea
+                      e.target.style.height = 'auto';
+                      e.target.style.height = e.target.scrollHeight + 'px';
+                    }}
+                    onKeyDown={(e) => {
+                      // Allow Enter for new line, use Shift+Enter or Tab to navigate
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        // Allow normal Enter for new lines
+                        return;
+                      }
+                      if (e.key === 'Tab') {
+                        handleKeyDown(e, index, 'description');
+                      }
+                    }}
+                    onFocus={(e) => {
+                      setFocusedCell({ row: index, col: 'description' });
+                      // Ensure proper height on focus
+                      e.target.style.height = 'auto';
+                      e.target.style.height = e.target.scrollHeight + 'px';
+                    }}
                     placeholder="Description de la prestation..."
-                    className="w-full bg-transparent border-0 focus:ring-0 text-[10pt] text-gray-900 placeholder:text-gray-400 focus:bg-blue-50 rounded px-2 py-1"
+                    className="w-full bg-transparent border-0 focus:ring-0 text-[10pt] text-gray-900 placeholder:text-gray-400 focus:bg-blue-50 rounded px-2 py-1 resize-none overflow-hidden"
+                    style={{ minHeight: '24px' }}
+                    rows={1}
                     autoFocus={focusedCell?.row === index && focusedCell?.col === 'description'}
                   />
                 </td>
@@ -530,11 +550,12 @@ export function DocumentEditorPage({
   );
 
   return (
-    <div className="max-w-[210mm] mx-auto">
-      {/* A4 Page */}
+    <div className="max-w-[210mm] mx-auto" data-theme="light">
+      {/* A4 Page - Force light mode for print fidelity */}
       <div
-        className="bg-white shadow-lg mx-4"
+        className="bg-white shadow-lg mx-4 text-gray-900"
         style={{
+          colorScheme: 'light',
           minHeight: '297mm',
           padding: '15mm 20mm',
           fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",

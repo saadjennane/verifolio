@@ -6,6 +6,8 @@ import { useTabsStore } from '@/lib/stores/tabs-store';
 import { DocumentEditorToolbar } from './DocumentEditorToolbar';
 import { DocumentEditorPage } from './DocumentEditorPage';
 import { DocumentSettingsPanel } from './DocumentSettingsPanel';
+import { SendDrawer } from './SendDrawer';
+import type { ContactWithResponsibilities } from '@/lib/documents/recipient-selection';
 import { getCurrencySymbol } from '@/lib/utils/currency';
 import { previewDocNumber, generateDocNumber, DEFAULT_PATTERNS } from '@/lib/numbering/generateDocNumber';
 import type { Client, Company, LineItemInput } from '@/lib/supabase/types';
@@ -94,9 +96,11 @@ export function DocumentEditor({ type, documentId, dealId, missionId }: Document
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [sendDrawerOpen, setSendDrawerOpen] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [clientContacts, setClientContacts] = useState<ContactWithResponsibilities[]>([]);
 
   // Data
   const [document, setDocument] = useState<DocumentData>(createEmptyDocument(type));
@@ -345,11 +349,12 @@ export function DocumentEditor({ type, documentId, dealId, missionId }: Document
     fetchData();
   }, [documentId, dealId, missionId, type, settings.defaultTvaRate]);
 
-  // Load client custom fields when client changes
+  // Load client custom fields and contacts when client changes
   useEffect(() => {
-    async function loadClientFields() {
+    async function loadClientData() {
       if (!client) {
         setClientFields([]);
+        setClientContacts([]);
         return;
       }
 
@@ -357,14 +362,18 @@ export function DocumentEditor({ type, documentId, dealId, missionId }: Document
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // OPTIMIZED: Parallel queries for client fields
-      const [clientFieldDefsResult, clientFieldValuesResult] = await Promise.all([
+      // OPTIMIZED: Parallel queries for client fields and contacts
+      const [clientFieldDefsResult, clientFieldValuesResult, contactsResult] = await Promise.all([
         supabase.from('custom_fields').select('id, key, label').eq('user_id', user.id).eq('scope', 'client'),
         supabase.from('custom_field_values').select('field_id, value_text').eq('user_id', user.id).eq('entity_type', 'client').eq('entity_id', client.id),
+        supabase.from('client_contacts')
+          .select('id, contact_id, is_primary, handles_billing, handles_ops, handles_commercial, handles_management, contacts(*)')
+          .eq('client_id', client.id),
       ]);
 
       const clientFieldDefs = clientFieldDefsResult.data;
       const clientFieldValues = clientFieldValuesResult.data;
+      const contactLinks = contactsResult.data;
 
       if (clientFieldDefs && clientFieldValues) {
         const fields = clientFieldDefs
@@ -377,9 +386,34 @@ export function DocumentEditor({ type, documentId, dealId, missionId }: Document
           .filter((f): f is { key: string; label: string; value: string } => f !== null);
         setClientFields(fields);
       }
+
+      // Build contacts with responsibilities
+      if (contactLinks) {
+        const contacts: ContactWithResponsibilities[] = contactLinks
+          .filter(link => link.contacts && !Array.isArray(link.contacts))
+          .map(link => {
+            const contact = link.contacts as unknown as { id: string; nom: string; prenom?: string; civilite?: string; email?: string; telephone?: string };
+            return {
+              id: contact.id,
+              nom: contact.nom,
+              prenom: contact.prenom || null,
+              civilite: contact.civilite || null,
+              email: contact.email || null,
+              telephone: contact.telephone || null,
+              handles_billing: link.handles_billing || false,
+              handles_ops: link.handles_ops || false,
+              handles_commercial: link.handles_commercial || false,
+              handles_management: link.handles_management || false,
+              is_primary: link.is_primary || false,
+              source: 'client' as const,
+              linkId: link.id,
+            };
+          });
+        setClientContacts(contacts);
+      }
     }
 
-    loadClientFields();
+    loadClientData();
   }, [client]);
 
   // ============================================================================
@@ -636,16 +670,35 @@ export function DocumentEditor({ type, documentId, dealId, missionId }: Document
             .eq('id', missionId);
         }
 
-        // Navigate to detail view
+        // Navigate back to deal/mission or to the document detail view
         const currentTab = tabs.find((t) => t.id === activeTabId);
         if (currentTab) closeTab(currentTab.id);
 
-        openTab({
-          type: type,
-          path: `/${type}s/${newDoc.id}`,
-          title: newDoc.numero,
-          entityId: newDoc.id,
-        }, true);
+        if (dealId) {
+          // Return to deal after creating quote
+          openTab({
+            type: 'deal',
+            path: `/deals/${dealId}`,
+            title: 'Deal',
+            entityId: dealId,
+          }, true);
+        } else if (missionId) {
+          // Return to mission after creating invoice
+          openTab({
+            type: 'mission',
+            path: `/missions/${missionId}`,
+            title: 'Mission',
+            entityId: missionId,
+          }, true);
+        } else {
+          // No context, go to document detail
+          openTab({
+            type: type,
+            path: `/${type}s/${newDoc.id}`,
+            title: newDoc.numero,
+            entityId: newDoc.id,
+          }, true);
+        }
 
         return true;
       }
@@ -948,7 +1001,7 @@ export function DocumentEditor({ type, documentId, dealId, missionId }: Document
   const currencySymbol = getCurrencySymbol(document.devise);
 
   return (
-    <div className="h-full flex flex-col bg-gray-100">
+    <div className="h-full flex flex-col bg-gray-100 dark:bg-gray-100">
       {/* Toolbar */}
       <DocumentEditorToolbar
         type={type}
@@ -958,8 +1011,10 @@ export function DocumentEditor({ type, documentId, dealId, missionId }: Document
         saving={saving}
         isAutoSaving={isAutoSaving}
         lastSaved={lastSaved}
+        canSend={!!document.id && !!client && clientContacts.length > 0}
         onBack={handleBack}
         onSave={save}
+        onSend={() => setSendDrawerOpen(true)}
         onOpenSettings={() => setSettingsOpen(true)}
         isEditing={isEditing || !!document.id}
       />
@@ -973,8 +1028,8 @@ export function DocumentEditor({ type, documentId, dealId, missionId }: Document
         </div>
       )}
 
-      {/* A4 Page */}
-      <div className="flex-1 overflow-auto py-8">
+      {/* A4 Page - Force light mode for document preview */}
+      <div className="flex-1 overflow-auto py-8 bg-gray-100 dark:bg-gray-100">
         <DocumentEditorPage
           type={type}
           document={document}
@@ -1004,6 +1059,27 @@ export function DocumentEditor({ type, documentId, dealId, missionId }: Document
         document={document}
         onUpdateDocument={updateDocument}
       />
+
+      {/* Send Drawer */}
+      {document.id && client && (
+        <SendDrawer
+          isOpen={sendDrawerOpen}
+          onClose={() => setSendDrawerOpen(false)}
+          resourceType={type}
+          resourceId={document.id}
+          documentTitle={document.numero}
+          contacts={clientContacts}
+          clientName={client.nom}
+          quoteNumber={type === 'quote' ? document.numero : undefined}
+          invoiceNumber={type === 'invoice' ? document.numero : undefined}
+          companyName={company?.nom || ''}
+          userDisplayName={company?.nom || ''}
+          onSendSuccess={() => {
+            // Reload document to update status
+            window.location.reload();
+          }}
+        />
+      )}
     </div>
   );
 }

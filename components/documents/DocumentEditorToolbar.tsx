@@ -12,8 +12,10 @@ interface DocumentEditorToolbarProps {
   isEditing: boolean;
   isAutoSaving?: boolean;
   lastSaved?: Date | null;
+  canSend?: boolean;
   onBack: () => void;
   onSave: () => Promise<boolean>;
+  onSend?: () => void;
   onOpenSettings: () => void;
 }
 
@@ -42,8 +44,10 @@ export function DocumentEditorToolbar({
   isEditing,
   isAutoSaving,
   lastSaved,
+  canSend,
   onBack,
   onSave,
+  onSend,
   onOpenSettings,
 }: DocumentEditorToolbarProps) {
   const typeLabel = type === 'quote' ? 'Devis' : 'Facture';
@@ -127,6 +131,18 @@ export function DocumentEditorToolbar({
               )}
               <span>{isEditing ? 'Enregistrer' : 'Créer'}</span>
             </button>
+
+            {/* Send */}
+            {canSend && onSend && (
+              <button
+                onClick={onSend}
+                disabled={saving}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <Send className="h-4 w-4" />
+                <span>Envoyer</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
