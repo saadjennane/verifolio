@@ -38,17 +38,21 @@ export function CompanyFormTab({ companyId }: CompanyFormTabProps) {
   useEffect(() => {
     async function loadData() {
       const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
 
       // Load custom fields for clients (scope: client covers both)
-      const { data: fields } = await supabase
-        .from('custom_fields')
-        .select('*')
-        .eq('scope', 'client')
-        .eq('is_active', true)
-        .order('created_at');
+      if (user) {
+        const { data: fields } = await supabase
+          .from('custom_fields')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('scope', 'client')
+          .eq('is_active', true)
+          .order('created_at');
 
-      if (fields) {
-        setCustomFields(fields);
+        if (fields) {
+          setCustomFields(fields);
+        }
       }
 
       // If editing, load company data and field values

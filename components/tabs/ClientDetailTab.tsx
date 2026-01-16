@@ -165,30 +165,37 @@ export function ClientDetailTab({ clientId }: ClientDetailTabProps) {
       setMissions(missionsData);
     }
 
+    // Get user for fetching custom fields
+    const { data: { user } } = await supabase.auth.getUser();
+
     // Fetch custom fields for clients
-    const { data: fields } = await supabase
-      .from('custom_fields')
-      .select('*')
-      .eq('scope', 'client')
-      .eq('is_active', true)
-      .order('created_at');
+    if (user) {
+      const { data: fields } = await supabase
+        .from('custom_fields')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('scope', 'client')
+        .eq('is_active', true)
+        .order('created_at');
 
-    if (fields) {
-      setCustomFields(fields);
+      if (fields && fields.length > 0) {
+        setCustomFields(fields);
 
-      // Fetch values for these fields
-      const { data: values } = await supabase
-        .from('custom_field_values')
-        .select('field_id, value_text')
-        .eq('entity_type', 'client')
-        .eq('entity_id', clientId);
+        // Fetch values for these fields
+        const { data: values } = await supabase
+          .from('custom_field_values')
+          .select('field_id, value_text')
+          .eq('entity_type', 'client')
+          .eq('entity_id', clientId)
+          .in('field_id', fields.map(f => f.id));
 
-      if (values) {
-        const valueMap: Record<string, string> = {};
-        for (const v of values) {
-          valueMap[v.field_id] = v.value_text || '';
+        if (values) {
+          const valueMap: Record<string, string> = {};
+          for (const v of values) {
+            valueMap[v.field_id] = v.value_text || '';
+          }
+          setFieldValues(valueMap);
         }
-        setFieldValues(valueMap);
       }
     }
 
