@@ -164,16 +164,16 @@ export function ClientFormTab({ clientId }: ClientFormTabProps) {
       }
     }
 
-    // Fermer l'onglet actuel et ouvrir la liste des clients
+    // Fermer l'onglet actuel et ouvrir la liste des entreprises
     const currentTab = tabs.find((t) => t.id === activeTabId);
     if (currentTab) {
       closeTab(currentTab.id);
     }
-    openTab({ type: 'clients', path: '/clients', title: 'Clients' }, true);
+    openTab({ type: 'companies', path: '/companies', title: 'Entreprises' }, true);
   };
 
   const handleCancel = () => {
-    openTab({ type: 'clients', path: '/clients', title: 'Clients' }, true);
+    openTab({ type: 'companies', path: '/companies', title: 'Entreprises' }, true);
   };
 
   if (loading) {
@@ -192,7 +192,7 @@ export function ClientFormTab({ clientId }: ClientFormTabProps) {
             onClick={handleCancel}
             className="text-sm text-gray-500 hover:text-gray-700"
           >
-            ← Retour aux clients
+            ← Retour aux entreprises
           </button>
           <h1 className="text-2xl font-bold text-gray-900 mt-2">
             {isEditing ? 'Modifier le client' : 'Nouveau client'}
