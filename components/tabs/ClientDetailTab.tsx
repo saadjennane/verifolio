@@ -165,8 +165,8 @@ export function ClientDetailTab({ clientId }: ClientDetailTabProps) {
     setLoading(false);
   }
 
-  const handleBackToClients = () => {
-    openTab({ type: 'clients', path: '/clients', title: 'Clients' }, true);
+  const handleBackToCompanies = () => {
+    openTab({ type: 'companies', path: '/companies', title: 'Entreprises' }, true);
   };
 
   const handleContactClick = (contact: { id: string; nom: string; prenom: string | null }) => {
@@ -199,9 +199,9 @@ export function ClientDetailTab({ clientId }: ClientDetailTabProps) {
 
   const handleEdit = () => {
     openTab({
-      type: 'edit-client',
-      path: `/clients/${clientId}/edit`,
-      title: 'Modifier le client',
+      type: 'edit-company',
+      path: `/companies/${clientId}/edit`,
+      title: 'Modifier',
       entityId: clientId,
     }, true);
   };
@@ -236,7 +236,7 @@ export function ClientDetailTab({ clientId }: ClientDetailTabProps) {
     if (currentTab) {
       closeTab(currentTab.id);
     }
-    openTab({ type: 'clients', path: '/clients', title: 'Clients' }, true);
+    openTab({ type: 'companies', path: '/companies', title: 'Entreprises' }, true);
   };
 
   if (loading) {
@@ -251,8 +251,8 @@ export function ClientDetailTab({ clientId }: ClientDetailTabProps) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-gray-500">
         <p className="text-lg mb-4">Client non trouvé</p>
-        <button onClick={handleBackToClients} className="text-blue-600 hover:text-blue-700">
-          Retour aux clients
+        <button onClick={handleBackToCompanies} className="text-blue-600 hover:text-blue-700">
+          Retour aux entreprises
         </button>
       </div>
     );
@@ -269,15 +269,21 @@ export function ClientDetailTab({ clientId }: ClientDetailTabProps) {
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="mb-6">
-          <button onClick={handleBackToClients} className="text-sm text-gray-500 hover:text-gray-700">
-            ← Retour aux clients
+          <button onClick={handleBackToCompanies} className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
+            ← Retour aux entreprises
           </button>
           <div className="flex items-center justify-between mt-2">
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-gray-900">{client?.nom}</h1>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{client?.nom}</h1>
               <Badge variant={client?.type === 'entreprise' ? 'blue' : 'gray'}>
                 {client?.type === 'entreprise' ? 'Entreprise' : 'Particulier'}
               </Badge>
+              {(client as any)?.is_client && (
+                <Badge variant="green">Client</Badge>
+              )}
+              {(client as any)?.is_supplier && (
+                <Badge variant="yellow">Fournisseur</Badge>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <button

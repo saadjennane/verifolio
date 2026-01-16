@@ -54,21 +54,13 @@ export function CompaniesListTab({ initialTab }: CompaniesListTabProps) {
   };
 
   const handleRowClick = (company: Company) => {
-    if (activeTab === 'clients') {
-      openTab({
-        type: 'client',
-        path: `/clients/${company.id}`,
-        title: company.nom,
-        entityId: company.id,
-      }, false);
-    } else {
-      openTab({
-        type: 'supplier',
-        path: `/suppliers/${company.id}`,
-        title: company.nom,
-        entityId: company.id,
-      }, false);
-    }
+    // Always use client detail tab since it's the same entity
+    openTab({
+      type: 'client',
+      path: `/clients/${company.id}`,
+      title: company.nom,
+      entityId: company.id,
+    }, false);
   };
 
   const handleNewCompany = () => {
