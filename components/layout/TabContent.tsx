@@ -140,6 +140,10 @@ const BriefTemplatesTab = dynamic(() => import('@/components/tabs/BriefTemplates
   loading: () => <TabLoading />,
 });
 
+const CompaniesListTab = dynamic(() => import('@/components/tabs/CompaniesListTab').then(m => ({ default: m.CompaniesListTab })), {
+  loading: () => <TabLoading />,
+});
+
 const ReviewTemplateFormTab = dynamic(() => import('@/components/tabs/ReviewTemplateFormTab').then(m => ({ default: m.ReviewTemplateFormTab })), {
   loading: () => <TabLoading />,
 });
@@ -199,6 +203,12 @@ export function TabContent() {
   switch (activeTab.type) {
     case 'dashboard':
       return <DashboardTab />;
+
+    case 'companies': {
+      const urlParams = new URLSearchParams(activeTab.path.split('?')[1] || '');
+      const initialTab = urlParams.get('tab') as 'clients' | 'suppliers' | null;
+      return <CompaniesListTab initialTab={initialTab || undefined} />;
+    }
 
     case 'clients':
       return <ClientsListTab />;
