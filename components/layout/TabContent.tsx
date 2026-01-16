@@ -144,6 +144,10 @@ const CompaniesListTab = dynamic(() => import('@/components/tabs/CompaniesListTa
   loading: () => <TabLoading />,
 });
 
+const CompanyFormTab = dynamic(() => import('@/components/tabs/CompanyFormTab').then(m => ({ default: m.CompanyFormTab })), {
+  loading: () => <TabLoading />,
+});
+
 const ReviewTemplateFormTab = dynamic(() => import('@/components/tabs/ReviewTemplateFormTab').then(m => ({ default: m.ReviewTemplateFormTab })), {
   loading: () => <TabLoading />,
 });
@@ -209,6 +213,12 @@ export function TabContent() {
       const initialTab = urlParams.get('tab') as 'clients' | 'suppliers' | null;
       return <CompaniesListTab initialTab={initialTab || undefined} />;
     }
+
+    case 'new-company':
+      return <CompanyFormTab />;
+
+    case 'edit-company':
+      return <CompanyFormTab companyId={activeTab.entityId} />;
 
     case 'clients':
       return <ClientsListTab />;

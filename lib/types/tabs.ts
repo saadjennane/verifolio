@@ -1,6 +1,8 @@
 export type TabType =
   | 'dashboard'
   | 'companies'
+  | 'new-company'
+  | 'edit-company'
   | 'clients'
   | 'client'
   | 'new-client'
@@ -88,6 +90,8 @@ export interface TabConfig {
 export const TAB_ICONS: Record<TabType, string> = {
   dashboard: 'home',
   companies: 'building',
+  'new-company': 'plus',
+  'edit-company': 'edit',
   clients: 'users',
   client: 'user',
   'new-client': 'user-plus',
@@ -165,6 +169,18 @@ export function pathToTabConfig(pathname: string): TabConfig | null {
   // Companies (unified clients/suppliers view)
   if (pathname === '/companies' || pathname.startsWith('/companies?')) {
     return { type: 'companies', path: '/companies', title: 'Entreprises' };
+  }
+  if (pathname === '/companies/new') {
+    return { type: 'new-company', path: '/companies/new', title: 'Nouveau' };
+  }
+  const companyEditMatch = pathname.match(/^\/companies\/([^/]+)\/edit$/);
+  if (companyEditMatch) {
+    return {
+      type: 'edit-company',
+      path: pathname,
+      title: 'Modifier',
+      entityId: companyEditMatch[1],
+    };
   }
 
   // Clients

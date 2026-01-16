@@ -150,7 +150,7 @@ export function Sidebar() {
     // Pour les listes, vérifier si l'onglet actif est du même type ou un sous-type
     const typeMap: Record<string, string[]> = {
       companies: [
-        'companies',
+        'companies', 'new-company', 'edit-company',
         'clients', 'client', 'new-client', 'edit-client',
         'suppliers', 'supplier', 'new-supplier', 'edit-supplier',
         'supplier-consultations', 'supplier-consultation', 'new-supplier-consultation',

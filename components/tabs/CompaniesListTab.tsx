@@ -72,19 +72,11 @@ export function CompaniesListTab({ initialTab }: CompaniesListTabProps) {
   };
 
   const handleNewCompany = () => {
-    if (activeTab === 'clients') {
-      openTab({
-        type: 'new-client',
-        path: '/clients/new',
-        title: 'Nouveau client',
-      }, false);
-    } else {
-      openTab({
-        type: 'new-supplier',
-        path: '/suppliers/new',
-        title: 'Nouveau fournisseur',
-      }, false);
-    }
+    openTab({
+      type: 'new-company',
+      path: '/companies/new',
+      title: 'Nouveau',
+    }, false);
   };
 
   // Filter companies based on active tab
@@ -109,7 +101,7 @@ export function CompaniesListTab({ initialTab }: CompaniesListTabProps) {
             </p>
           </div>
           <Button onClick={handleNewCompany}>
-            {activeTab === 'clients' ? 'Nouveau client' : 'Nouveau fournisseur'}
+            Nouveau
           </Button>
         </div>
 
