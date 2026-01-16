@@ -22,9 +22,9 @@ export async function GET(request: Request) {
     const scope = searchParams.get('scope') as CustomFieldScope | null;
 
     // Validate scope if provided
-    if (scope && !['company', 'client', 'document'].includes(scope)) {
+    if (scope && !['company', 'client', 'supplier', 'document'].includes(scope)) {
       return NextResponse.json(
-        { error: 'scope invalide (company|client|document)' },
+        { error: 'scope invalide (company|client|supplier|document)' },
         { status: 400 }
       );
     }
@@ -105,9 +105,9 @@ export async function POST(request: Request) {
     }
 
     // Validate scope
-    if (!['company', 'client', 'document'].includes(body.scope)) {
+    if (!['company', 'client', 'supplier', 'document'].includes(body.scope)) {
       return NextResponse.json(
-        { error: 'scope invalide (company|client|document)' },
+        { error: 'scope invalide (company|client|supplier|document)' },
         { status: 400 }
       );
     }
