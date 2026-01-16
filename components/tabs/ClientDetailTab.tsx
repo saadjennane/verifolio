@@ -7,6 +7,7 @@ import { Badge, Button, Card } from '@/components/ui';
 import { CreateTaskModal } from '@/components/modals/CreateTaskModal';
 import { getCurrencySymbol } from '@/lib/utils/currency';
 import type { Client } from '@/lib/supabase/types';
+import type { CustomField } from '@/lib/types/settings';
 
 interface ClientDetailTabProps {
   clientId: string;
@@ -94,6 +95,8 @@ export function ClientDetailTab({ clientId }: ClientDetailTabProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
+  const [customFields, setCustomFields] = useState<CustomField[]>([]);
+  const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetchClient();
@@ -160,6 +163,33 @@ export function ClientDetailTab({ clientId }: ClientDetailTabProps) {
 
     if (missionsData) {
       setMissions(missionsData);
+    }
+
+    // Fetch custom fields for clients
+    const { data: fields } = await supabase
+      .from('custom_fields')
+      .select('*')
+      .eq('scope', 'client')
+      .eq('is_active', true)
+      .order('created_at');
+
+    if (fields) {
+      setCustomFields(fields);
+
+      // Fetch values for these fields
+      const { data: values } = await supabase
+        .from('custom_field_values')
+        .select('field_id, value_text')
+        .eq('entity_type', 'client')
+        .eq('entity_id', clientId);
+
+      if (values) {
+        const valueMap: Record<string, string> = {};
+        for (const v of values) {
+          valueMap[v.field_id] = v.value_text || '';
+        }
+        setFieldValues(valueMap);
+      }
     }
 
     setLoading(false);
@@ -394,6 +424,17 @@ export function ClientDetailTab({ clientId }: ClientDetailTabProps) {
                       <div className="font-medium text-gray-900">{client.adresse}</div>
                     </div>
                   )}
+                  {/* Champs personnalisés */}
+                  {customFields.map((field) => {
+                    const value = fieldValues[field.id];
+                    if (!value) return null;
+                    return (
+                      <div key={field.id}>
+                        <div className="text-sm text-gray-500">{field.label}</div>
+                        <div className="font-medium text-gray-900">{value}</div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </Card>

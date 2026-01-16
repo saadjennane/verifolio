@@ -174,16 +174,39 @@ export function CompanyFormTab({ companyId }: CompanyFormTabProps) {
       }
     }
 
-    // Fermer l'onglet actuel et ouvrir la liste des entreprises
+    // Fermer l'onglet actuel
     const currentTab = tabs.find((t) => t.id === activeTabId);
     if (currentTab) {
       closeTab(currentTab.id);
     }
-    openTab({ type: 'companies', path: '/companies', title: 'Entreprises' }, true);
+
+    // Si modification, retourner à la fiche de l'entité
+    // Si création, retourner à la liste des entreprises
+    if (isEditing && savedCompanyId) {
+      openTab({
+        type: 'client',
+        path: `/clients/${savedCompanyId}`,
+        title: nom,
+        entityId: savedCompanyId,
+      }, true);
+    } else {
+      openTab({ type: 'companies', path: '/companies', title: 'Entreprises' }, true);
+    }
   };
 
   const handleCancel = () => {
-    openTab({ type: 'companies', path: '/companies', title: 'Entreprises' }, true);
+    // Si modification, retourner à la fiche de l'entité
+    // Si création, retourner à la liste des entreprises
+    if (isEditing && companyId) {
+      openTab({
+        type: 'client',
+        path: `/clients/${companyId}`,
+        title: nom || 'Client',
+        entityId: companyId,
+      }, true);
+    } else {
+      openTab({ type: 'companies', path: '/companies', title: 'Entreprises' }, true);
+    }
   };
 
   if (loading) {
