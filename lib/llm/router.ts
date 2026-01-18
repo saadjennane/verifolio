@@ -217,7 +217,7 @@ async function createClient(
   userId: string | null,
   args: Record<string, unknown>
 ): Promise<ToolResult> {
-  const { type, nom, email, telephone, adresse } = args;
+  const { type, nom, email, telephone, adresse, custom_fields } = args;
 
   if (!type || !nom) {
     return { success: false, message: 'Le type et le nom sont requis' };
@@ -238,6 +238,43 @@ async function createClient(
 
   if (error) {
     return { success: false, message: `Erreur: ${error.message}` };
+  }
+
+  // Save custom field values if provided
+  const customFieldsData = custom_fields as Record<string, string> | undefined;
+  if (customFieldsData && Object.keys(customFieldsData).length > 0) {
+    // Get all active custom fields for clients
+    const { data: fields } = await supabase
+      .from('custom_fields')
+      .select('id, label')
+      .eq('user_id', userId)
+      .eq('scope', 'client')
+      .eq('is_active', true);
+
+    if (fields) {
+      // Create a map from label (lowercase) to field id
+      const fieldMap = new Map<string, string>();
+      for (const f of fields) {
+        fieldMap.set(f.label.toLowerCase(), f.id);
+      }
+
+      // Save each custom field value
+      for (const [label, value] of Object.entries(customFieldsData)) {
+        const fieldId = fieldMap.get(label.toLowerCase());
+        if (fieldId && value) {
+          await supabase.from('custom_field_values').upsert(
+            {
+              user_id: userId,
+              field_id: fieldId,
+              entity_type: 'client',
+              entity_id: data.id,
+              value_text: value,
+            },
+            { onConflict: 'user_id,field_id,entity_type,entity_id' }
+          );
+        }
+      }
+    }
   }
 
   return {

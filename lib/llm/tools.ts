@@ -5,7 +5,7 @@ export const toolDefinitions = [
     type: 'function' as const,
     function: {
       name: 'create_client',
-      description: 'Créer un nouveau client. Utiliser quand l\'utilisateur veut ajouter un client.',
+      description: 'Créer un nouveau client. Utiliser quand l\'utilisateur veut ajouter un client. Supporte les champs personnalisés comme ICE, SIRET, etc.',
       parameters: {
         type: 'object',
         properties: {
@@ -29,6 +29,11 @@ export const toolDefinitions = [
           adresse: {
             type: 'string',
             description: 'Adresse du client (optionnel)',
+          },
+          custom_fields: {
+            type: 'object',
+            description: 'Champs personnalisés sous forme {label: valeur}. Ex: {"ICE": "000189568000063", "SIRET": "12345678901234"}',
+            additionalProperties: { type: 'string' },
           },
         },
         required: ['type', 'nom'],
