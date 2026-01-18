@@ -1681,7 +1681,7 @@ async function updateCustomFieldValue(
       entity_id: entityId,
       value_text: value,
     }, {
-      onConflict: 'field_id,entity_type,entity_id',
+      onConflict: 'user_id,field_id,entity_type,entity_id',
     });
 
   if (valueError) {
