@@ -34,6 +34,23 @@ export function CompanyFormTab({ companyId }: CompanyFormTabProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [emailError, setEmailError] = useState('');
+
+  // Validate email format (requires TLD like .com, .fr, etc.)
+  const validateEmail = (emailValue: string): boolean => {
+    if (!emailValue) return true; // Email is optional
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    return emailRegex.test(emailValue);
+  };
+
+  const handleEmailChange = (value: string) => {
+    setEmail(value);
+    if (value && !validateEmail(value)) {
+      setEmailError('Format email invalide (ex: email@exemple.com)');
+    } else {
+      setEmailError('');
+    }
+  };
 
   useEffect(() => {
     async function loadData() {
@@ -111,6 +128,12 @@ export function CompanyFormTab({ companyId }: CompanyFormTabProps) {
     // Validation: au moins un rôle doit être sélectionné
     if (!isClient && !isSupplier) {
       setError('Veuillez sélectionner au moins un rôle (Client ou Fournisseur)');
+      return;
+    }
+
+    // Validate email before submit
+    if (email && !validateEmail(email)) {
+      setEmailError('Format email invalide (ex: email@exemple.com)');
       return;
     }
 
@@ -316,8 +339,9 @@ export function CompanyFormTab({ companyId }: CompanyFormTabProps) {
               type="email"
               label="Email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => handleEmailChange(e.target.value)}
               placeholder="email@exemple.com"
+              error={emailError}
             />
 
             <PhoneInput

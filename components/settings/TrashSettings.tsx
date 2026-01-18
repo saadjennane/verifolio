@@ -30,7 +30,11 @@ export function TrashSettings() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [restoring, setRestoring] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [emptyingTrash, setEmptyingTrash] = useState(false);
   const [showRestoreConfirm, setShowRestoreConfirm] = useState<TrashedItem | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<TrashedItem | null>(null);
+  const [showEmptyTrashConfirm, setShowEmptyTrashConfirm] = useState(false);
 
   useEffect(() => {
     fetchTrashedItems();
@@ -78,6 +82,52 @@ export function TrashSettings() {
     }
   }
 
+  async function handlePermanentDelete(item: TrashedItem) {
+    setDeleting(item.id);
+    try {
+      const res = await fetch(`/api/trash/${item.entity_type}/${item.id}/delete`, {
+        method: 'DELETE',
+      });
+
+      const json = await res.json();
+
+      if (!res.ok) {
+        throw new Error(json.error || 'Erreur lors de la suppression');
+      }
+
+      // Remove from list
+      setItems(prev => prev.filter(i => i.id !== item.id));
+      setShowDeleteConfirm(null);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setDeleting(null);
+    }
+  }
+
+  async function handleEmptyTrash() {
+    setEmptyingTrash(true);
+    try {
+      const res = await fetch('/api/trash/empty', {
+        method: 'DELETE',
+      });
+
+      const json = await res.json();
+
+      if (!res.ok) {
+        throw new Error(json.error || 'Erreur lors du vidage de la corbeille');
+      }
+
+      // Clear all items
+      setItems([]);
+      setShowEmptyTrashConfirm(false);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setEmptyingTrash(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -89,16 +139,28 @@ export function TrashSettings() {
   return (
     <div className="space-y-6">
       {/* Header info */}
-      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-        <div className="flex items-start gap-3">
-          <span className="text-amber-600 text-xl">🗑️</span>
-          <div>
-            <h3 className="font-medium text-amber-800">Corbeille</h3>
-            <p className="text-sm text-amber-700 mt-1">
-              Les elements supprimes sont conserves pendant 30 jours avant d&apos;etre definitivement supprimes.
-              Vous pouvez les restaurer a tout moment pendant cette periode.
-            </p>
+      <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <span className="text-amber-600 dark:text-amber-400 text-xl">🗑️</span>
+            <div>
+              <h3 className="font-medium text-amber-800 dark:text-amber-200">Corbeille</h3>
+              <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                Les elements supprimes sont conserves pendant 30 jours avant d&apos;etre definitivement supprimes.
+                Vous pouvez les restaurer a tout moment pendant cette periode.
+              </p>
+            </div>
           </div>
+          {items.length > 0 && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setShowEmptyTrashConfirm(true)}
+              disabled={emptyingTrash}
+            >
+              Vider la corbeille
+            </Button>
+          )}
         </div>
       </div>
 
@@ -143,14 +205,24 @@ export function TrashSettings() {
                 </div>
 
                 {/* Actions */}
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setShowRestoreConfirm(item)}
-                  disabled={restoring === item.id}
-                >
-                  {restoring === item.id ? 'Restauration...' : 'Restaurer'}
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setShowRestoreConfirm(item)}
+                    disabled={restoring === item.id || deleting === item.id}
+                  >
+                    {restoring === item.id ? 'Restauration...' : 'Restaurer'}
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setShowDeleteConfirm(item)}
+                    disabled={restoring === item.id || deleting === item.id}
+                  >
+                    {deleting === item.id ? 'Suppression...' : 'Supprimer'}
+                  </Button>
+                </div>
               </div>
             );
           })}
@@ -168,11 +240,11 @@ export function TrashSettings() {
       {/* Restore confirmation modal */}
       {showRestoreConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md mx-4 shadow-xl">
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md mx-4 shadow-xl">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
               Restaurer cet element ?
             </h3>
-            <p className="text-sm text-gray-500 mb-4">
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
               L&apos;element <strong>{showRestoreConfirm.title}</strong> ({ENTITY_TYPE_LABELS[showRestoreConfirm.entity_type]})
               sera restaure et accessible a nouveau.
             </p>
@@ -189,6 +261,68 @@ export function TrashSettings() {
                 loading={restoring === showRestoreConfirm.id}
               >
                 Restaurer
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md mx-4 shadow-xl">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+              Supprimer definitivement ?
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              L&apos;element <strong>{showDeleteConfirm.title}</strong> ({ENTITY_TYPE_LABELS[showDeleteConfirm.entity_type]})
+              sera definitivement supprime. Cette action est irreversible.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <Button
+                variant="secondary"
+                onClick={() => setShowDeleteConfirm(null)}
+                disabled={deleting !== null}
+              >
+                Annuler
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => handlePermanentDelete(showDeleteConfirm)}
+                loading={deleting === showDeleteConfirm.id}
+              >
+                Supprimer definitivement
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Empty trash confirmation modal */}
+      {showEmptyTrashConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md mx-4 shadow-xl">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+              Vider la corbeille ?
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              <strong>{items.length} element{items.length > 1 ? 's' : ''}</strong> seront definitivement supprimes.
+              Cette action est irreversible.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <Button
+                variant="secondary"
+                onClick={() => setShowEmptyTrashConfirm(false)}
+                disabled={emptyingTrash}
+              >
+                Annuler
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleEmptyTrash}
+                loading={emptyingTrash}
+              >
+                Vider la corbeille
               </Button>
             </div>
           </div>

@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Button, Badge } from '@/components/ui';
+import { useEffect, useState, useMemo } from 'react';
+import { Button, Badge, Input } from '@/components/ui';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { useTabsStore } from '@/lib/stores/tabs-store';
+import { createClient } from '@/lib/supabase/client';
 
 interface Company {
   id: string;
@@ -15,9 +15,13 @@ interface Company {
   is_client: boolean;
   is_supplier: boolean;
   vat_enabled: boolean;
+  activeDealsCount?: number;
+  activeMissionsCount?: number;
 }
 
 type TabId = 'clients' | 'suppliers';
+type FilterType = 'all' | 'particulier' | 'entreprise';
+type FilterActivity = 'all' | 'active-deals' | 'active-missions';
 
 interface CompaniesListTabProps {
   initialTab?: TabId;
@@ -30,6 +34,11 @@ export function CompaniesListTab({ initialTab }: CompaniesListTabProps) {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabId>(initialTab || 'clients');
 
+  // Search and filters
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState<FilterType>('all');
+  const [filterActivity, setFilterActivity] = useState<FilterActivity>('all');
+
   useEffect(() => {
     loadCompanies();
   }, []);
@@ -37,11 +46,56 @@ export function CompaniesListTab({ initialTab }: CompaniesListTabProps) {
   async function loadCompanies() {
     setLoading(true);
     try {
+      const supabase = createClient();
+
+      // Load companies
       const res = await fetch('/api/companies');
+      let companiesData: Company[] = [];
       if (res.ok) {
         const data = await res.json();
-        setCompanies(data.data || []);
+        companiesData = data.data || [];
       }
+
+      // Load deals and missions counts in parallel
+      const [dealsRes, missionsRes] = await Promise.all([
+        supabase
+          .from('deals')
+          .select('client_id')
+          .is('deleted_at', null)
+          .not('status', 'in', '("gagne","perdu","archive")'),
+        supabase
+          .from('missions')
+          .select('client_id')
+          .is('deleted_at', null)
+          .not('status', 'in', '("cloture","annule")'),
+      ]);
+
+      // Count deals per company
+      const dealsCountMap = new Map<string, number>();
+      if (dealsRes.data) {
+        for (const deal of dealsRes.data) {
+          if (deal.client_id) {
+            dealsCountMap.set(deal.client_id, (dealsCountMap.get(deal.client_id) || 0) + 1);
+          }
+        }
+      }
+
+      // Count missions per company
+      const missionsCountMap = new Map<string, number>();
+      if (missionsRes.data) {
+        for (const mission of missionsRes.data) {
+          if (mission.client_id) {
+            missionsCountMap.set(mission.client_id, (missionsCountMap.get(mission.client_id) || 0) + 1);
+          }
+        }
+      }
+
+      // Enrich companies with counts
+      setCompanies(companiesData.map(c => ({
+        ...c,
+        activeDealsCount: dealsCountMap.get(c.id) || 0,
+        activeMissionsCount: missionsCountMap.get(c.id) || 0,
+      })));
     } catch (error) {
       console.error('Error loading companies:', error);
     } finally {
@@ -71,10 +125,37 @@ export function CompaniesListTab({ initialTab }: CompaniesListTabProps) {
     }, false);
   };
 
-  // Filter companies based on active tab
-  const filteredCompanies = companies.filter(c =>
-    activeTab === 'clients' ? c.is_client : c.is_supplier
-  );
+  // Filter companies based on active tab, search and filters
+  const filteredCompanies = useMemo(() => {
+    return companies.filter(company => {
+      // Tab filter (clients vs suppliers)
+      if (activeTab === 'clients' && !company.is_client) return false;
+      if (activeTab === 'suppliers' && !company.is_supplier) return false;
+
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesName = company.nom.toLowerCase().includes(query);
+        const matchesEmail = company.email?.toLowerCase().includes(query);
+        if (!matchesName && !matchesEmail) return false;
+      }
+
+      // Type filter
+      if (filterType !== 'all' && company.type !== filterType) {
+        return false;
+      }
+
+      // Activity filter
+      if (filterActivity === 'active-deals' && (company.activeDealsCount || 0) === 0) {
+        return false;
+      }
+      if (filterActivity === 'active-missions' && (company.activeMissionsCount || 0) === 0) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [companies, activeTab, searchQuery, filterType, filterActivity]);
 
   const tabs = [
     { id: 'clients' as TabId, label: 'Clients', count: companies.filter(c => c.is_client).length },
@@ -98,7 +179,7 @@ export function CompaniesListTab({ initialTab }: CompaniesListTabProps) {
         </div>
 
         {/* Tabs */}
-        <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
+        <div className="border-b border-gray-200 dark:border-gray-700 mb-4">
           <nav className="-mb-px flex gap-6">
             {tabs.map((tab) => (
               <button
@@ -125,6 +206,96 @@ export function CompaniesListTab({ initialTab }: CompaniesListTabProps) {
           </nav>
         </div>
 
+        {/* Search and Filters */}
+        <div className="mb-4 space-y-3">
+          {/* Search bar */}
+          <Input
+            type="text"
+            placeholder="Rechercher par nom ou email..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full"
+          />
+
+          {/* Filters */}
+          <div className="flex flex-wrap gap-2">
+            {/* Type filter */}
+            <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+              <button
+                onClick={() => setFilterType('all')}
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                  filterType === 'all'
+                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+              >
+                Tous
+              </button>
+              <button
+                onClick={() => setFilterType('entreprise')}
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                  filterType === 'entreprise'
+                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+              >
+                Entreprises
+              </button>
+              <button
+                onClick={() => setFilterType('particulier')}
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                  filterType === 'particulier'
+                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+              >
+                Particuliers
+              </button>
+            </div>
+
+            {/* Activity filter */}
+            <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+              <button
+                onClick={() => setFilterActivity('all')}
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                  filterActivity === 'all'
+                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+              >
+                Tous
+              </button>
+              <button
+                onClick={() => setFilterActivity('active-deals')}
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                  filterActivity === 'active-deals'
+                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+              >
+                Deals actifs
+              </button>
+              <button
+                onClick={() => setFilterActivity('active-missions')}
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                  filterActivity === 'active-missions'
+                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+              >
+                Missions actives
+              </button>
+            </div>
+          </div>
+
+          {/* Results count */}
+          {(searchQuery || filterType !== 'all' || filterActivity !== 'all') && (
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {filteredCompanies.length} {activeTab === 'clients' ? 'client' : 'fournisseur'}{filteredCompanies.length !== 1 ? 's' : ''} trouvé{filteredCompanies.length !== 1 ? 's' : ''}
+            </p>
+          )}
+        </div>
+
         {/* Content */}
         {loading ? (
           <div className="flex items-center justify-center py-12">
@@ -132,18 +303,26 @@ export function CompaniesListTab({ initialTab }: CompaniesListTabProps) {
           </div>
         ) : filteredCompanies.length === 0 ? (
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-8 text-center">
-            <p className="text-gray-500 dark:text-gray-400 mb-4">
-              {activeTab === 'clients'
-                ? 'Aucun client pour le moment'
-                : 'Aucun fournisseur pour le moment'
-              }
-            </p>
-            <Button variant="secondary" onClick={handleNewCompany}>
-              {activeTab === 'clients'
-                ? 'Créer votre premier client'
-                : 'Ajouter un fournisseur'
-              }
-            </Button>
+            {(searchQuery || filterType !== 'all' || filterActivity !== 'all') ? (
+              <p className="text-gray-500 dark:text-gray-400">
+                Aucun {activeTab === 'clients' ? 'client' : 'fournisseur'} ne correspond aux filtres
+              </p>
+            ) : (
+              <>
+                <p className="text-gray-500 dark:text-gray-400 mb-4">
+                  {activeTab === 'clients'
+                    ? 'Aucun client pour le moment'
+                    : 'Aucun fournisseur pour le moment'
+                  }
+                </p>
+                <Button variant="secondary" onClick={handleNewCompany}>
+                  {activeTab === 'clients'
+                    ? 'Créer votre premier client'
+                    : 'Ajouter un fournisseur'
+                  }
+                </Button>
+              </>
+            )}
           </div>
         ) : (
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">

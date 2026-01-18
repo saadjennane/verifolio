@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useTabsStore } from '@/lib/stores/tabs-store';
 import { useRefreshTrigger } from '@/lib/hooks/useRefreshTrigger';
-import { Button, Badge } from '@/components/ui';
+import { Button, Badge, Input } from '@/components/ui';
 import { getCurrencySymbol } from '@/lib/utils/currency';
 
 interface Client {
@@ -12,12 +12,17 @@ interface Client {
   nom: string;
   email: string | null;
   type: 'particulier' | 'entreprise';
+  activeDealsCount?: number;
+  activeMissionsCount?: number;
 }
 
 interface Balance {
   client_id: string;
   total_restant: number;
 }
+
+type FilterType = 'all' | 'particulier' | 'entreprise';
+type FilterActivity = 'all' | 'active-deals' | 'active-missions';
 
 export function ClientsListTab() {
   const { openTab } = useTabsStore();
@@ -26,13 +31,19 @@ export function ClientsListTab() {
   const [currency, setCurrency] = useState('EUR');
   const [loading, setLoading] = useState(true);
 
+  // Search and filters
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState<FilterType>('all');
+  const [filterActivity, setFilterActivity] = useState<FilterActivity>('all');
+
   const fetchClients = useCallback(async () => {
     const supabase = createClient();
 
     // Charger d'abord les clients pour afficher rapidement la liste
     const clientsRes = await supabase
       .from('clients')
-      .select('id, nom, email, type')
+      .select('id, nom, email, type, is_client')
+      .eq('is_client', true)
       .is('deleted_at', null)
       .order('created_at', { ascending: false });
 
@@ -41,14 +52,53 @@ export function ClientsListTab() {
       setLoading(false); // Afficher la liste immédiatement
     }
 
-    // Charger les balances et la devise en arrière-plan
-    const [balancesRes, currencyRes] = await Promise.all([
+    // Charger les balances, deals actifs, missions actives et la devise en arrière-plan
+    const [balancesRes, dealsRes, missionsRes, currencyRes] = await Promise.all([
       supabase.from('client_balances').select('client_id, total_restant'),
+      supabase
+        .from('deals')
+        .select('client_id')
+        .is('deleted_at', null)
+        .not('status', 'in', '("gagne","perdu","archive")'),
+      supabase
+        .from('missions')
+        .select('client_id')
+        .is('deleted_at', null)
+        .not('status', 'in', '("cloture","annule")'),
       fetch('/api/settings/currency').then(r => r.json()),
     ]);
 
     if (balancesRes.data) {
       setBalances(new Map(balancesRes.data.map((b) => [b.client_id, b])));
+    }
+
+    // Compter les deals actifs par client
+    const dealsCountMap = new Map<string, number>();
+    if (dealsRes.data) {
+      for (const deal of dealsRes.data) {
+        if (deal.client_id) {
+          dealsCountMap.set(deal.client_id, (dealsCountMap.get(deal.client_id) || 0) + 1);
+        }
+      }
+    }
+
+    // Compter les missions actives par client
+    const missionsCountMap = new Map<string, number>();
+    if (missionsRes.data) {
+      for (const mission of missionsRes.data) {
+        if (mission.client_id) {
+          missionsCountMap.set(mission.client_id, (missionsCountMap.get(mission.client_id) || 0) + 1);
+        }
+      }
+    }
+
+    // Mettre à jour les clients avec les compteurs
+    if (clientsRes.data) {
+      setClients(clientsRes.data.map(c => ({
+        ...c,
+        activeDealsCount: dealsCountMap.get(c.id) || 0,
+        activeMissionsCount: missionsCountMap.get(c.id) || 0,
+      })));
     }
 
     if (currencyRes.data?.currency) {
@@ -63,6 +113,34 @@ export function ClientsListTab() {
 
   // Écouter les triggers de refresh depuis le chat
   useRefreshTrigger('clients', fetchClients);
+
+  // Filter clients based on search and filters
+  const filteredClients = useMemo(() => {
+    return clients.filter(client => {
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesName = client.nom.toLowerCase().includes(query);
+        const matchesEmail = client.email?.toLowerCase().includes(query);
+        if (!matchesName && !matchesEmail) return false;
+      }
+
+      // Type filter
+      if (filterType !== 'all' && client.type !== filterType) {
+        return false;
+      }
+
+      // Activity filter
+      if (filterActivity === 'active-deals' && (client.activeDealsCount || 0) === 0) {
+        return false;
+      }
+      if (filterActivity === 'active-missions' && (client.activeMissionsCount || 0) === 0) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [clients, searchQuery, filterType, filterActivity]);
 
   const handleClientClick = (
     e: React.MouseEvent,
@@ -112,41 +190,141 @@ export function ClientsListTab() {
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Clients</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Clients</h1>
           <Button onClick={handleNewClient}>Nouveau client</Button>
         </div>
 
+        {/* Search and Filters */}
+        <div className="mb-4 space-y-3">
+          {/* Search bar */}
+          <Input
+            type="text"
+            placeholder="Rechercher par nom ou email..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full"
+          />
+
+          {/* Filters */}
+          <div className="flex flex-wrap gap-2">
+            {/* Type filter */}
+            <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+              <button
+                onClick={() => setFilterType('all')}
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                  filterType === 'all'
+                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+              >
+                Tous
+              </button>
+              <button
+                onClick={() => setFilterType('entreprise')}
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                  filterType === 'entreprise'
+                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+              >
+                Entreprises
+              </button>
+              <button
+                onClick={() => setFilterType('particulier')}
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                  filterType === 'particulier'
+                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+              >
+                Particuliers
+              </button>
+            </div>
+
+            {/* Activity filter */}
+            <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+              <button
+                onClick={() => setFilterActivity('all')}
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                  filterActivity === 'all'
+                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+              >
+                Tous
+              </button>
+              <button
+                onClick={() => setFilterActivity('active-deals')}
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                  filterActivity === 'active-deals'
+                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+              >
+                Deals actifs
+              </button>
+              <button
+                onClick={() => setFilterActivity('active-missions')}
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                  filterActivity === 'active-missions'
+                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+              >
+                Missions actives
+              </button>
+            </div>
+          </div>
+
+          {/* Results count */}
+          {(searchQuery || filterType !== 'all' || filterActivity !== 'all') && (
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {filteredClients.length} client{filteredClients.length !== 1 ? 's' : ''} trouvé{filteredClients.length !== 1 ? 's' : ''}
+            </p>
+          )}
+        </div>
+
         {/* Liste */}
-        {clients.length > 0 ? (
-          <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-200">
-            {clients.map((client) => {
+        {filteredClients.length > 0 ? (
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
+            {filteredClients.map((client) => {
               const balance = balances.get(client.id);
               return (
                 <button
                   key={client.id}
                   onClick={(e) => handleClientClick(e, client)}
                   onDoubleClick={() => handleClientDoubleClick(client)}
-                  className="w-full block p-4 hover:bg-gray-50 transition-colors text-left"
+                  className="w-full block p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left"
                 >
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-gray-900">{client.nom}</span>
+                        <span className="font-medium text-gray-900 dark:text-gray-100">{client.nom}</span>
                         <Badge variant={client.type === 'entreprise' ? 'blue' : 'gray'}>
                           {client.type === 'entreprise' ? 'Entreprise' : 'Particulier'}
                         </Badge>
+                        {(client.activeDealsCount || 0) > 0 && (
+                          <Badge variant="yellow">
+                            {client.activeDealsCount} deal{(client.activeDealsCount || 0) > 1 ? 's' : ''}
+                          </Badge>
+                        )}
+                        {(client.activeMissionsCount || 0) > 0 && (
+                          <Badge variant="green">
+                            {client.activeMissionsCount} mission{(client.activeMissionsCount || 0) > 1 ? 's' : ''}
+                          </Badge>
+                        )}
                       </div>
                       {client.email && (
-                        <p className="text-sm text-gray-500 mt-1">{client.email}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{client.email}</p>
                       )}
                     </div>
                     <div className="text-right">
                       {balance && balance.total_restant > 0 ? (
-                        <p className="text-sm font-medium text-orange-600">
+                        <p className="text-sm font-medium text-orange-600 dark:text-orange-400">
                           {Number(balance.total_restant).toFixed(2)} {getCurrencySymbol(currency)} dû
                         </p>
                       ) : (
-                        <p className="text-sm text-gray-400">À jour</p>
+                        <p className="text-sm text-gray-400 dark:text-gray-500">À jour</p>
                       )}
                     </div>
                   </div>
@@ -155,11 +333,17 @@ export function ClientsListTab() {
             })}
           </div>
         ) : (
-          <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
-            <p className="text-gray-500 mb-4">Aucun client pour le moment</p>
-            <Button variant="secondary" onClick={handleNewClient}>
-              Créer votre premier client
-            </Button>
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-8 text-center">
+            {clients.length > 0 ? (
+              <p className="text-gray-500 dark:text-gray-400">Aucun client ne correspond aux filtres</p>
+            ) : (
+              <>
+                <p className="text-gray-500 dark:text-gray-400 mb-4">Aucun client pour le moment</p>
+                <Button variant="secondary" onClick={handleNewClient}>
+                  Créer votre premier client
+                </Button>
+              </>
+            )}
           </div>
         )}
       </div>

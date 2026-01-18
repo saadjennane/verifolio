@@ -304,3 +304,36 @@ export async function softDelete(
 
   return { success: true };
 }
+
+// ============================================================================
+// Empty entire trash (permanently delete all trashed items)
+// ============================================================================
+
+export async function emptyTrash(
+  supabase: Supabase,
+  userId: string
+): Promise<{ success: boolean; deletedCount: number; error?: string }> {
+  let totalDeleted = 0;
+
+  const tables = ['clients', 'contacts', 'deals', 'missions', 'quotes', 'invoices', 'proposals'];
+
+  for (const table of tables) {
+    const { data, error } = await supabase
+      .from(table)
+      .delete()
+      .eq('user_id', userId)
+      .not('deleted_at', 'is', null)
+      .select('id');
+
+    if (error) {
+      console.error(`Empty trash error for ${table}:`, error);
+      continue;
+    }
+
+    if (data) {
+      totalDeleted += data.length;
+    }
+  }
+
+  return { success: true, deletedCount: totalDeleted };
+}

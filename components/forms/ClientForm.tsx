@@ -31,6 +31,7 @@ export function ClientForm({ client, onSuccess, onCancel, embedded }: ClientForm
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [emailError, setEmailError] = useState('');
 
   // Load custom fields and values
   useEffect(() => {
@@ -73,9 +74,32 @@ export function ClientForm({ client, onSuccess, onCancel, embedded }: ClientForm
     setFieldValues((prev) => ({ ...prev, [fieldId]: value }));
   };
 
+  // Validate email format (requires TLD like .com, .fr, etc.)
+  const validateEmail = (emailValue: string): boolean => {
+    if (!emailValue) return true; // Email is optional
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    return emailRegex.test(emailValue);
+  };
+
+  const handleEmailChange = (value: string) => {
+    setEmail(value);
+    if (value && !validateEmail(value)) {
+      setEmailError('Format email invalide (ex: email@exemple.com)');
+    } else {
+      setEmailError('');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // Validate email before submit
+    if (email && !validateEmail(email)) {
+      setEmailError('Format email invalide (ex: email@exemple.com)');
+      return;
+    }
+
     setLoading(true);
 
     const supabase = createClient();
@@ -175,8 +199,9 @@ export function ClientForm({ client, onSuccess, onCancel, embedded }: ClientForm
         type="email"
         label="Email"
         value={email}
-        onChange={(e) => setEmail(e.target.value)}
+        onChange={(e) => handleEmailChange(e.target.value)}
         placeholder="email@exemple.com"
+        error={emailError}
       />
 
       <PhoneInput
