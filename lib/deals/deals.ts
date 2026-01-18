@@ -241,6 +241,7 @@ export async function getDeal(dealId: string): Promise<{
       proposal_id: null,
       quote: q,
       proposal: null,
+      created_at: q.created_at,
     })),
     ...(proposals || []).map(p => ({
       id: p.id,
@@ -250,6 +251,7 @@ export async function getDeal(dealId: string): Promise<{
       proposal_id: p.id,
       quote: null,
       proposal: p,
+      created_at: p.created_at,
     })),
   ];
 
