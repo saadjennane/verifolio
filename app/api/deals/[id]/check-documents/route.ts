@@ -32,14 +32,22 @@ export async function GET(
       return NextResponse.json({ error: 'Deal introuvable' }, { status: 404 });
     }
 
-    // Vérifier les devis via deal_documents
-    const { data: documents } = await supabase
-      .from('deal_documents')
-      .select('document_type, quote_id, proposal_id')
-      .eq('deal_id', id);
+    // Vérifier les devis liés directement au deal
+    const { data: quotes } = await supabase
+      .from('quotes')
+      .select('id')
+      .eq('deal_id', id)
+      .is('deleted_at', null);
 
-    const hasQuote = documents?.some(d => d.document_type === 'quote' && d.quote_id) || false;
-    const hasProposal = documents?.some(d => d.document_type === 'proposal' && d.proposal_id) || false;
+    // Vérifier les propositions liées directement au deal
+    const { data: proposals } = await supabase
+      .from('proposals')
+      .select('id')
+      .eq('deal_id', id)
+      .is('deleted_at', null);
+
+    const hasQuote = (quotes?.length || 0) > 0;
+    const hasProposal = (proposals?.length || 0) > 0;
     const hasAnyDocument = hasQuote || hasProposal;
 
     return NextResponse.json({

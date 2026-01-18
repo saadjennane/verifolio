@@ -51,6 +51,7 @@ export function CompanyFormTab({ companyId }: CompanyFormTabProps) {
           .order('created_at');
 
         if (fields) {
+          console.log('Loaded custom fields:', fields);
           setCustomFields(fields);
         }
       }
@@ -162,19 +163,43 @@ export function CompanyFormTab({ companyId }: CompanyFormTabProps) {
     }
 
     // Save custom field values
+    console.log('Saving custom fields:', {
+      fieldsCount: customFields.length,
+      fields: customFields.map(f => ({ id: f.id, label: f.label })),
+      fieldValues,
+      savedCompanyId,
+      userId: user?.id
+    });
+
     for (const field of customFields) {
       const value = fieldValues[field.id] || '';
-      if (value || isEditing) {
-        await supabase.from('custom_field_values').upsert(
-          {
-            user_id: user?.id || null,
-            field_id: field.id,
-            entity_type: 'client',
-            entity_id: savedCompanyId,
-            value_text: value || null,
-          },
-          { onConflict: 'field_id,entity_type,entity_id' }
-        );
+      console.log('Processing field:', { fieldId: field.id, label: field.label, value, hasValue: !!value });
+      // Save if there's a value (for both new and edit)
+      if (value) {
+        const payload = {
+          user_id: user?.id,
+          field_id: field.id,
+          entity_type: 'client' as const,
+          entity_id: savedCompanyId,
+          value_text: value,
+        };
+        console.log('Upserting field value:', payload);
+        const { error: fieldError, data: fieldData } = await supabase
+          .from('custom_field_values')
+          .upsert(payload, { onConflict: 'user_id,field_id,entity_type,entity_id' })
+          .select();
+        console.log('Upsert result:', { fieldData, fieldError });
+        if (fieldError) {
+          console.error('Error saving custom field:', field.label, 'message:', fieldError.message, 'code:', fieldError.code, 'details:', fieldError.details, 'hint:', fieldError.hint);
+        }
+      } else if (isEditing) {
+        // If editing and value is empty, delete the existing value
+        await supabase
+          .from('custom_field_values')
+          .delete()
+          .eq('field_id', field.id)
+          .eq('entity_type', 'client')
+          .eq('entity_id', savedCompanyId);
       }
     }
 

@@ -88,11 +88,11 @@ export function EntitySelectionModal({
         }));
         setMissions(transformed);
       } else {
-        // Load deals that can have quotes (not perdu)
+        // Load deals that can have quotes (not lost)
         const { data, error } = await supabase
           .from('deals')
-          .select('id, titre, statut, client:clients(nom)')
-          .neq('statut', 'perdu')
+          .select('id, title, status, client:clients(nom)')
+          .neq('status', 'lost')
           .is('deleted_at', null)
           .order('created_at', { ascending: false });
 
@@ -100,9 +100,11 @@ export function EntitySelectionModal({
           console.error('Error loading deals:', error);
         }
 
-        // Transform data to match Deal interface
+        // Transform data to match Deal interface (map title->titre, status->statut for UI)
         const transformed = (data || []).map(d => ({
-          ...d,
+          id: d.id,
+          titre: d.title,
+          statut: d.status,
           client: d.client as unknown as { nom: string } | null,
         }));
         setDeals(transformed);

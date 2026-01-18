@@ -92,6 +92,9 @@ export function QuoteDetailTab({ quoteId }: QuoteDetailTabProps) {
     setDeleting(true);
     const supabase = createClient();
 
+    // Get deal_id before deleting (to redirect back to deal if linked)
+    const dealId = (quote as { deal_id?: string })?.deal_id;
+
     // Soft delete - set deleted_at timestamp (keeps in trash for 30 days)
     const { error } = await supabase
       .from('quotes')
@@ -105,10 +108,20 @@ export function QuoteDetailTab({ quoteId }: QuoteDetailTabProps) {
       return;
     }
 
-    // Close current tab and go back to documents list
+    // Close current tab and go back to deal (if linked) or documents list
     const currentTab = tabs.find(t => t.id === activeTabId);
     if (currentTab) closeTab(currentTab.id);
-    openTab({ type: 'documents', path: '/documents', title: 'Documents' }, true);
+
+    if (dealId) {
+      openTab({
+        type: 'deal',
+        path: `/deals/${dealId}`,
+        title: 'Deal',
+        entityId: dealId,
+      }, true);
+    } else {
+      openTab({ type: 'documents', path: '/documents', title: 'Documents' }, true);
+    }
   };
 
   if (loading) {

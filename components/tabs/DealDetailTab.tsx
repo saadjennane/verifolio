@@ -205,40 +205,75 @@ export function DealDetailTab({ dealId }: DealDetailTabProps) {
   }
 
   async function addTag() {
-    if (!newTag.trim()) return;
+    if (!newTag.trim() || !deal) return;
+
+    const tagToAdd = newTag.trim();
+    const colorToAdd = tagColor;
+
+    // Optimistic update - add tag to local state immediately
+    setDeal(prev => prev ? {
+      ...prev,
+      tags: [...(prev.tags || []), { tag: tagToAdd, color: colorToAdd }]
+    } : null);
+    setNewTag('');
+    setTagColor('gray');
 
     try {
       const res = await fetch(`/api/deals/${dealId}/tags`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tag: newTag.trim(), color: tagColor }),
+        body: JSON.stringify({ tag: tagToAdd, color: colorToAdd }),
       });
 
-      if (!res.ok) throw new Error('Failed to add tag');
-
-      setNewTag('');
-      setTagColor('gray');
-      await loadDeal();
+      if (!res.ok) {
+        // Revert on error
+        setDeal(prev => prev ? {
+          ...prev,
+          tags: (prev.tags || []).filter(t => t.tag !== tagToAdd)
+        } : null);
+        throw new Error('Failed to add tag');
+      }
     } catch (error) {
       console.error('Error adding tag:', error);
     }
   }
 
   async function removeTag(tag: string) {
+    if (!deal) return;
+
+    // Save previous state for rollback
+    const previousTags = deal.tags || [];
+
+    // Optimistic update - remove tag from local state immediately
+    setDeal(prev => prev ? {
+      ...prev,
+      tags: (prev.tags || []).filter(t => t.tag !== tag)
+    } : null);
+
     try {
       const res = await fetch(`/api/deals/${dealId}/tags?tag=${encodeURIComponent(tag)}`, {
         method: 'DELETE',
       });
 
-      if (!res.ok) throw new Error('Failed to remove tag');
-
-      await loadDeal();
+      if (!res.ok) {
+        // Revert on error
+        setDeal(prev => prev ? { ...prev, tags: previousTags } : null);
+        throw new Error('Failed to remove tag');
+      }
     } catch (error) {
       console.error('Error removing tag:', error);
     }
   }
 
   async function addBadge(badge: string, variant: string) {
+    if (!deal) return;
+
+    // Optimistic update - add badge to local state immediately
+    setDeal(prev => prev ? {
+      ...prev,
+      badges: [...(prev.badges || []), { badge, variant }]
+    } : null);
+
     try {
       const res = await fetch(`/api/deals/${dealId}/badges`, {
         method: 'POST',
@@ -246,23 +281,41 @@ export function DealDetailTab({ dealId }: DealDetailTabProps) {
         body: JSON.stringify({ badge, variant }),
       });
 
-      if (!res.ok) throw new Error('Failed to add badge');
-
-      await loadDeal();
+      if (!res.ok) {
+        // Revert on error
+        setDeal(prev => prev ? {
+          ...prev,
+          badges: (prev.badges || []).filter(b => b.badge !== badge)
+        } : null);
+        throw new Error('Failed to add badge');
+      }
     } catch (error) {
       console.error('Error adding badge:', error);
     }
   }
 
   async function removeBadge(badge: string) {
+    if (!deal) return;
+
+    // Save previous state for rollback
+    const previousBadges = deal.badges || [];
+
+    // Optimistic update - remove badge from local state immediately
+    setDeal(prev => prev ? {
+      ...prev,
+      badges: (prev.badges || []).filter(b => b.badge !== badge)
+    } : null);
+
     try {
       const res = await fetch(`/api/deals/${dealId}/badges?badge=${encodeURIComponent(badge)}`, {
         method: 'DELETE',
       });
 
-      if (!res.ok) throw new Error('Failed to remove badge');
-
-      await loadDeal();
+      if (!res.ok) {
+        // Revert on error
+        setDeal(prev => prev ? { ...prev, badges: previousBadges } : null);
+        throw new Error('Failed to remove badge');
+      }
     } catch (error) {
       console.error('Error removing badge:', error);
     }

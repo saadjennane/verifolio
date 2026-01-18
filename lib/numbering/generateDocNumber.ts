@@ -131,7 +131,90 @@ function substituteTokens(pattern: string, date: Date, seqValue: number, seqPadd
 }
 
 /**
+ * Cherche un numéro de document réutilisable (brouillon supprimé dans la corbeille)
+ * Retourne le numéro le plus petit disponible, ou null si aucun
+ */
+async function findReusableNumber(
+  supabase: SupabaseClient,
+  userId: string,
+  docType: DocType,
+  pattern: string,
+  date: Date,
+  seqPadding: number
+): Promise<string | null> {
+  const tableName = docType === 'quote' ? 'quotes' : 'invoices';
+
+  // Chercher les documents brouillons supprimés (dans la corbeille)
+  const { data: deletedDrafts, error } = await supabase
+    .from(tableName)
+    .select('numero')
+    .eq('user_id', userId)
+    .eq('status', 'brouillon')
+    .not('deleted_at', 'is', null)
+    .order('numero', { ascending: true });
+
+  if (error || !deletedDrafts || deletedDrafts.length === 0) {
+    return null;
+  }
+
+  // Générer le préfixe du pattern actuel (sans le numéro de séquence)
+  // Par exemple pour "DEV-{SEQ:3}-{YY}" avec date 2026, le préfixe serait "DEV-" et le suffixe "-26"
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+
+  // Créer un pattern de test avec un placeholder pour la séquence
+  const testPattern = pattern
+    .replace(/\{YYYY\}/g, year.toString())
+    .replace(/\{YY\}/g, (year % 100).toString().padStart(2, '0'))
+    .replace(/\{MM\}/g, month.toString().padStart(2, '0'))
+    .replace(/\{DD\}/g, day.toString().padStart(2, '0'));
+
+  // Extraire préfixe et suffixe autour de {SEQ:n}
+  const seqMatch = testPattern.match(/^(.*?)\{SEQ:\d+\}(.*)$/);
+  if (!seqMatch) return null;
+
+  const prefix = seqMatch[1];
+  const suffix = seqMatch[2];
+
+  // Filtrer les numéros qui correspondent au pattern actuel
+  const matchingNumbers = deletedDrafts
+    .map(d => d.numero)
+    .filter(n => n.startsWith(prefix) && n.endsWith(suffix))
+    .map(n => {
+      // Extraire le numéro de séquence
+      const seqStr = n.slice(prefix.length, n.length - suffix.length || undefined);
+      const seqNum = parseInt(seqStr, 10);
+      return { numero: n, seq: seqNum };
+    })
+    .filter(item => !isNaN(item.seq))
+    .sort((a, b) => a.seq - b.seq);
+
+  if (matchingNumbers.length === 0) {
+    return null;
+  }
+
+  // Vérifier que ce numéro n'est pas déjà utilisé par un document actif
+  const reusableNumero = matchingNumbers[0].numero;
+  const { data: existingActive } = await supabase
+    .from(tableName)
+    .select('id')
+    .eq('user_id', userId)
+    .eq('numero', reusableNumero)
+    .is('deleted_at', null)
+    .single();
+
+  if (existingActive) {
+    // Ce numéro est déjà utilisé par un document actif
+    return null;
+  }
+
+  return reusableNumero;
+}
+
+/**
  * Génère un numéro de document unique basé sur un pattern
+ * Réutilise les numéros de brouillons supprimés si disponibles
  */
 export async function generateDocNumber({
   supabase,
@@ -144,6 +227,20 @@ export async function generateDocNumber({
   const validation = validatePattern(pattern);
   if (!validation.valid) {
     throw new Error(validation.error);
+  }
+
+  // D'abord, chercher s'il y a un numéro réutilisable (brouillon supprimé)
+  const reusableNumber = await findReusableNumber(
+    supabase,
+    userId,
+    docType,
+    pattern,
+    date,
+    validation.seqPadding!
+  );
+
+  if (reusableNumber) {
+    return reusableNumber;
   }
 
   // Calculer la clé de période

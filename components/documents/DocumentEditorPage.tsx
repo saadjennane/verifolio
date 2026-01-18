@@ -16,6 +16,12 @@ interface CompanyFieldValue {
   value: string;
 }
 
+export interface DuplicateNumeroInfo {
+  exists: boolean;
+  existingId?: string;
+  existingNumero?: string;
+}
+
 interface DocumentEditorPageProps {
   type: DocumentType;
   document: DocumentData;
@@ -33,6 +39,8 @@ interface DocumentEditorPageProps {
   onAddItem: () => void;
   onRemoveItem: (index: number) => void;
   onDuplicateItem: (index: number) => void;
+  onCheckDuplicateNumero?: (numero: string) => Promise<DuplicateNumeroInfo>;
+  onReplaceDocument?: (existingId: string, newNumero: string) => Promise<void>;
 }
 
 // ============================================================================
@@ -354,7 +362,7 @@ function LineItemsTable({
   };
 
   return (
-    <div className="border border-gray-300 rounded overflow-hidden line-items-table">
+    <div className="line-items-table">
       {/* Hide number input spinners and ensure visible caret */}
       <style>{`
         input[type="number"]::-webkit-inner-spin-button,
@@ -370,148 +378,164 @@ function LineItemsTable({
           caret-color: #1e40af;
         }
       `}</style>
-      <table className="w-full border-collapse">
-        <thead>
-          <tr className="bg-gray-100">
-            <th className="w-6"></th>
-            <th className="text-left py-2 px-3 text-[9pt] font-semibold text-gray-700 uppercase border-r border-gray-300" style={{ width: '45%' }}>
-              Désignation
-            </th>
-            <th className="text-center py-2 px-3 text-[9pt] font-semibold text-gray-700 uppercase border-r border-gray-300 w-16">
-              Qté
-            </th>
-            <th className="text-center py-2 px-3 text-[9pt] font-semibold text-gray-700 uppercase border-r border-gray-300" style={{ width: '18%' }}>
-              Prix unitaire
-            </th>
-            <th className="text-center py-2 px-3 text-[9pt] font-semibold text-gray-700 uppercase" style={{ width: '18%' }}>
-              Total
-            </th>
-            <th className="w-14"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((item, index) => {
-            const lineTotal = item.quantite * item.prix_unitaire;
+      <div className="border border-gray-300 rounded overflow-hidden">
+        <table className="w-full border-collapse table-fixed">
+          <colgroup>
+            <col style={{ width: '50%' }} />
+            <col style={{ width: '50px' }} />
+            <col style={{ width: '120px' }} />
+            <col style={{ width: '120px' }} />
+            <col style={{ width: '50px' }} />
+          </colgroup>
+          <thead>
+            <tr className="bg-gray-100">
+              <th className="text-left py-2 px-3 text-[9pt] font-semibold text-gray-700 uppercase border-r border-gray-300">
+                Désignation
+              </th>
+              <th className="text-center py-2 px-3 text-[9pt] font-semibold text-gray-700 uppercase border-r border-gray-300">
+                Qté
+              </th>
+              <th className="text-right py-2 px-3 text-[9pt] font-semibold text-gray-700 uppercase border-r border-gray-300">
+                Prix unitaire
+              </th>
+              <th className="text-right py-2 px-3 text-[9pt] font-semibold text-gray-700 uppercase">
+                Total
+              </th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item, index) => {
+              const lineTotal = item.quantite * item.prix_unitaire;
 
-            return (
-              <tr
-                key={index}
-                className="border-t border-gray-200 group hover:bg-gray-50 transition-colors"
-              >
-                {/* Drag handle */}
-                <td className="py-2 px-1 text-gray-300 cursor-grab border-r border-gray-100">
-                  <GripVertical className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </td>
+              return (
+                <tr
+                  key={index}
+                  className="border-t border-gray-200 group hover:bg-gray-50 transition-colors"
+                >
+                  {/* Description */}
+                  <td className="py-2 px-3 border-r border-gray-200 align-top">
+                    <textarea
+                      ref={(el) => {
+                        // Auto-resize on mount
+                        if (el) {
+                          el.style.height = 'auto';
+                          el.style.height = el.scrollHeight + 'px';
+                        }
+                      }}
+                      value={item.description}
+                      onChange={(e) => {
+                        onUpdateItem(index, 'description', e.target.value);
+                        // Auto-resize textarea
+                        e.target.style.height = 'auto';
+                        e.target.style.height = e.target.scrollHeight + 'px';
+                      }}
+                      onKeyDown={(e) => {
+                        // Allow Enter for new line, use Shift+Enter or Tab to navigate
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          // Allow normal Enter for new lines
+                          return;
+                        }
+                        if (e.key === 'Tab') {
+                          handleKeyDown(e, index, 'description');
+                        }
+                      }}
+                      onFocus={(e) => {
+                        setFocusedCell({ row: index, col: 'description' });
+                        // Ensure proper height on focus
+                        e.target.style.height = 'auto';
+                        e.target.style.height = e.target.scrollHeight + 'px';
+                      }}
+                      placeholder="Description de la prestation..."
+                      className="w-full bg-transparent border-0 focus:ring-0 text-[10pt] text-gray-900 placeholder:text-gray-400 focus:bg-blue-50 rounded px-1 py-1 resize-none"
+                      style={{ minHeight: '24px' }}
+                      rows={1}
+                      autoFocus={focusedCell?.row === index && focusedCell?.col === 'description'}
+                    />
+                  </td>
 
-                {/* Description */}
-                <td className="py-2 px-2 border-r border-gray-200 align-top">
-                  <textarea
-                    value={item.description}
-                    onChange={(e) => {
-                      onUpdateItem(index, 'description', e.target.value);
-                      // Auto-resize textarea
-                      e.target.style.height = 'auto';
-                      e.target.style.height = e.target.scrollHeight + 'px';
-                    }}
-                    onKeyDown={(e) => {
-                      // Allow Enter for new line, use Shift+Enter or Tab to navigate
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        // Allow normal Enter for new lines
-                        return;
-                      }
-                      if (e.key === 'Tab') {
-                        handleKeyDown(e, index, 'description');
-                      }
-                    }}
-                    onFocus={(e) => {
-                      setFocusedCell({ row: index, col: 'description' });
-                      // Ensure proper height on focus
-                      e.target.style.height = 'auto';
-                      e.target.style.height = e.target.scrollHeight + 'px';
-                    }}
-                    placeholder="Description de la prestation..."
-                    className="w-full bg-transparent border-0 focus:ring-0 text-[10pt] text-gray-900 placeholder:text-gray-400 focus:bg-blue-50 rounded px-2 py-1 resize-none overflow-hidden"
-                    style={{ minHeight: '24px' }}
-                    rows={1}
-                    autoFocus={focusedCell?.row === index && focusedCell?.col === 'description'}
-                  />
-                </td>
-
-                {/* Quantité */}
-                <td className="py-2 px-2 border-r border-gray-200">
-                  <input
-                    type="number"
-                    value={item.quantite}
-                    onChange={(e) => onUpdateItem(index, 'quantite', parseFloat(e.target.value) || 0)}
-                    onKeyDown={(e) => handleKeyDown(e, index, 'quantite')}
-                    onFocus={() => setFocusedCell({ row: index, col: 'quantite' })}
-                    min={0}
-                    step="0.01"
-                    className="w-full bg-transparent border-0 focus:ring-0 text-[10pt] text-gray-900 text-center focus:bg-blue-50 rounded px-1 py-1"
-                    autoFocus={focusedCell?.row === index && focusedCell?.col === 'quantite'}
-                  />
-                </td>
-
-                {/* Prix unitaire */}
-                <td className="py-2 px-2 border-r border-gray-200">
-                  <div className="flex items-center justify-end gap-2">
+                  {/* Quantité */}
+                  <td className="py-2 px-2 border-r border-gray-200">
                     <input
                       type="number"
-                      value={item.prix_unitaire}
-                      onChange={(e) => onUpdateItem(index, 'prix_unitaire', parseFloat(e.target.value) || 0)}
-                      onKeyDown={(e) => handleKeyDown(e, index, 'prix')}
-                      onFocus={() => setFocusedCell({ row: index, col: 'prix' })}
+                      value={item.quantite}
+                      onChange={(e) => onUpdateItem(index, 'quantite', parseFloat(e.target.value) || 0)}
+                      onKeyDown={(e) => handleKeyDown(e, index, 'quantite')}
+                      onFocus={() => setFocusedCell({ row: index, col: 'quantite' })}
                       min={0}
                       step="0.01"
-                      className="flex-1 min-w-0 bg-transparent border-0 focus:ring-0 text-[10pt] text-gray-900 text-right focus:bg-blue-50 rounded px-1 py-1"
-                      autoFocus={focusedCell?.row === index && focusedCell?.col === 'prix'}
+                      className="w-full bg-transparent border-0 focus:ring-0 text-[10pt] text-gray-900 text-center focus:bg-blue-50 rounded px-1 py-1"
+                      autoFocus={focusedCell?.row === index && focusedCell?.col === 'quantite'}
                     />
-                    <span className="text-gray-500 text-[9pt] flex-shrink-0 w-6">{currencySymbol}</span>
-                  </div>
-                </td>
+                  </td>
 
-                {/* Total */}
-                <td className="py-2 px-3 text-right text-[10pt] font-medium text-gray-900 whitespace-nowrap">
-                  {new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(lineTotal)} {currencySymbol}
-                </td>
+                  {/* Prix unitaire */}
+                  <td className="py-2 px-3 border-r border-gray-200 whitespace-nowrap">
+                    {focusedCell?.row === index && focusedCell?.col === 'prix' ? (
+                      <input
+                        type="number"
+                        value={item.prix_unitaire}
+                        onChange={(e) => onUpdateItem(index, 'prix_unitaire', parseFloat(e.target.value) || 0)}
+                        onKeyDown={(e) => handleKeyDown(e, index, 'prix')}
+                        onBlur={() => setFocusedCell(null)}
+                        min={0}
+                        step="0.01"
+                        className="w-full bg-blue-50 border-0 focus:ring-0 text-[10pt] text-gray-900 text-right rounded px-1 py-1"
+                        autoFocus
+                      />
+                    ) : (
+                      <div
+                        onClick={() => setFocusedCell({ row: index, col: 'prix' })}
+                        className="text-right text-[10pt] text-gray-900 cursor-text hover:bg-blue-50 rounded px-1 py-1"
+                      >
+                        {new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(item.prix_unitaire)} {currencySymbol}
+                      </div>
+                    )}
+                  </td>
 
-                {/* Actions */}
-                <td className="py-2 px-2">
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      type="button"
-                      onClick={() => onDuplicateItem(index)}
-                      className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
-                      title="Dupliquer"
-                    >
-                      <Copy className="h-3 w-3" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onRemoveItem(index)}
-                      className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
-                      title="Supprimer"
-                      disabled={items.length === 1 && !item.description}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+                  {/* Total */}
+                  <td className="py-2 px-3 text-right text-[10pt] font-medium text-gray-900 whitespace-nowrap">
+                    {new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(lineTotal)} {currencySymbol}
+                  </td>
 
-      {/* Add row button */}
-      <button
-        type="button"
-        onClick={onAddItem}
-        className="w-full py-2 text-sm text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors flex items-center justify-center gap-2 border-t border-gray-200"
-      >
-        <Plus className="h-4 w-4" />
-        Ajouter une ligne
-      </button>
+                  {/* Actions */}
+                  <td className="py-2 px-1">
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        type="button"
+                        onClick={() => onDuplicateItem(index)}
+                        className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
+                        title="Dupliquer"
+                      >
+                        <Copy className="h-3 w-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onRemoveItem(index)}
+                        className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                        title="Supprimer"
+                        disabled={items.length === 1 && !item.description}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+
+        {/* Add row button */}
+        <button
+          type="button"
+          onClick={onAddItem}
+          className="w-full py-2 text-sm text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors flex items-center justify-center gap-2 border-t border-gray-200"
+        >
+          <Plus className="h-4 w-4" />
+          Ajouter une ligne
+        </button>
+      </div>
     </div>
   );
 }
@@ -537,12 +561,59 @@ export function DocumentEditorPage({
   onAddItem,
   onRemoveItem,
   onDuplicateItem,
+  onCheckDuplicateNumero,
+  onReplaceDocument,
 }: DocumentEditorPageProps) {
   const isInvoice = type === 'invoice';
   const title = isInvoice ? 'FACTURE' : 'DEVIS';
 
+  // State for numero editing
+  const [isEditingNumero, setIsEditingNumero] = useState(false);
+  const [tempNumero, setTempNumero] = useState(document.numero || '');
+  const [duplicateInfo, setDuplicateInfo] = useState<DuplicateNumeroInfo | null>(null);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+
   // Get primary color from template config or default
   const primaryColor = templateConfig?.primaryColor || '#1e40af';
+
+  // Handle numero change with duplicate check
+  const handleNumeroBlur = async () => {
+    if (!tempNumero || tempNumero === document.numero) {
+      setIsEditingNumero(false);
+      setTempNumero(document.numero || '');
+      return;
+    }
+
+    if (onCheckDuplicateNumero) {
+      const info = await onCheckDuplicateNumero(tempNumero);
+      if (info.exists && info.existingId !== document.id) {
+        setDuplicateInfo(info);
+        setShowDuplicateModal(true);
+        return;
+      }
+    }
+
+    // No duplicate, update the numero
+    onUpdateDocument({ numero: tempNumero });
+    setIsEditingNumero(false);
+  };
+
+  const handleCancelDuplicate = () => {
+    setShowDuplicateModal(false);
+    setTempNumero(document.numero || '');
+    setIsEditingNumero(false);
+    setDuplicateInfo(null);
+  };
+
+  const handleReplaceDuplicate = async () => {
+    if (duplicateInfo?.existingId && onReplaceDocument) {
+      await onReplaceDocument(duplicateInfo.existingId, tempNumero);
+      onUpdateDocument({ numero: tempNumero });
+    }
+    setShowDuplicateModal(false);
+    setIsEditingNumero(false);
+    setDuplicateInfo(null);
+  };
 
   // Separate legal fields (ICE, RC) from bank fields
   const legalFields = companyFields.filter(f =>
@@ -550,7 +621,43 @@ export function DocumentEditorPage({
   );
 
   return (
-    <div className="max-w-[210mm] mx-auto" data-theme="light">
+    <div className="max-w-[210mm] mx-auto light" data-theme="light">
+      {/* Force light mode styles for the document preview */}
+      <style>{`
+        .light, .light * {
+          color-scheme: light !important;
+        }
+        .light .bg-white { background-color: #ffffff !important; }
+        .light .bg-gray-50 { background-color: #f9fafb !important; }
+        .light .bg-gray-100 { background-color: #f3f4f6 !important; }
+        .light .text-gray-900 { color: #111827 !important; }
+        .light .text-gray-700 { color: #374151 !important; }
+        .light .text-gray-600 { color: #4b5563 !important; }
+        .light .text-gray-500 { color: #6b7280 !important; }
+        .light .text-gray-400 { color: #9ca3af !important; }
+        .light .border-gray-200 { border-color: #e5e7eb !important; }
+        .light .border-gray-300 { border-color: #d1d5db !important; }
+        .light input, .light textarea, .light select {
+          background-color: transparent !important;
+          color: #111827 !important;
+        }
+        .light input::placeholder, .light textarea::placeholder {
+          color: #9ca3af !important;
+        }
+        /* Hover states */
+        .light .hover\\:bg-gray-50:hover { background-color: #f9fafb !important; }
+        .light .hover\\:bg-blue-50:hover { background-color: #eff6ff !important; }
+        .light .hover\\:bg-red-50:hover { background-color: #fef2f2 !important; }
+        .light .hover\\:text-blue-600:hover { color: #2563eb !important; }
+        .light .hover\\:text-red-600:hover { color: #dc2626 !important; }
+        .light .hover\\:border-blue-400:hover { border-color: #60a5fa !important; }
+        /* Focus states */
+        .light .focus\\:ring-blue-500:focus { --tw-ring-color: #3b82f6 !important; }
+        .light tr:hover { background-color: #f9fafb !important; }
+        .light tr:hover td { background-color: transparent !important; }
+        /* Actions outside table */
+        .light button.text-gray-400 { color: #9ca3af !important; }
+      `}</style>
       {/* A4 Page - Force light mode for print fidelity */}
       <div
         className="bg-white shadow-lg mx-4 text-gray-900"
@@ -562,6 +669,7 @@ export function DocumentEditorPage({
           fontSize: '10pt',
           lineHeight: 1.5,
           color: '#1f2937',
+          backgroundColor: '#ffffff',
         }}
       >
         {/* ZONE 1: Header - Logo only */}
@@ -570,7 +678,7 @@ export function DocumentEditorPage({
             <img
               src={company.logo_url}
               alt={company?.nom || ''}
-              style={{ maxHeight: '60px', maxWidth: '180px' }}
+              style={{ maxHeight: '80px', maxWidth: '220px' }}
             />
           ) : (
             <h1 className="text-[20pt] font-bold text-gray-900">
@@ -609,9 +717,31 @@ export function DocumentEditorPage({
               >
                 {title}
               </div>
-              <div className="text-[12pt] font-semibold text-gray-700 mt-1">
-                {document.numero || '---'}
-              </div>
+              {isEditingNumero ? (
+                <input
+                  type="text"
+                  value={tempNumero}
+                  onChange={(e) => setTempNumero(e.target.value)}
+                  onBlur={handleNumeroBlur}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleNumeroBlur();
+                    if (e.key === 'Escape') handleCancelDuplicate();
+                  }}
+                  autoFocus
+                  className="text-[12pt] font-semibold text-gray-700 mt-1 bg-white border border-blue-400 rounded px-2 py-0.5 text-center w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              ) : (
+                <div
+                  className="text-[12pt] font-semibold text-gray-700 mt-1 cursor-pointer hover:text-blue-600 hover:bg-blue-50 rounded px-2 py-0.5 transition-colors"
+                  onClick={() => {
+                    setTempNumero(document.numero || '');
+                    setIsEditingNumero(true);
+                  }}
+                  title="Cliquez pour modifier le numéro"
+                >
+                  {document.numero || '---'}
+                </div>
+              )}
             </div>
 
             {/* Dates */}
@@ -819,6 +949,37 @@ export function DocumentEditorPage({
           )}
         </div>
       </div>
+
+      {/* Duplicate Numero Modal */}
+      {showDuplicateModal && duplicateInfo && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Numéro déjà utilisé
+            </h3>
+            <p className="text-gray-600 mb-4">
+              Le numéro <strong>{tempNumero}</strong> est déjà utilisé par un autre {isInvoice ? 'facture' : 'devis'}.
+            </p>
+            <p className="text-gray-600 mb-6">
+              Voulez-vous remplacer ce document ? L&apos;ancien sera déplacé dans la corbeille.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={handleCancelDuplicate}
+                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleReplaceDuplicate}
+                className="px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors"
+              >
+                Remplacer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

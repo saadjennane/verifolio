@@ -179,21 +179,25 @@ export function ClientDetailTab({ clientId }: ClientDetailTabProps) {
         .order('created_at');
 
       if (fields && fields.length > 0) {
+        console.log('[ClientDetailTab] Loaded custom fields:', fields);
         setCustomFields(fields);
 
         // Fetch values for these fields
-        const { data: values } = await supabase
+        const { data: values, error: valuesError } = await supabase
           .from('custom_field_values')
           .select('field_id, value_text')
           .eq('entity_type', 'client')
           .eq('entity_id', clientId)
           .in('field_id', fields.map(f => f.id));
 
+        console.log('[ClientDetailTab] Fetched values:', { values, valuesError, clientId });
+
         if (values) {
           const valueMap: Record<string, string> = {};
           for (const v of values) {
             valueMap[v.field_id] = v.value_text || '';
           }
+          console.log('[ClientDetailTab] Value map:', valueMap);
           setFieldValues(valueMap);
         }
       }

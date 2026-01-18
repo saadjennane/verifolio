@@ -278,21 +278,25 @@ export function DocumentEditor({ type, documentId, dealId, missionId }: Document
 
         // Load context from deal/mission
         if (dealId) {
-          const { data: dealData } = await supabase
+          console.log('[DocumentEditor] Loading deal data for dealId:', dealId);
+          const { data: dealData, error: dealError } = await supabase
             .from('deals')
-            .select('client_id, montant, devise')
+            .select('client_id, estimated_amount, final_amount')
             .eq('id', dealId)
             .single();
 
+          console.log('[DocumentEditor] Deal data:', dealData, 'Error:', dealError);
+
           if (dealData) {
             const dealClient = clientsData?.find(c => c.id === dealData.client_id);
+            console.log('[DocumentEditor] Found deal client:', dealClient, 'from client_id:', dealData.client_id, 'available clients:', clientsData?.length);
             if (dealClient) setClient(dealClient);
             setDocument(prev => ({
               ...prev,
               numero: generatedNumero,
-              devise: dealData.devise || prev.devise,
             }));
           } else {
+            console.log('[DocumentEditor] No deal data found');
             setDocument(prev => ({ ...prev, numero: generatedNumero }));
           }
         } else if (missionId) {
@@ -498,6 +502,57 @@ export function DocumentEditor({ type, documentId, dealId, missionId }: Document
   }, [recalculateTotals]);
 
   // ============================================================================
+  // Numero duplicate check
+  // ============================================================================
+
+  const checkDuplicateNumero = useCallback(async (numero: string) => {
+    const supabase = createClient();
+    const tableName = type === 'quote' ? 'quotes' : 'invoices';
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { exists: false };
+
+    const { data, error } = await supabase
+      .from(tableName)
+      .select('id, numero')
+      .eq('user_id', user.id)
+      .eq('numero', numero)
+      .is('deleted_at', null)
+      .single();
+
+    if (error || !data) {
+      return { exists: false };
+    }
+
+    // If same document, not a duplicate
+    if (data.id === document.id) {
+      return { exists: false };
+    }
+
+    return {
+      exists: true,
+      existingId: data.id,
+      existingNumero: data.numero,
+    };
+  }, [type, document.id]);
+
+  const replaceDocument = useCallback(async (existingId: string, newNumero: string) => {
+    const supabase = createClient();
+    const tableName = type === 'quote' ? 'quotes' : 'invoices';
+
+    // Soft delete the existing document (move to trash)
+    const { error } = await supabase
+      .from(tableName)
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', existingId);
+
+    if (error) {
+      console.error('Error replacing document:', error);
+      setError('Erreur lors du remplacement du document');
+    }
+  }, [type]);
+
+  // ============================================================================
   // Save
   // ============================================================================
 
@@ -649,20 +704,14 @@ export function DocumentEditor({ type, documentId, dealId, missionId }: Document
 
         await supabase.from(itemsTable).insert(lineItems);
 
-        // Create deal/mission link
-        if (type === 'quote' && dealId) {
-          await supabase.from('deal_documents').insert({
-            deal_id: dealId,
-            document_type: 'quote',
-            quote_id: newDoc.id,
-          });
-        }
+        // Note: deal_id is already set in the quote insert above (insertData.deal_id)
+        // No need for separate deal_documents table
 
         if (type === 'invoice' && missionId) {
-          await supabase.from('mission_invoices').insert({
+          await supabase.from('mission_invoices').upsert({
             mission_id: missionId,
             invoice_id: newDoc.id,
-          });
+          }, { onConflict: 'mission_id,invoice_id', ignoreDuplicates: true });
           // Update mission status
           await supabase
             .from('missions')
@@ -691,12 +740,11 @@ export function DocumentEditor({ type, documentId, dealId, missionId }: Document
             entityId: missionId,
           }, true);
         } else {
-          // No context, go to document detail
+          // No context, go back to documents list
           openTab({
-            type: type,
-            path: `/${type}s/${newDoc.id}`,
-            title: newDoc.numero,
-            entityId: newDoc.id,
+            type: 'documents',
+            path: '/documents',
+            title: 'Documents',
           }, true);
         }
 
@@ -723,6 +771,8 @@ export function DocumentEditor({ type, documentId, dealId, missionId }: Document
   // ============================================================================
 
   const autoSave = useCallback(async () => {
+    // Don't auto-save if document not yet created (only update existing documents)
+    if (!document.id) return;
     // Don't auto-save if no client selected or no valid items
     if (!client) return;
     const validItems = document.items.filter(i => i.description.trim());
@@ -855,20 +905,14 @@ export function DocumentEditor({ type, documentId, dealId, missionId }: Document
 
         await supabase.from(itemsTable).insert(lineItems);
 
-        // Create deal/mission link
-        if (type === 'quote' && dealId) {
-          await supabase.from('deal_documents').insert({
-            deal_id: dealId,
-            document_type: 'quote',
-            quote_id: newDoc.id,
-          });
-        }
+        // Note: deal_id is already set in the quote insert above (insertData.deal_id)
+        // No need for separate deal_documents table
 
         if (type === 'invoice' && missionId) {
-          await supabase.from('mission_invoices').insert({
+          await supabase.from('mission_invoices').upsert({
             mission_id: missionId,
             invoice_id: newDoc.id,
-          });
+          }, { onConflict: 'mission_id,invoice_id', ignoreDuplicates: true });
         }
 
         // Update document state with the new ID and numero
@@ -1016,7 +1060,7 @@ export function DocumentEditor({ type, documentId, dealId, missionId }: Document
         onSave={save}
         onSend={() => setSendDrawerOpen(true)}
         onOpenSettings={() => setSettingsOpen(true)}
-        isEditing={isEditing || !!document.id}
+        isEditing={isEditing}
       />
 
       {/* Error message */}
@@ -1047,6 +1091,8 @@ export function DocumentEditor({ type, documentId, dealId, missionId }: Document
           onAddItem={addItem}
           onRemoveItem={removeItem}
           onDuplicateItem={duplicateItem}
+          onCheckDuplicateNumero={checkDuplicateNumero}
+          onReplaceDocument={replaceDocument}
         />
       </div>
 

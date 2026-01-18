@@ -3531,7 +3531,7 @@ async function getDeal(
       *,
       client:clients(id, nom, email),
       deal_contacts(contact:contacts(id, nom, email)),
-      deal_documents(document_type, quote_id, proposal_id)
+      quotes(id, numero, status)
     `)
     .eq('id', deal_id)
     .eq('user_id', userId)

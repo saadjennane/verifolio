@@ -217,11 +217,41 @@ export async function getDeal(dealId: string): Promise<{
     .select('*, contact:contacts(*)')
     .eq('deal_id', dealId);
 
-  // Récupérer les documents
-  const { data: documents } = await supabase
-    .from('deal_documents')
-    .select('*, quote:quotes(*), proposal:proposals(*)')
-    .eq('deal_id', dealId);
+  // Récupérer les devis liés à ce deal (directement via deal_id dans quotes)
+  const { data: quotes } = await supabase
+    .from('quotes')
+    .select('*')
+    .eq('deal_id', dealId)
+    .is('deleted_at', null);
+
+  // Récupérer les propositions liées à ce deal
+  const { data: proposals } = await supabase
+    .from('proposals')
+    .select('*')
+    .eq('deal_id', dealId)
+    .is('deleted_at', null);
+
+  // Construire la liste des documents au format attendu
+  const documents = [
+    ...(quotes || []).map(q => ({
+      id: q.id,
+      deal_id: dealId,
+      document_type: 'quote' as const,
+      quote_id: q.id,
+      proposal_id: null,
+      quote: q,
+      proposal: null,
+    })),
+    ...(proposals || []).map(p => ({
+      id: p.id,
+      deal_id: dealId,
+      document_type: 'proposal' as const,
+      quote_id: null,
+      proposal_id: p.id,
+      quote: null,
+      proposal: p,
+    })),
+  ];
 
   // Récupérer les tags
   const { data: tags } = await supabase
