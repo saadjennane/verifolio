@@ -209,11 +209,18 @@ export function DealDetailTab({ dealId }: DealDetailTabProps) {
 
     const tagToAdd = newTag.trim();
     const colorToAdd = tagColor;
+    const tempId = `temp-${Date.now()}`;
 
     // Optimistic update - add tag to local state immediately
     setDeal(prev => prev ? {
       ...prev,
-      tags: [...(prev.tags || []), { tag: tagToAdd, color: colorToAdd }]
+      tags: [...(prev.tags || []), {
+        id: tempId,
+        deal_id: dealId,
+        tag: tagToAdd,
+        color: colorToAdd,
+        created_at: new Date().toISOString(),
+      }]
     } : null);
     setNewTag('');
     setTagColor('gray');
@@ -268,10 +275,18 @@ export function DealDetailTab({ dealId }: DealDetailTabProps) {
   async function addBadge(badge: string, variant: string) {
     if (!deal) return;
 
+    const tempId = `temp-${Date.now()}`;
+
     // Optimistic update - add badge to local state immediately
     setDeal(prev => prev ? {
       ...prev,
-      badges: [...(prev.badges || []), { badge, variant }]
+      badges: [...(prev.badges || []), {
+        id: tempId,
+        deal_id: dealId,
+        badge,
+        variant,
+        created_at: new Date().toISOString(),
+      }]
     } : null);
 
     try {
