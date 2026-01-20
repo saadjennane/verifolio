@@ -1,12 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { FileText } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { TaskContext } from '@/components/tasks/TaskContext';
 import { OwnerSelector } from '@/components/tasks/OwnerSelector';
+import { TaskProgressBar, ApplyTemplateModal } from '@/components/tasks';
 import { WaitReasonModal } from '@/components/modals/WaitReasonModal';
 import { enrichTasksWithRelations } from '@/lib/tasks/client-tasks';
 import type { Task, TaskStatus, TaskOwnerScope } from '@/lib/tasks/types';
@@ -34,6 +36,7 @@ export function MissionTasksView({ missionId, missionClientId }: MissionTasksVie
   const [newTaskOwnerEntityId, setNewTaskOwnerEntityId] = useState<string | null>(null);
   const [waitReasonModalOpen, setWaitReasonModalOpen] = useState(false);
   const [waitingTask, setWaitingTask] = useState<{ id: string; reason?: string } | null>(null);
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
 
   useEffect(() => {
     loadTasks();
@@ -193,6 +196,25 @@ export function MissionTasksView({ missionId, missionClientId }: MissionTasksVie
   const doneTasks = tasks.filter((t) => t.status === 'done');
   const overdueTasks = openTasks.filter((t) => isOverdue(t));
 
+  async function handleApplyTemplate(templateId: string, referenceDate: string) {
+    const res = await fetch(`/api/task-templates/${templateId}/apply`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        entity_type: 'mission',
+        entity_id: missionId,
+        reference_date: referenceDate,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Erreur lors de l\'application du template');
+    }
+
+    await loadTasks();
+  }
+
   return (
     <Card>
       <div className="p-6">
@@ -233,11 +255,24 @@ export function MissionTasksView({ missionId, missionClientId }: MissionTasksVie
                 Kanban
               </button>
             </div>
+            <Button size="sm" variant="outline" onClick={() => setIsTemplateModalOpen(true)}>
+              <FileText className="w-4 h-4 mr-1" />
+              Template
+            </Button>
             <Button size="sm" onClick={() => setShowNewTaskForm(!showNewTaskForm)}>
               {showNewTaskForm ? 'Annuler' : '+ Tache'}
             </Button>
           </div>
         </div>
+
+        {/* Progress bar */}
+        {tasks.length > 0 && (
+          <TaskProgressBar
+            total={tasks.length}
+            completed={doneTasks.length}
+            className="mb-4"
+          />
+        )}
 
         {/* Formulaire nouvelle tache */}
         {showNewTaskForm && (
@@ -396,6 +431,14 @@ export function MissionTasksView({ missionId, missionClientId }: MissionTasksVie
           }}
           onSubmit={handleWaitReasonSubmit}
           initialReason={waitingTask?.reason}
+        />
+
+        <ApplyTemplateModal
+          isOpen={isTemplateModalOpen}
+          onClose={() => setIsTemplateModalOpen(false)}
+          onApply={handleApplyTemplate}
+          entityType="mission"
+          entityId={missionId}
         />
       </div>
     </Card>

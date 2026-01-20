@@ -1813,6 +1813,220 @@ export const toolDefinitions = [
       },
     },
   },
+  // ============================================================================
+  // TASK TEMPLATE TOOLS
+  // ============================================================================
+  {
+    type: 'function' as const,
+    function: {
+      name: 'create_task_template',
+      description: 'Créer un template de tâches. Un template contient un ensemble de tâches prédéfinies qui peuvent être appliquées d\'un coup à une mission, un deal ou un client.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: {
+            type: 'string',
+            description: 'Nom du template (ex: "Workflow mission photo", "Onboarding client")',
+          },
+          description: {
+            type: 'string',
+            description: 'Description du template (optionnel)',
+          },
+          target_entity_type: {
+            type: 'string',
+            enum: ['deal', 'mission', 'client'],
+            description: 'Type d\'entité cible (optionnel - si non spécifié, peut être utilisé pour tous types)',
+          },
+          items: {
+            type: 'array',
+            description: 'Liste des tâches du template',
+            items: {
+              type: 'object',
+              properties: {
+                title: {
+                  type: 'string',
+                  description: 'Titre de la tâche',
+                },
+                description: {
+                  type: 'string',
+                  description: 'Description de la tâche (optionnel)',
+                },
+                day_offset: {
+                  type: 'number',
+                  description: 'Délai en jours après application (0 = aujourd\'hui, 7 = dans 7 jours)',
+                },
+                owner_scope: {
+                  type: 'string',
+                  enum: ['me', 'client', 'supplier'],
+                  description: 'Qui doit faire cette tâche: me (moi), client, supplier (fournisseur)',
+                },
+              },
+              required: ['title'],
+            },
+          },
+        },
+        required: ['name', 'items'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'list_task_templates',
+      description: 'Lister les templates de tâches disponibles.',
+      parameters: {
+        type: 'object',
+        properties: {
+          target_entity_type: {
+            type: 'string',
+            enum: ['deal', 'mission', 'client'],
+            description: 'Filtrer par type d\'entité cible',
+          },
+        },
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'get_task_template',
+      description: 'Obtenir les détails d\'un template de tâches avec ses items.',
+      parameters: {
+        type: 'object',
+        properties: {
+          template_id: {
+            type: 'string',
+            description: 'ID du template',
+          },
+          template_name: {
+            type: 'string',
+            description: 'Nom du template (pour recherche si template_id non fourni)',
+          },
+        },
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'update_task_template',
+      description: 'Modifier un template de tâches existant.',
+      parameters: {
+        type: 'object',
+        properties: {
+          template_id: {
+            type: 'string',
+            description: 'ID du template',
+          },
+          template_name: {
+            type: 'string',
+            description: 'Nom du template (pour recherche)',
+          },
+          name: {
+            type: 'string',
+            description: 'Nouveau nom',
+          },
+          description: {
+            type: 'string',
+            description: 'Nouvelle description',
+          },
+          target_entity_type: {
+            type: 'string',
+            enum: ['deal', 'mission', 'client'],
+            description: 'Nouveau type d\'entité cible',
+          },
+          is_active: {
+            type: 'boolean',
+            description: 'Actif ou non',
+          },
+        },
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'delete_task_template',
+      description: 'Supprimer un template de tâches. IMPORTANT: Demander confirmation avant de supprimer.',
+      parameters: {
+        type: 'object',
+        properties: {
+          template_id: {
+            type: 'string',
+            description: 'ID du template',
+          },
+          template_name: {
+            type: 'string',
+            description: 'Nom du template (pour recherche)',
+          },
+        },
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'apply_task_template',
+      description: 'Appliquer un template de tâches à une entité (mission, deal ou client). Crée toutes les tâches du template d\'un coup.',
+      parameters: {
+        type: 'object',
+        properties: {
+          template_id: {
+            type: 'string',
+            description: 'ID du template',
+          },
+          template_name: {
+            type: 'string',
+            description: 'Nom du template (pour recherche si template_id non fourni)',
+          },
+          entity_type: {
+            type: 'string',
+            enum: ['deal', 'mission', 'client', 'contact'],
+            description: 'Type d\'entité cible',
+          },
+          entity_id: {
+            type: 'string',
+            description: 'ID de l\'entité (mission, deal ou client)',
+          },
+          entity_name: {
+            type: 'string',
+            description: 'Nom de l\'entité (pour recherche si entity_id non fourni)',
+          },
+          reference_date: {
+            type: 'string',
+            description: 'Date de référence pour calculer les échéances (format YYYY-MM-DD, défaut: aujourd\'hui)',
+          },
+        },
+        required: ['entity_type'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'get_entity_tasks',
+      description: 'Obtenir les tâches liées à une entité avec progression (total, terminées, en cours, pourcentage).',
+      parameters: {
+        type: 'object',
+        properties: {
+          entity_type: {
+            type: 'string',
+            enum: ['deal', 'mission', 'client', 'contact', 'invoice'],
+            description: 'Type d\'entité',
+          },
+          entity_id: {
+            type: 'string',
+            description: 'ID de l\'entité',
+          },
+          entity_name: {
+            type: 'string',
+            description: 'Nom de l\'entité (pour recherche si entity_id non fourni)',
+          },
+        },
+        required: ['entity_type'],
+      },
+    },
+  },
 ];
 
 export type ToolName =
@@ -1888,4 +2102,12 @@ export type ToolName =
   | 'delete_payment'
   | 'get_client_payment_balance'
   | 'get_mission_payments'
-  | 'get_invoice_payments';
+  | 'get_invoice_payments'
+  // Task template tools
+  | 'create_task_template'
+  | 'list_task_templates'
+  | 'get_task_template'
+  | 'update_task_template'
+  | 'delete_task_template'
+  | 'apply_task_template'
+  | 'get_entity_tasks';

@@ -11,10 +11,11 @@ import { NavigationSettings } from '@/components/settings/NavigationSettings';
 import { TrashSettings } from '@/components/settings/TrashSettings';
 import { ReviewTemplatesSettings } from '@/components/settings/ReviewTemplatesSettings';
 import { VerifolioSettings } from '@/components/settings/VerifolioSettings';
+import { TaskTemplatesSettings } from '@/components/settings/TaskTemplatesSettings';
 
-type SettingsTab = 'profile' | 'company' | 'email' | 'fields' | 'template' | 'reviews' | 'verifolio' | 'navigation' | 'trash';
+type SettingsTab = 'profile' | 'company' | 'email' | 'fields' | 'template' | 'task-templates' | 'reviews' | 'verifolio' | 'navigation' | 'trash';
 
-const validTabs: SettingsTab[] = ['profile', 'company', 'email', 'fields', 'template', 'reviews', 'verifolio', 'navigation', 'trash'];
+const validTabs: SettingsTab[] = ['profile', 'company', 'email', 'fields', 'template', 'task-templates', 'reviews', 'verifolio', 'navigation', 'trash'];
 
 // Wrapper component to handle useSearchParams inside Suspense
 function SettingsPageContent() {
@@ -95,6 +96,16 @@ function SettingsPageContent() {
               Modèle de document
             </button>
             <button
+              onClick={() => setActiveTab('task-templates')}
+              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'task-templates'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Templates tâches
+            </button>
+            <button
               onClick={() => setActiveTab('reviews')}
               className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === 'reviews'
@@ -143,6 +154,7 @@ function SettingsPageContent() {
         {activeTab === 'email' && <EmailSettings />}
         {activeTab === 'fields' && <CustomFieldsSettings />}
         {activeTab === 'template' && <TemplateSettings />}
+        {activeTab === 'task-templates' && <TaskTemplatesSettings />}
         {activeTab === 'reviews' && <ReviewTemplatesSettings />}
         {activeTab === 'verifolio' && <VerifolioSettings />}
         {activeTab === 'navigation' && <NavigationSettings />}

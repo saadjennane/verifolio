@@ -23,7 +23,14 @@ export function ClientPaymentsSection({ clientId, currency = 'EUR' }: ClientPaym
     try {
       setLoading(true);
       const res = await fetch(`/api/clients/${clientId}/payments?advances_only=true`);
-      if (!res.ok) throw new Error('Erreur lors du chargement');
+      if (!res.ok) {
+        const contentType = res.headers.get('content-type');
+        if (contentType?.includes('application/json')) {
+          const errJson = await res.json();
+          throw new Error(errJson.error || 'Erreur lors du chargement');
+        }
+        throw new Error(`Erreur ${res.status}: ${res.statusText}`);
+      }
       const json = await res.json();
       setBalance(json.data.balance);
       setAdvances(json.data.payments || []);
@@ -73,8 +80,12 @@ export function ClientPaymentsSection({ clientId, currency = 'EUR' }: ClientPaym
     });
 
     if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Erreur');
+      const contentType = res.headers.get('content-type');
+      if (contentType?.includes('application/json')) {
+        const err = await res.json();
+        throw new Error(err.error || 'Erreur');
+      }
+      throw new Error(`Erreur ${res.status}: ${res.statusText}`);
     }
 
     setIsModalOpen(false);

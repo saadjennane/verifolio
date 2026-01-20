@@ -4,6 +4,18 @@ import { generateDocNumber, DEFAULT_PATTERNS } from '@/lib/numbering/generateDoc
 import { getCurrencySymbol } from '@/lib/utils/currency';
 import { logActivity } from '@/lib/activity';
 import type { ActivityEntityType, ActivityAction } from '@/lib/activity/types';
+import {
+  createTaskTemplate,
+  listTaskTemplates,
+  getTaskTemplate,
+  updateTaskTemplate,
+  deleteTaskTemplate,
+  applyTaskTemplate,
+  getEntityTasks,
+  type TaskTemplateWithCounts,
+  type TemplateTargetEntityType,
+} from '@/lib/tasks/templates';
+import type { TaskEntityType } from '@/lib/tasks/types';
 
 type Supabase = SupabaseClient;
 
@@ -234,6 +246,21 @@ async function executeToolCallInternal(
       return await getMissionPaymentsHandler(supabase, userId, args);
     case 'get_invoice_payments':
       return await getInvoicePaymentsHandler(supabase, userId, args);
+    // Task template tools
+    case 'create_task_template':
+      return await createTaskTemplateHandler(supabase, userId, args);
+    case 'list_task_templates':
+      return await listTaskTemplatesHandler(supabase, userId, args);
+    case 'get_task_template':
+      return await getTaskTemplateHandler(supabase, userId, args);
+    case 'update_task_template':
+      return await updateTaskTemplateHandler(supabase, userId, args);
+    case 'delete_task_template':
+      return await deleteTaskTemplateHandler(supabase, userId, args);
+    case 'apply_task_template':
+      return await applyTaskTemplateHandler(supabase, userId, args);
+    case 'get_entity_tasks':
+      return await getEntityTasksHandler(supabase, userId, args);
     default:
       return { success: false, message: `Outil inconnu: ${toolName}` };
   }
@@ -5154,5 +5181,425 @@ async function getInvoicePaymentsHandler(
       `• Total TTC: ${Number(data.total_ttc).toFixed(2)} €\n` +
       `• Payé: ${Number(data.total_paid).toFixed(2)} €\n` +
       `• Reste: ${Number(data.remaining).toFixed(2)} €${paymentsList}`,
+  };
+}
+
+// ============================================================================
+// TASK TEMPLATE HANDLERS
+// ============================================================================
+
+async function findTaskTemplateByName(
+  supabase: Supabase,
+  userId: string,
+  name: string
+): Promise<TaskTemplateWithCounts | null> {
+  const templates = await listTaskTemplates(supabase, userId);
+  return templates.find(t => t.name.toLowerCase().includes(name.toLowerCase())) || null;
+}
+
+async function findEntityByName(
+  supabase: Supabase,
+  userId: string | null,
+  entityType: string,
+  name: string
+): Promise<{ id: string; title: string } | null> {
+  // Helper to search in a specific table
+  async function searchInTable(
+    table: string,
+    titleField: string
+  ): Promise<{ id: string; title: string } | null> {
+    let query = supabase
+      .from(table)
+      .select('*')
+      .ilike(titleField, `%${name}%`)
+      .limit(1);
+
+    if (userId) {
+      query = query.eq('user_id', userId);
+    }
+
+    const { data } = await query.single();
+    if (!data) return null;
+
+    const record = data as Record<string, unknown>;
+    return {
+      id: record.id as string,
+      title: record[titleField] as string,
+    };
+  }
+
+  switch (entityType) {
+    case 'deal':
+      return searchInTable('deals', 'title');
+    case 'mission':
+      return searchInTable('missions', 'title');
+    case 'client':
+      return searchInTable('clients', 'nom');
+    case 'contact':
+      return searchInTable('contacts', 'nom');
+    default:
+      return null;
+  }
+}
+
+async function createTaskTemplateHandler(
+  supabase: Supabase,
+  userId: string | null,
+  args: Record<string, unknown>
+): Promise<ToolResult> {
+  if (!userId) {
+    return { success: false, message: 'Vous devez être connecté.' };
+  }
+
+  const { name, description, target_entity_type, items } = args;
+
+  if (!name) {
+    return { success: false, message: 'Le nom du template est requis.' };
+  }
+
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    return { success: false, message: 'Au moins un item est requis dans le template.' };
+  }
+
+  const result = await createTaskTemplate(supabase, userId, {
+    name: name as string,
+    description: description as string | undefined,
+    target_entity_type: target_entity_type as TemplateTargetEntityType | undefined,
+    items: items as Array<{
+      title: string;
+      description?: string;
+      day_offset?: number;
+      owner_scope?: 'me' | 'client' | 'supplier';
+    }>,
+  });
+
+  if (!result.success) {
+    return { success: false, message: `Erreur: ${result.error}` };
+  }
+
+  const template = result.data!;
+  const entityTypeLabel = template.target_entity_type
+    ? ` (pour ${template.target_entity_type}s)`
+    : '';
+
+  return {
+    success: true,
+    data: template,
+    message: `Template "${template.name}" créé avec ${template.items.length} tâche(s)${entityTypeLabel}.\n(ID: ${template.id})`,
+  };
+}
+
+async function listTaskTemplatesHandler(
+  supabase: Supabase,
+  userId: string | null,
+  args: Record<string, unknown>
+): Promise<ToolResult> {
+  if (!userId) {
+    return { success: false, message: 'Vous devez être connecté.' };
+  }
+
+  const { target_entity_type } = args;
+
+  const templates = await listTaskTemplates(supabase, userId, {
+    target_entity_type: target_entity_type as TemplateTargetEntityType | undefined,
+    is_active: true,
+  });
+
+  if (templates.length === 0) {
+    return {
+      success: true,
+      data: [],
+      message: 'Aucun template de tâches trouvé.',
+    };
+  }
+
+  const templateList = templates.map(t => {
+    const entityLabel = t.target_entity_type ? ` [${t.target_entity_type}]` : ' [tous]';
+    const daysInfo = t.max_day_offset > 0 ? ` • Délai max: ${t.max_day_offset}j` : '';
+    return `- ${t.name}${entityLabel}: ${t.item_count} tâche(s)${daysInfo}`;
+  }).join('\n');
+
+  return {
+    success: true,
+    data: templates,
+    message: `${templates.length} template(s) trouvé(s):\n${templateList}`,
+  };
+}
+
+async function getTaskTemplateHandler(
+  supabase: Supabase,
+  userId: string | null,
+  args: Record<string, unknown>
+): Promise<ToolResult> {
+  if (!userId) {
+    return { success: false, message: 'Vous devez être connecté.' };
+  }
+
+  let templateId = args.template_id as string | undefined;
+  const templateName = args.template_name as string | undefined;
+
+  // Find template by name if needed
+  if (!templateId && templateName) {
+    const found = await findTaskTemplateByName(supabase, userId, templateName);
+    if (found) {
+      templateId = found.id;
+    } else {
+      return { success: false, message: `Template "${templateName}" non trouvé.` };
+    }
+  }
+
+  if (!templateId) {
+    return { success: false, message: 'Template requis (template_id ou template_name).' };
+  }
+
+  const template = await getTaskTemplate(supabase, userId, templateId);
+
+  if (!template) {
+    return { success: false, message: 'Template non trouvé.' };
+  }
+
+  const itemsList = template.items.map(item => {
+    const daysInfo = item.day_offset > 0 ? ` (+${item.day_offset}j)` : '';
+    const ownerInfo = item.owner_scope !== 'me' ? ` [${item.owner_scope}]` : '';
+    return `  • ${item.title}${daysInfo}${ownerInfo}`;
+  }).join('\n');
+
+  return {
+    success: true,
+    data: template,
+    message: `Template: ${template.name}\n` +
+      (template.description ? `Description: ${template.description}\n` : '') +
+      `Cible: ${template.target_entity_type || 'tous'}\n` +
+      `Tâches:\n${itemsList}`,
+  };
+}
+
+async function updateTaskTemplateHandler(
+  supabase: Supabase,
+  userId: string | null,
+  args: Record<string, unknown>
+): Promise<ToolResult> {
+  if (!userId) {
+    return { success: false, message: 'Vous devez être connecté.' };
+  }
+
+  let templateId = args.template_id as string | undefined;
+  const templateName = args.template_name as string | undefined;
+
+  // Find template by name if needed
+  if (!templateId && templateName) {
+    const found = await findTaskTemplateByName(supabase, userId, templateName);
+    if (found) {
+      templateId = found.id;
+    } else {
+      return { success: false, message: `Template "${templateName}" non trouvé.` };
+    }
+  }
+
+  if (!templateId) {
+    return { success: false, message: 'Template requis.' };
+  }
+
+  const updates: Record<string, unknown> = {};
+  if (args.name !== undefined) updates.name = args.name;
+  if (args.description !== undefined) updates.description = args.description;
+  if (args.target_entity_type !== undefined) updates.target_entity_type = args.target_entity_type;
+  if (args.is_active !== undefined) updates.is_active = args.is_active;
+
+  if (Object.keys(updates).length === 0) {
+    return { success: false, message: 'Aucune modification spécifiée.' };
+  }
+
+  const result = await updateTaskTemplate(supabase, userId, templateId, updates);
+
+  if (!result.success) {
+    return { success: false, message: `Erreur: ${result.error}` };
+  }
+
+  return {
+    success: true,
+    data: result.data,
+    message: `Template "${result.data!.name}" mis à jour.`,
+  };
+}
+
+async function deleteTaskTemplateHandler(
+  supabase: Supabase,
+  userId: string | null,
+  args: Record<string, unknown>
+): Promise<ToolResult> {
+  if (!userId) {
+    return { success: false, message: 'Vous devez être connecté.' };
+  }
+
+  let templateId = args.template_id as string | undefined;
+  const templateName = args.template_name as string | undefined;
+
+  // Find template by name if needed
+  if (!templateId && templateName) {
+    const found = await findTaskTemplateByName(supabase, userId, templateName);
+    if (found) {
+      templateId = found.id;
+    } else {
+      return { success: false, message: `Template "${templateName}" non trouvé.` };
+    }
+  }
+
+  if (!templateId) {
+    return { success: false, message: 'Template requis.' };
+  }
+
+  // Get template name before deletion
+  const template = await getTaskTemplate(supabase, userId, templateId);
+  const name = template?.name || 'Template';
+
+  const result = await deleteTaskTemplate(supabase, userId, templateId);
+
+  if (!result.success) {
+    return { success: false, message: `Erreur: ${result.error}` };
+  }
+
+  return {
+    success: true,
+    data: { deleted: templateId },
+    message: `Template "${name}" supprimé.`,
+  };
+}
+
+async function applyTaskTemplateHandler(
+  supabase: Supabase,
+  userId: string | null,
+  args: Record<string, unknown>
+): Promise<ToolResult> {
+  if (!userId) {
+    return { success: false, message: 'Vous devez être connecté.' };
+  }
+
+  let templateId = args.template_id as string | undefined;
+  const templateName = args.template_name as string | undefined;
+  const entityType = args.entity_type as string;
+  let entityId = args.entity_id as string | undefined;
+  const entityName = args.entity_name as string | undefined;
+  const referenceDate = args.reference_date as string | undefined;
+
+  if (!entityType) {
+    return { success: false, message: 'Type d\'entité requis (deal, mission, client, contact).' };
+  }
+
+  // Find template by name if needed
+  if (!templateId && templateName) {
+    const found = await findTaskTemplateByName(supabase, userId, templateName);
+    if (found) {
+      templateId = found.id;
+    } else {
+      return { success: false, message: `Template "${templateName}" non trouvé.` };
+    }
+  }
+
+  if (!templateId) {
+    // List available templates
+    const templates = await listTaskTemplates(supabase, userId, { is_active: true });
+    if (templates.length === 0) {
+      return { success: false, message: 'Aucun template disponible. Créez-en un d\'abord.' };
+    }
+    const templateList = templates.map(t => `- ${t.name} (${t.item_count} tâches)`).join('\n');
+    return {
+      success: false,
+      message: `Template requis. Templates disponibles:\n${templateList}`,
+    };
+  }
+
+  // Find entity by name if needed
+  if (!entityId && entityName) {
+    const found = await findEntityByName(supabase, userId, entityType, entityName);
+    if (found) {
+      entityId = found.id;
+    } else {
+      return { success: false, message: `${entityType} "${entityName}" non trouvé(e).` };
+    }
+  }
+
+  if (!entityId) {
+    return { success: false, message: `ID de ${entityType} requis.` };
+  }
+
+  const result = await applyTaskTemplate(supabase, userId, {
+    template_id: templateId,
+    entity_type: entityType as TaskEntityType,
+    entity_id: entityId,
+    reference_date: referenceDate,
+  });
+
+  if (!result.success) {
+    return { success: false, message: `Erreur: ${result.error}` };
+  }
+
+  const tasks = result.data || [];
+  const template = await getTaskTemplate(supabase, userId, templateId);
+
+  return {
+    success: true,
+    data: { tasks, template_name: template?.name },
+    message: `Template "${template?.name}" appliqué: ${tasks.length} tâche(s) créée(s) pour ${entityType} ${entityId.slice(0, 8)}...`,
+  };
+}
+
+async function getEntityTasksHandler(
+  supabase: Supabase,
+  userId: string | null,
+  args: Record<string, unknown>
+): Promise<ToolResult> {
+  if (!userId) {
+    return { success: false, message: 'Vous devez être connecté.' };
+  }
+
+  const entityType = args.entity_type as string;
+  let entityId = args.entity_id as string | undefined;
+  const entityName = args.entity_name as string | undefined;
+
+  if (!entityType) {
+    return { success: false, message: 'Type d\'entité requis (deal, mission, client, contact, invoice).' };
+  }
+
+  // Find entity by name if needed
+  if (!entityId && entityName) {
+    const found = await findEntityByName(supabase, userId, entityType, entityName);
+    if (found) {
+      entityId = found.id;
+    } else {
+      return { success: false, message: `${entityType} "${entityName}" non trouvé(e).` };
+    }
+  }
+
+  if (!entityId) {
+    return { success: false, message: `ID de ${entityType} requis.` };
+  }
+
+  const result = await getEntityTasks(supabase, userId, entityType as TaskEntityType, entityId);
+
+  const { tasks, progress } = result;
+
+  if (tasks.length === 0) {
+    return {
+      success: true,
+      data: { tasks: [], progress: null },
+      message: `Aucune tâche pour ce ${entityType}.`,
+    };
+  }
+
+  const tasksList = tasks.map(t => {
+    const status = t.status === 'done' ? '✓' : '○';
+    const dueDate = t.due_date ? ` (échéance: ${t.due_date})` : '';
+    return `  ${status} ${t.title}${dueDate}`;
+  }).join('\n');
+
+  const progressInfo = progress
+    ? `Progression: ${progress.completed_tasks}/${progress.total_tasks} (${progress.progress_percent}%)\n`
+    : '';
+
+  return {
+    success: true,
+    data: { tasks, progress },
+    message: `Tâches du ${entityType}:\n${progressInfo}${tasksList}`,
   };
 }

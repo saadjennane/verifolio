@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { ContactForm } from '@/components/forms/ContactForm';
+import { ContactDealsMissionsSection } from '@/components/contacts/ContactDealsMissionsSection';
+import { TasksSection } from '@/components/tasks';
 
 interface ContactPageProps {
   params: Promise<{ id: string }>;
@@ -44,6 +46,16 @@ export default async function ContactPage({ params }: ContactPageProps) {
               {contact.telephone && <span>{contact.telephone}</span>}
             </div>
           )}
+        </div>
+
+        {/* Deals & Missions */}
+        <div className="mb-6">
+          <ContactDealsMissionsSection contactId={id} />
+        </div>
+
+        {/* Tâches */}
+        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
+          <TasksSection entityType="contact" entityId={id} />
         </div>
 
         {/* Clients lies */}

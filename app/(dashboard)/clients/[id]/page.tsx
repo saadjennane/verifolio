@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server';
 import { getUserId } from '@/lib/supabase/auth-helper';
 import { ClientForm } from '@/components/forms/ClientForm';
 import { ClientPaymentsSection } from '@/components/clients/ClientPaymentsSection';
+import { ClientDealsMissionsSection } from '@/components/clients/ClientDealsMissionsSection';
+import { TasksSection } from '@/components/tasks';
 import { Badge } from '@/components/ui';
 
 interface ClientPageProps {
@@ -61,6 +63,16 @@ export default async function ClientPage({ params }: ClientPageProps) {
         {/* Paiements & Avances */}
         <div className="mb-6">
           <ClientPaymentsSection clientId={id} currency={currency} />
+        </div>
+
+        {/* Deals & Missions */}
+        <div className="mb-6">
+          <ClientDealsMissionsSection clientId={id} currency={currency} />
+        </div>
+
+        {/* Tâches */}
+        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
+          <TasksSection entityType="client" entityId={id} />
         </div>
 
         {/* Contacts liés */}

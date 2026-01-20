@@ -4,6 +4,7 @@ import { useEffect, useState, use } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { TasksSection } from '@/components/tasks';
 import type { DealWithRelations } from '@/lib/deals';
 
 const statusVariants: Record<string, 'gray' | 'blue' | 'green' | 'yellow' | 'red'> = {
@@ -494,6 +495,13 @@ export default function DealDetailPage({
                 Ajouter
               </Button>
             </div>
+          </div>
+        </Card>
+
+        {/* Tâches */}
+        <Card className="lg:col-span-2">
+          <div className="p-6">
+            <TasksSection entityType="deal" entityId={id} />
           </div>
         </Card>
       </div>
