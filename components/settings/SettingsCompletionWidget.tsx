@@ -59,8 +59,9 @@ export function SettingsCompletionWidget({ collapsed }: Props) {
     return null;
   }
 
-  // Don't render if dismissed and complete
-  if (dismissed && data?.allComplete) {
+  // Don't render if complete (100%) - unless user hasn't dismissed yet (to show celebration)
+  // After dismiss, it stays hidden permanently
+  if (data?.allComplete && dismissed) {
     return null;
   }
 

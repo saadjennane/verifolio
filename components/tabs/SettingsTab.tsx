@@ -13,9 +13,11 @@ import { ProposalTemplatesSettings } from '@/components/settings/ProposalTemplat
 import { VerifolioSettings } from '@/components/settings/VerifolioSettings';
 import { NavigationSettings } from '@/components/settings/NavigationSettings';
 import { TrashSettings } from '@/components/settings/TrashSettings';
+import { FontsSettings } from '@/components/settings/FontsSettings';
+import { ChatStylesSettings } from '@/components/settings/ChatStylesSettings';
 
 // Section types
-type SectionType = 'profile' | 'entreprise' | 'email' | 'templates' | 'verifolio' | 'navigation' | 'trash';
+type SectionType = 'profile' | 'entreprise' | 'email' | 'templates' | 'verifolio' | 'navigation' | 'trash' | 'fonts' | 'chat-styles';
 type EntrepriseTab = 'infos' | 'activities' | 'fields';
 type TemplatesTab = 'documents' | 'proposals' | 'briefs' | 'reviews';
 
@@ -24,15 +26,27 @@ interface SettingsTabProps {
 }
 
 export function SettingsTab({ path }: SettingsTabProps) {
-  // Parse query params from path
-  const params = useMemo(() => {
-    if (!path) return new URLSearchParams();
+  // Parse query params and path from path prop
+  const { params, pathSection } = useMemo(() => {
+    if (!path) return { params: new URLSearchParams(), pathSection: null };
+
+    // Check if path contains /settings/fonts or /settings/chat-styles
+    const fontsMatch = path.match(/\/settings\/fonts/);
+    if (fontsMatch) {
+      return { params: new URLSearchParams(), pathSection: 'fonts' as SectionType };
+    }
+
+    const chatStylesMatch = path.match(/\/settings\/chat-styles/);
+    if (chatStylesMatch) {
+      return { params: new URLSearchParams(), pathSection: 'chat-styles' as SectionType };
+    }
+
     const queryIndex = path.indexOf('?');
-    if (queryIndex === -1) return new URLSearchParams();
-    return new URLSearchParams(path.slice(queryIndex + 1));
+    if (queryIndex === -1) return { params: new URLSearchParams(), pathSection: null };
+    return { params: new URLSearchParams(path.slice(queryIndex + 1)), pathSection: null };
   }, [path]);
 
-  const initialSection = (params.get('section') as SectionType) || 'profile';
+  const initialSection = pathSection || (params.get('section') as SectionType) || 'profile';
   const initialTab = params.get('tab') || '';
 
   const [activeSection, setActiveSection] = useState<SectionType>(initialSection);
@@ -46,7 +60,7 @@ export function SettingsTab({ path }: SettingsTabProps) {
 
   // Update state when path changes
   useEffect(() => {
-    const section = (params.get('section') as SectionType) || 'profile';
+    const section = pathSection || (params.get('section') as SectionType) || 'profile';
     const tab = params.get('tab') || '';
 
     setActiveSection(section);
@@ -57,7 +71,7 @@ export function SettingsTab({ path }: SettingsTabProps) {
     if (section === 'templates' && tab) {
       setTemplatesTab(tab as TemplatesTab);
     }
-  }, [params]);
+  }, [params, pathSection]);
 
   // Get title based on section
   const getSectionTitle = () => {
@@ -76,6 +90,10 @@ export function SettingsTab({ path }: SettingsTabProps) {
         return { title: 'Navigation', subtitle: 'Personnalisez la navigation de l\'application' };
       case 'trash':
         return { title: 'Corbeille', subtitle: 'Gérez les éléments supprimés' };
+      case 'fonts':
+        return { title: 'Polices', subtitle: 'Comparez et choisissez la police de l\'application' };
+      case 'chat-styles':
+        return { title: 'Styles Chat', subtitle: 'Comparez et choisissez le style d\'interface du chat' };
       default:
         return { title: 'Paramètres', subtitle: 'Configurez votre compte' };
     }
@@ -210,6 +228,8 @@ export function SettingsTab({ path }: SettingsTabProps) {
         {activeSection === 'verifolio' && <VerifolioSettings />}
         {activeSection === 'navigation' && <NavigationSettings />}
         {activeSection === 'trash' && <TrashSettings />}
+        {activeSection === 'fonts' && <FontsSettings />}
+        {activeSection === 'chat-styles' && <ChatStylesSettings />}
       </div>
     </div>
   );

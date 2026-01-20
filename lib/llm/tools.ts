@@ -1606,6 +1606,213 @@ export const toolDefinitions = [
       },
     },
   },
+  // ============================================================================
+  // PAYMENT TOOLS
+  // ============================================================================
+  {
+    type: 'function' as const,
+    function: {
+      name: 'create_payment',
+      description: 'Enregistrer un paiement. Peut être: un paiement sur facture, une avance client (sans facture), ou un remboursement. IMPORTANT: Un paiement doit être lié à un client OU à une facture.',
+      parameters: {
+        type: 'object',
+        properties: {
+          client_id: {
+            type: 'string',
+            description: 'ID du client (requis si pas de facture)',
+          },
+          client_name: {
+            type: 'string',
+            description: 'Nom du client (pour recherche si client_id non fourni)',
+          },
+          invoice_id: {
+            type: 'string',
+            description: 'ID de la facture (pour un paiement sur facture)',
+          },
+          invoice_numero: {
+            type: 'string',
+            description: 'Numéro de la facture (pour recherche)',
+          },
+          mission_id: {
+            type: 'string',
+            description: 'ID de la mission (optionnel, pour rattacher une avance à une mission)',
+          },
+          amount: {
+            type: 'number',
+            description: 'Montant du paiement (positif pour paiement/avance, négatif pour remboursement)',
+          },
+          payment_date: {
+            type: 'string',
+            description: 'Date du paiement (format YYYY-MM-DD, défaut: aujourd\'hui)',
+          },
+          payment_method: {
+            type: 'string',
+            enum: ['virement', 'cheque', 'especes', 'cb', 'prelevement', 'autre'],
+            description: 'Mode de paiement (défaut: virement)',
+          },
+          payment_type: {
+            type: 'string',
+            enum: ['payment', 'advance', 'refund'],
+            description: 'Type: payment=sur facture, advance=avance client, refund=remboursement',
+          },
+          reference: {
+            type: 'string',
+            description: 'Référence (n° chèque, ref virement, etc.)',
+          },
+          notes: {
+            type: 'string',
+            description: 'Notes additionnelles',
+          },
+        },
+        required: ['amount'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'list_payments',
+      description: 'Lister les paiements. Peut filtrer par client, facture ou mission.',
+      parameters: {
+        type: 'object',
+        properties: {
+          client_id: {
+            type: 'string',
+            description: 'Filtrer par ID client',
+          },
+          client_name: {
+            type: 'string',
+            description: 'Filtrer par nom de client',
+          },
+          invoice_id: {
+            type: 'string',
+            description: 'Filtrer par ID facture',
+          },
+          mission_id: {
+            type: 'string',
+            description: 'Filtrer par ID mission',
+          },
+          payment_type: {
+            type: 'string',
+            enum: ['payment', 'advance', 'refund'],
+            description: 'Filtrer par type de paiement',
+          },
+        },
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'update_payment',
+      description: 'Modifier un paiement existant.',
+      parameters: {
+        type: 'object',
+        properties: {
+          payment_id: {
+            type: 'string',
+            description: 'ID du paiement',
+          },
+          amount: {
+            type: 'number',
+            description: 'Nouveau montant',
+          },
+          payment_date: {
+            type: 'string',
+            description: 'Nouvelle date (format YYYY-MM-DD)',
+          },
+          payment_method: {
+            type: 'string',
+            enum: ['virement', 'cheque', 'especes', 'cb', 'prelevement', 'autre'],
+            description: 'Nouveau mode de paiement',
+          },
+          reference: {
+            type: 'string',
+            description: 'Nouvelle référence',
+          },
+          notes: {
+            type: 'string',
+            description: 'Nouvelles notes',
+          },
+        },
+        required: ['payment_id'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'delete_payment',
+      description: 'Supprimer un paiement. IMPORTANT: Demander confirmation avant de supprimer.',
+      parameters: {
+        type: 'object',
+        properties: {
+          payment_id: {
+            type: 'string',
+            description: 'ID du paiement à supprimer',
+          },
+        },
+        required: ['payment_id'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'get_client_payment_balance',
+      description: 'Obtenir le solde paiements d\'un client: total facturé, total payé, avances, remboursements et solde restant.',
+      parameters: {
+        type: 'object',
+        properties: {
+          client_id: {
+            type: 'string',
+            description: 'ID du client',
+          },
+          client_name: {
+            type: 'string',
+            description: 'Nom du client (pour recherche)',
+          },
+        },
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'get_mission_payments',
+      description: 'Obtenir le résumé des paiements d\'une mission: total facturé, total payé, avances et reste à percevoir.',
+      parameters: {
+        type: 'object',
+        properties: {
+          mission_id: {
+            type: 'string',
+            description: 'ID de la mission',
+          },
+        },
+        required: ['mission_id'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'get_invoice_payments',
+      description: 'Obtenir le résumé des paiements d\'une facture: total payé, reste à payer et liste des paiements.',
+      parameters: {
+        type: 'object',
+        properties: {
+          invoice_id: {
+            type: 'string',
+            description: 'ID de la facture',
+          },
+          invoice_numero: {
+            type: 'string',
+            description: 'Numéro de la facture (pour recherche)',
+          },
+        },
+      },
+    },
+  },
 ];
 
 export type ToolName =
@@ -1673,4 +1880,12 @@ export type ToolName =
   // Review tools
   | 'create_review_request'
   | 'list_reviews'
-  | 'list_review_requests';
+  | 'list_review_requests'
+  // Payment tools
+  | 'create_payment'
+  | 'list_payments'
+  | 'update_payment'
+  | 'delete_payment'
+  | 'get_client_payment_balance'
+  | 'get_mission_payments'
+  | 'get_invoice_payments';

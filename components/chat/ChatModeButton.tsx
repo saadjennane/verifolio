@@ -5,7 +5,11 @@ import { useContextStore } from '@/lib/stores/context-store';
 import { useCurrentContext } from '@/lib/hooks/useCurrentContext';
 import { getModeConfig, type ChatMode } from '@/lib/chat/modes';
 
-export function ChatModeButton() {
+interface ChatModeButtonProps {
+  compact?: boolean;
+}
+
+export function ChatModeButton({ compact = false }: ChatModeButtonProps) {
   // Hydration guard
   const [isHydrated, setIsHydrated] = useState(false);
   useEffect(() => {
@@ -65,38 +69,52 @@ export function ChatModeButton() {
 
   // Skeleton pendant l'hydratation
   if (!isHydrated) {
+    if (compact) {
+      return (
+        <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-muted animate-pulse">
+          <span className="w-3 h-3 bg-muted-foreground/20 rounded" />
+          <span className="w-8 h-3 bg-muted-foreground/20 rounded" />
+        </div>
+      );
+    }
     return (
-      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 animate-pulse">
-        <span className="w-4 h-4 bg-gray-200 rounded" />
-        <span className="w-10 h-4 bg-gray-200 rounded" />
+      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted animate-pulse">
+        <span className="w-4 h-4 bg-muted-foreground/20 rounded" />
+        <span className="w-10 h-4 bg-muted-foreground/20 rounded" />
       </div>
     );
   }
 
   return (
-    <div className="relative">
-      {/* Tooltip */}
-      {showTooltip && (
+    <>
+      {/* Tooltip - fixed position to escape overflow:hidden */}
+      {showTooltip && buttonRef.current && (
         <div
           ref={tooltipRef}
-          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-3 bg-gray-900 text-white rounded-lg shadow-lg z-50 animate-in fade-in slide-in-from-bottom-2 duration-200"
+          className="fixed w-72 p-3 bg-popover text-popover-foreground rounded-lg shadow-lg border border-border z-[100] animate-in fade-in slide-in-from-bottom-2 duration-200"
+          style={{
+            left: buttonRef.current.getBoundingClientRect().left + buttonRef.current.offsetWidth / 2 - 144,
+            bottom: window.innerHeight - buttonRef.current.getBoundingClientRect().top + 8,
+          }}
         >
           <div className="flex items-center gap-2 mb-2">
             <span className="text-lg">{config.icon}</span>
             <span className="font-semibold">{config.label}</span>
           </div>
-          <p className="text-sm text-gray-300 leading-relaxed">
+          <p className="text-sm text-muted-foreground leading-relaxed">
             {config.description}
           </p>
-          <p className="text-xs text-gray-500 mt-2 pt-2 border-t border-gray-700">
+          <p className="text-xs text-muted-foreground/70 mt-2 pt-2 border-t border-border">
             Cliquez pour changer de mode
           </p>
           {/* Arrow */}
-          <div className="absolute left-1/2 -translate-x-1/2 -bottom-2 w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-gray-900" />
+          <div className="absolute left-1/2 -translate-x-1/2 -bottom-2 w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-popover" />
         </div>
       )}
 
-      {/* Button */}
+      <div className="relative">
+
+      {/* Button - Compact or Regular */}
       <button
         ref={buttonRef}
         onClick={handleClick}
@@ -107,20 +125,23 @@ export function ChatModeButton() {
         }}
         aria-label={`Mode de chat: ${config.label}. Cliquez pour changer.`}
         className={`
-          relative flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium
+          relative flex items-center gap-1 rounded-full font-medium
           border transition-all duration-200
+          ${compact ? 'px-2 py-0.5 text-xs gap-1' : 'px-3 py-1.5 text-sm gap-1.5'}
           ${config.bgColor} ${config.color}
-          focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
+          hover:opacity-90
+          focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-primary/50
         `}
       >
         {/* Flash overlay */}
         {showFlash && (
           <div className="absolute inset-0 bg-white/30 rounded-full animate-ping" />
         )}
-        <span aria-hidden="true">{config.icon}</span>
+        <span aria-hidden="true" className={compact ? 'text-sm' : ''}>{config.icon}</span>
         <span>{config.labelShort}</span>
       </button>
-    </div>
+      </div>
+    </>
   );
 }
 

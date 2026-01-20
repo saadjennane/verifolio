@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Switch } from '@/components/ui/switch';
 import { MissionTasksView } from '@/components/missions/MissionTasksView';
+import { PaymentsTab } from '@/components/missions/PaymentsTab';
 import type { MissionWithRelations } from '@/lib/missions';
 
 const statusVariants: Record<string, 'gray' | 'blue' | 'green' | 'yellow' | 'red'> = {
@@ -493,6 +494,14 @@ export default function MissionDetailPage({
             )}
           </div>
         </Card>
+
+        {/* Paiements */}
+        <div className="lg:col-span-2">
+          <PaymentsTab
+            missionId={id}
+            clientId={mission.client_id || undefined}
+          />
+        </div>
 
         {/* Tags */}
         <Card>

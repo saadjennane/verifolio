@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { Check, Loader2, Circle, X } from 'lucide-react';
 import type { WorkingStep } from '@/lib/chat/working';
 
 interface WorkingBlockProps {
@@ -13,14 +14,14 @@ interface WorkingBlockProps {
 function StepIcon({ status }: { status: WorkingStep['status'] }) {
   switch (status) {
     case 'completed':
-      return <span className="text-green-600">✓</span>;
+      return <Check className="w-4 h-4 text-green-500" />;
     case 'in_progress':
-      return <span className="text-blue-600 animate-pulse">●</span>;
+      return <Loader2 className="w-4 h-4 text-primary animate-spin" />;
     case 'cancelled':
-      return <span className="text-gray-400">✕</span>;
+      return <X className="w-4 h-4 text-muted-foreground" />;
     case 'pending':
     default:
-      return <span className="text-gray-300">○</span>;
+      return <Circle className="w-4 h-4 text-muted-foreground/40" />;
   }
 }
 
@@ -31,8 +32,8 @@ function StepItem({ step }: { step: WorkingStep }) {
   return (
     <div
       className={`
-        flex items-center gap-2 py-1 text-sm
-        ${isCompleted || isCancelled ? 'text-gray-400' : 'text-gray-700'}
+        flex items-center gap-2.5 py-1 text-sm
+        ${isCompleted || isCancelled ? 'text-muted-foreground' : 'text-foreground'}
       `}
     >
       <StepIcon status={step.status} />
@@ -91,35 +92,34 @@ export function WorkingBlock({
   }
 
   return (
-    <div className="mx-4 mb-3">
+    <div className="flex justify-start">
       <div
         className={`
-          rounded-lg border transition-all duration-200
+          rounded-[20px] rounded-bl-[4px] shadow-sm transition-all duration-200 overflow-hidden
           ${allCompleted
-            ? 'bg-green-50 border-green-200'
-            : 'bg-gray-50 border-gray-200'
+            ? 'bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800'
+            : 'bg-card border border-border/50'
           }
         `}
       >
         {/* Header - toujours visible */}
-        <div className="w-full px-3 py-2 flex items-center justify-between">
+        <div className="px-4 py-2.5 flex items-center justify-between gap-4">
           <button
             onClick={handleToggle}
             className="flex items-center gap-2 text-left"
           >
-            <span
-              className={`
-                text-xs transition-transform duration-200
-                ${isCollapsed ? '' : 'rotate-90'}
-              `}
-            >
-              ▸
+            {hasInProgress ? (
+              <Loader2 className="w-4 h-4 text-primary animate-spin" />
+            ) : allCompleted ? (
+              <Check className="w-4 h-4 text-green-500" />
+            ) : (
+              <Circle className="w-4 h-4 text-muted-foreground" />
+            )}
+            <span className="text-sm font-medium text-foreground">
+              {allCompleted ? 'Terminé' : 'En cours...'}
             </span>
-            <span className="text-sm font-medium text-gray-700">
-              {allCompleted ? 'Terminé' : 'En cours'}
-            </span>
-            <span className="text-xs text-gray-500">
-              ({completedCount}/{totalCount})
+            <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
+              {completedCount}/{totalCount}
             </span>
           </button>
 
@@ -127,7 +127,7 @@ export function WorkingBlock({
           {hasInProgress && (
             <button
               onClick={onStop}
-              className="text-xs text-gray-500 hover:text-red-600 px-2 py-0.5 rounded hover:bg-red-50 transition-colors"
+              className="text-xs text-muted-foreground hover:text-destructive px-2 py-0.5 rounded-full hover:bg-destructive/10 transition-colors"
             >
               Arrêter
             </button>
@@ -136,7 +136,7 @@ export function WorkingBlock({
 
         {/* Liste des étapes - collapsible */}
         {!isCollapsed && (
-          <div className="px-3 pb-2 border-t border-gray-100">
+          <div className="px-4 pb-3 border-t border-border/50">
             <div className="pt-2 space-y-0.5">
               {steps.map((step) => (
                 <StepItem key={step.id} step={step} />
@@ -154,13 +154,13 @@ export function WorkingStepsInline({ steps }: { steps: WorkingStep[] }) {
   if (steps.length === 0) return null;
 
   return (
-    <div className="mt-2 pt-2 border-t border-gray-100 space-y-1">
+    <div className="mt-2 pt-2 border-t border-border/50 space-y-1">
       {steps.map((step) => (
         <div
           key={step.id}
           className={`
             flex items-center gap-2 text-sm
-            ${step.status === 'completed' ? 'text-gray-400' : 'text-gray-600'}
+            ${step.status === 'completed' ? 'text-muted-foreground' : 'text-foreground'}
           `}
         >
           <StepIcon status={step.status} />

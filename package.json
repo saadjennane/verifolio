@@ -6,7 +6,16 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:ui": "vitest --ui",
+    "test:llm": "vitest run tests/llm",
+    "test:llm:tools": "vitest run tests/llm/tools",
+    "test:llm:behavior": "vitest run tests/llm/behavior",
+    "test:llm:e2e": "vitest run tests/llm/e2e",
+    "test:llm:safety": "vitest run tests/llm/safety",
+    "test:llm:integration": "npx tsx scripts/test-llm-integration.ts"
   },
   "dependencies": {
     "@radix-ui/react-checkbox": "^1.3.3",
@@ -40,6 +49,7 @@
     "@tiptap/starter-kit": "^3.14.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "geist": "^1.5.1",
     "lucide-react": "^0.562.0",
     "next": "16.1.0",
     "next-themes": "^0.4.6",
@@ -49,6 +59,7 @@
     "react-dom": "19.2.3",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
+    "zod": "^4.2.1",
     "zustand": "^5.0.9"
   },
   "devDependencies": {
@@ -60,6 +71,8 @@
     "eslint-config-next": "16.1.0",
     "tailwindcss": "^4",
     "tw-animate-css": "^1.4.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vite-tsconfig-paths": "^5.1.1",
+    "vitest": "^2.1.4"
   }
 }

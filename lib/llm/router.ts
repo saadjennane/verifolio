@@ -26,6 +26,9 @@ const TOOL_TO_ENTITY: Record<string, { entityType: ActivityEntityType; action: A
   create_brief: { entityType: 'brief', action: 'create' },
   send_brief: { entityType: 'brief', action: 'update' },
   create_review_request: { entityType: 'review_request', action: 'create' },
+  create_payment: { entityType: 'payment', action: 'create' },
+  update_payment: { entityType: 'payment', action: 'update' },
+  delete_payment: { entityType: 'payment', action: 'delete' },
 };
 
 // Extraire le titre de l'entité depuis le résultat
@@ -216,6 +219,21 @@ async function executeToolCallInternal(
       return await listReviews(supabase, userId, args);
     case 'list_review_requests':
       return await listReviewRequests(supabase, userId, args);
+    // Payment tools
+    case 'create_payment':
+      return await createPayment(supabase, userId, args);
+    case 'list_payments':
+      return await listPaymentsHandler(supabase, userId, args);
+    case 'update_payment':
+      return await updatePaymentHandler(supabase, userId, args);
+    case 'delete_payment':
+      return await deletePaymentHandler(supabase, userId, args);
+    case 'get_client_payment_balance':
+      return await getClientPaymentBalanceHandler(supabase, userId, args);
+    case 'get_mission_payments':
+      return await getMissionPaymentsHandler(supabase, userId, args);
+    case 'get_invoice_payments':
+      return await getInvoicePaymentsHandler(supabase, userId, args);
     default:
       return { success: false, message: `Outil inconnu: ${toolName}` };
   }
@@ -4688,5 +4706,453 @@ async function listReviewRequests(
     success: true,
     data,
     message: `${data.length} demande(s) d'avis:\n${summary}`,
+  };
+}
+
+// ============================================================================
+// PAYMENT HANDLERS
+// ============================================================================
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  virement: 'Virement',
+  cheque: 'Chèque',
+  especes: 'Espèces',
+  cb: 'CB',
+  prelevement: 'Prélèvement',
+  autre: 'Autre',
+};
+
+const PAYMENT_TYPE_LABELS: Record<string, string> = {
+  payment: 'Paiement',
+  advance: 'Avance',
+  refund: 'Remboursement',
+};
+
+async function createPayment(
+  supabase: Supabase,
+  userId: string | null,
+  args: Record<string, unknown>
+): Promise<ToolResult> {
+  const {
+    client_id,
+    client_name,
+    invoice_id,
+    invoice_numero,
+    mission_id,
+    amount,
+    payment_date,
+    payment_method,
+    payment_type,
+    reference,
+    notes,
+  } = args;
+
+  if (!amount || amount === 0) {
+    return { success: false, message: 'Le montant est requis et doit être différent de 0' };
+  }
+
+  // Résoudre client_id depuis le nom si nécessaire
+  let resolvedClientId = client_id as string | undefined;
+  if (!resolvedClientId && client_name) {
+    const { data: clients } = await supabase
+      .from('clients')
+      .select('id, nom')
+      .eq('user_id', userId)
+      .ilike('nom', `%${client_name}%`)
+      .limit(1);
+
+    if (clients && clients.length > 0) {
+      resolvedClientId = clients[0].id;
+    } else {
+      return { success: false, message: `Client "${client_name}" non trouvé` };
+    }
+  }
+
+  // Résoudre invoice_id depuis le numéro si nécessaire
+  let resolvedInvoiceId = invoice_id as string | undefined;
+  if (!resolvedInvoiceId && invoice_numero) {
+    const { data: invoices } = await supabase
+      .from('invoices')
+      .select('id, numero, client_id')
+      .eq('user_id', userId)
+      .eq('numero', invoice_numero)
+      .limit(1);
+
+    if (invoices && invoices.length > 0) {
+      resolvedInvoiceId = invoices[0].id;
+      // Auto-set client_id from invoice if not provided
+      if (!resolvedClientId) {
+        resolvedClientId = invoices[0].client_id;
+      }
+    } else {
+      return { success: false, message: `Facture "${invoice_numero}" non trouvée` };
+    }
+  }
+
+  // Validation: au moins client_id ou invoice_id doit être fourni
+  if (!resolvedClientId && !resolvedInvoiceId) {
+    return { success: false, message: 'Un client ou une facture est requis' };
+  }
+
+  const { data, error } = await supabase
+    .from('payments')
+    .insert({
+      user_id: userId,
+      client_id: resolvedClientId || null,
+      invoice_id: resolvedInvoiceId || null,
+      mission_id: (mission_id as string) || null,
+      amount: amount as number,
+      payment_date: (payment_date as string) || new Date().toISOString().split('T')[0],
+      payment_method: (payment_method as string) || 'virement',
+      payment_type: (payment_type as string) || (resolvedInvoiceId ? 'payment' : 'advance'),
+      reference: (reference as string) || null,
+      notes: (notes as string) || null,
+    })
+    .select('*')
+    .single();
+
+  if (error) {
+    return { success: false, message: `Erreur: ${error.message}` };
+  }
+
+  const typeLabel = PAYMENT_TYPE_LABELS[data.payment_type] || data.payment_type;
+  const methodLabel = PAYMENT_METHOD_LABELS[data.payment_method] || data.payment_method;
+
+  return {
+    success: true,
+    data,
+    message: `${typeLabel} de ${Math.abs(data.amount).toFixed(2)} € enregistré (${methodLabel})`,
+  };
+}
+
+async function listPaymentsHandler(
+  supabase: Supabase,
+  userId: string | null,
+  args: Record<string, unknown>
+): Promise<ToolResult> {
+  const { client_id, client_name, invoice_id, mission_id, payment_type } = args;
+
+  let query = supabase
+    .from('payments')
+    .select(`
+      *,
+      client:clients(id, nom),
+      invoice:invoices(id, numero)
+    `)
+    .eq('user_id', userId)
+    .order('payment_date', { ascending: false })
+    .limit(50);
+
+  // Résoudre client_id depuis le nom si nécessaire
+  let resolvedClientId = client_id as string | undefined;
+  if (!resolvedClientId && client_name) {
+    const { data: clients } = await supabase
+      .from('clients')
+      .select('id')
+      .eq('user_id', userId)
+      .ilike('nom', `%${client_name}%`)
+      .limit(1);
+
+    if (clients && clients.length > 0) {
+      resolvedClientId = clients[0].id;
+    }
+  }
+
+  if (resolvedClientId) {
+    query = query.eq('client_id', resolvedClientId);
+  }
+  if (invoice_id) {
+    query = query.eq('invoice_id', invoice_id);
+  }
+  if (mission_id) {
+    query = query.eq('mission_id', mission_id);
+  }
+  if (payment_type) {
+    query = query.eq('payment_type', payment_type);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    return { success: false, message: `Erreur: ${error.message}` };
+  }
+
+  if (!data || data.length === 0) {
+    return { success: true, data: [], message: 'Aucun paiement trouvé' };
+  }
+
+  const summary = data.map(p => {
+    const clientNom = (p.client as { nom?: string } | null)?.nom || 'N/A';
+    const invoiceNum = (p.invoice as { numero?: string } | null)?.numero;
+    const typeLabel = PAYMENT_TYPE_LABELS[p.payment_type] || p.payment_type;
+    const methodLabel = PAYMENT_METHOD_LABELS[p.payment_method] || p.payment_method;
+    const sign = p.amount >= 0 ? '+' : '';
+    const invoiceInfo = invoiceNum ? ` → ${invoiceNum}` : '';
+    return `• ${p.payment_date}: ${sign}${p.amount.toFixed(2)} € (${typeLabel}, ${methodLabel}) - ${clientNom}${invoiceInfo}`;
+  }).join('\n');
+
+  return {
+    success: true,
+    data,
+    message: `${data.length} paiement(s):\n${summary}`,
+  };
+}
+
+async function updatePaymentHandler(
+  supabase: Supabase,
+  userId: string | null,
+  args: Record<string, unknown>
+): Promise<ToolResult> {
+  const { payment_id, amount, payment_date, payment_method, reference, notes } = args;
+
+  if (!payment_id) {
+    return { success: false, message: 'ID du paiement requis' };
+  }
+
+  const updates: Record<string, unknown> = {};
+  if (amount !== undefined) updates.amount = amount;
+  if (payment_date) updates.payment_date = payment_date;
+  if (payment_method) updates.payment_method = payment_method;
+  if (reference !== undefined) updates.reference = reference;
+  if (notes !== undefined) updates.notes = notes;
+
+  if (Object.keys(updates).length === 0) {
+    return { success: false, message: 'Aucune modification fournie' };
+  }
+
+  const { data, error } = await supabase
+    .from('payments')
+    .update(updates)
+    .eq('id', payment_id)
+    .eq('user_id', userId)
+    .select('*')
+    .single();
+
+  if (error) {
+    return { success: false, message: `Erreur: ${error.message}` };
+  }
+
+  return {
+    success: true,
+    data,
+    message: `Paiement modifié: ${data.amount.toFixed(2)} € le ${data.payment_date}`,
+  };
+}
+
+async function deletePaymentHandler(
+  supabase: Supabase,
+  userId: string | null,
+  args: Record<string, unknown>
+): Promise<ToolResult> {
+  const { payment_id } = args;
+
+  if (!payment_id) {
+    return { success: false, message: 'ID du paiement requis' };
+  }
+
+  // Get payment details first for the message
+  const { data: payment } = await supabase
+    .from('payments')
+    .select('amount, payment_date, payment_type')
+    .eq('id', payment_id)
+    .eq('user_id', userId)
+    .single();
+
+  if (!payment) {
+    return { success: false, message: 'Paiement non trouvé' };
+  }
+
+  const { error } = await supabase
+    .from('payments')
+    .delete()
+    .eq('id', payment_id)
+    .eq('user_id', userId);
+
+  if (error) {
+    return { success: false, message: `Erreur: ${error.message}` };
+  }
+
+  const typeLabel = PAYMENT_TYPE_LABELS[payment.payment_type] || payment.payment_type;
+
+  return {
+    success: true,
+    message: `${typeLabel} de ${Math.abs(payment.amount).toFixed(2)} € du ${payment.payment_date} supprimé`,
+  };
+}
+
+async function getClientPaymentBalanceHandler(
+  supabase: Supabase,
+  userId: string | null,
+  args: Record<string, unknown>
+): Promise<ToolResult> {
+  const { client_id, client_name } = args;
+
+  // Résoudre client_id depuis le nom si nécessaire
+  let resolvedClientId = client_id as string | undefined;
+  let clientNom = '';
+
+  if (!resolvedClientId && client_name) {
+    const { data: clients } = await supabase
+      .from('clients')
+      .select('id, nom')
+      .eq('user_id', userId)
+      .ilike('nom', `%${client_name}%`)
+      .limit(1);
+
+    if (clients && clients.length > 0) {
+      resolvedClientId = clients[0].id;
+      clientNom = clients[0].nom;
+    } else {
+      return { success: false, message: `Client "${client_name}" non trouvé` };
+    }
+  }
+
+  if (!resolvedClientId) {
+    return { success: false, message: 'Client requis (client_id ou client_name)' };
+  }
+
+  // Get balance from the view
+  const { data, error } = await supabase
+    .from('client_payment_balance')
+    .select('*')
+    .eq('client_id', resolvedClientId)
+    .eq('user_id', userId)
+    .single();
+
+  if (error) {
+    return { success: false, message: `Erreur: ${error.message}` };
+  }
+
+  if (!data) {
+    return { success: true, data: null, message: 'Aucune donnée de solde trouvée pour ce client' };
+  }
+
+  const balanceStatus = data.balance > 0 ? '⚠️ Doit' : data.balance < 0 ? '💰 Crédit' : '✅ Soldé';
+
+  return {
+    success: true,
+    data,
+    message: `Solde ${clientNom || data.nom}:\n` +
+      `• Facturé: ${Number(data.total_invoiced).toFixed(2)} €\n` +
+      `• Payé sur factures: ${Number(data.total_paid_invoices).toFixed(2)} €\n` +
+      `• Avances: ${Number(data.total_advances).toFixed(2)} €\n` +
+      `• Remboursements: ${Number(data.total_refunds).toFixed(2)} €\n` +
+      `• ${balanceStatus}: ${Math.abs(Number(data.balance)).toFixed(2)} €`,
+  };
+}
+
+async function getMissionPaymentsHandler(
+  supabase: Supabase,
+  userId: string | null,
+  args: Record<string, unknown>
+): Promise<ToolResult> {
+  const { mission_id } = args;
+
+  if (!mission_id) {
+    return { success: false, message: 'ID de la mission requis' };
+  }
+
+  // Get mission summary from the view
+  const { data, error } = await supabase
+    .from('mission_payment_summary')
+    .select('*')
+    .eq('mission_id', mission_id)
+    .eq('user_id', userId)
+    .single();
+
+  if (error) {
+    return { success: false, message: `Erreur: ${error.message}` };
+  }
+
+  if (!data) {
+    return { success: true, data: null, message: 'Mission non trouvée' };
+  }
+
+  const remainingStatus = Number(data.remaining) > 0 ? '⚠️ Reste' : '✅ Complet';
+
+  return {
+    success: true,
+    data,
+    message: `Paiements mission "${data.title}":\n` +
+      `• Total facturé: ${Number(data.total_invoiced).toFixed(2)} €\n` +
+      `• Total payé: ${Number(data.total_paid).toFixed(2)} €\n` +
+      `• Avances: ${Number(data.total_advances).toFixed(2)} €\n` +
+      `• ${remainingStatus}: ${Math.abs(Number(data.remaining)).toFixed(2)} €`,
+  };
+}
+
+async function getInvoicePaymentsHandler(
+  supabase: Supabase,
+  userId: string | null,
+  args: Record<string, unknown>
+): Promise<ToolResult> {
+  const { invoice_id, invoice_numero } = args;
+
+  // Résoudre invoice_id depuis le numéro si nécessaire
+  let resolvedInvoiceId = invoice_id as string | undefined;
+
+  if (!resolvedInvoiceId && invoice_numero) {
+    const { data: invoices } = await supabase
+      .from('invoices')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('numero', invoice_numero)
+      .limit(1);
+
+    if (invoices && invoices.length > 0) {
+      resolvedInvoiceId = invoices[0].id;
+    } else {
+      return { success: false, message: `Facture "${invoice_numero}" non trouvée` };
+    }
+  }
+
+  if (!resolvedInvoiceId) {
+    return { success: false, message: 'Facture requise (invoice_id ou invoice_numero)' };
+  }
+
+  // Get invoice summary from the view
+  const { data, error } = await supabase
+    .from('invoice_payment_summary')
+    .select('*')
+    .eq('id', resolvedInvoiceId)
+    .eq('user_id', userId)
+    .single();
+
+  if (error) {
+    return { success: false, message: `Erreur: ${error.message}` };
+  }
+
+  if (!data) {
+    return { success: true, data: null, message: 'Facture non trouvée' };
+  }
+
+  const statusLabels: Record<string, string> = {
+    non_paye: '❌ Non payée',
+    partiel: '⏳ Partiellement payée',
+    paye: '✅ Payée',
+  };
+  const statusLabel = statusLabels[data.payment_status] || data.payment_status;
+
+  // Get payment list
+  const { data: payments } = await supabase
+    .from('payments')
+    .select('*')
+    .eq('invoice_id', resolvedInvoiceId)
+    .order('payment_date', { ascending: false });
+
+  const paymentsList = payments && payments.length > 0
+    ? '\n\nPaiements:\n' + payments.map(p => {
+        const methodLabel = PAYMENT_METHOD_LABELS[p.payment_method] || p.payment_method;
+        return `• ${p.payment_date}: ${p.amount.toFixed(2)} € (${methodLabel})`;
+      }).join('\n')
+    : '';
+
+  return {
+    success: true,
+    data: { ...data, payments },
+    message: `Facture ${data.numero} - ${statusLabel}\n` +
+      `• Total TTC: ${Number(data.total_ttc).toFixed(2)} €\n` +
+      `• Payé: ${Number(data.total_paid).toFixed(2)} €\n` +
+      `• Reste: ${Number(data.remaining).toFixed(2)} €${paymentsList}`,
   };
 }

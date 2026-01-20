@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { DocumentPreview } from '@/components/documents/DocumentPreview';
 import { DocumentActions } from '@/components/documents/DocumentActions';
+import { InvoicePaymentsSection } from '@/components/invoices/InvoicePaymentsSection';
 import { Badge, Button } from '@/components/ui';
 import type { InvoiceStatus, InvoiceWithClientAndItems } from '@/lib/supabase/types';
 
@@ -71,6 +72,15 @@ export default async function InvoicePage({ params }: InvoicePageProps) {
             id={id}
             status={invoice.status}
             clientEmail={invoice.client?.email}
+          />
+        </div>
+
+        {/* Paiements */}
+        <div className="mb-6">
+          <InvoicePaymentsSection
+            invoiceId={id}
+            clientId={invoice.client_id || undefined}
+            currency={company?.default_currency || 'EUR'}
           />
         </div>
 

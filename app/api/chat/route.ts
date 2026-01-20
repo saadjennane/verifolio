@@ -6,6 +6,12 @@ import { toolDefinitions, ToolName } from '@/lib/llm/tools';
 import { executeToolCall } from '@/lib/llm/router';
 import { type ChatMode, getToolPermission, READ_ONLY_TOOLS } from '@/lib/chat/modes';
 import { getStepLabelFromTool } from '@/lib/chat/working';
+import {
+  ChatRequestSchema,
+  ContextIdSchema,
+  ToolCallSchema,
+  ToolResultSchema,
+} from '@/lib/llm/schemas';
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system' | 'tool';
@@ -20,6 +26,40 @@ interface ChatMessage {
 
 // Timeout pour les appels OpenAI (60 secondes - GPT-4o-mini peut prendre du temps avec tools)
 const OPENAI_TIMEOUT_MS = 60000;
+const TOOL_TIMEOUT_MS = 30000;
+const TOTAL_TIMEOUT_MS = 90000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error(`${label} timeout`)), ms);
+    promise
+      .then((val) => {
+        clearTimeout(timeout);
+        resolve(val);
+      })
+      .catch((err) => {
+        clearTimeout(timeout);
+        reject(err);
+      });
+  });
+}
+
+function ensureWithinBudget(start: number) {
+  if (Date.now() - start > TOTAL_TIMEOUT_MS) {
+    throw new Error('TIMEOUT: Request exceeded total budget');
+  }
+}
+
+function parseContextIdString(contextId: string | null | undefined) {
+  if (!contextId) return null;
+  const [type, ...rest] = contextId.split(':');
+  const id = rest.join(':') || undefined;
+  const parsed = ContextIdSchema.safeParse({ type, id });
+  if (!parsed.success) {
+    return null;
+  }
+  return parsed.data;
+}
 
 // Fonction pour appeler OpenAI avec timeout
 async function callOpenAI(
@@ -171,19 +211,43 @@ async function executeToolCalls(
 
   for (const toolCall of toolCalls) {
     const toolName = toolCall.function.name as ToolName;
-    const args = JSON.parse(toolCall.function.arguments);
+    let parsedArgs: Record<string, unknown>;
+    try {
+      parsedArgs = JSON.parse(toolCall.function.arguments);
+    } catch {
+      throw new Error(`Invalid tool arguments for ${toolName}`);
+    }
+
+    const callValidation = ToolCallSchema.safeParse({
+      name: toolName,
+      arguments: parsedArgs,
+    });
+    if (!callValidation.success) {
+      throw new Error(`Tool call validation failed for ${toolName}`);
+    }
+
+    const args = callValidation.data.arguments;
     const stepLabel = getStepLabelFromTool(toolName, args);
 
     console.log(`Executing tool: ${toolName}`, args);
 
-    const result = await executeToolCall(supabase, userId, toolName, args);
+    const result = await withTimeout(
+      executeToolCall(supabase, userId, toolName, args),
+      TOOL_TIMEOUT_MS,
+      `Tool ${toolName}`
+    );
+
+    const parsedResult = ToolResultSchema.safeParse(result);
+    if (!parsedResult.success) {
+      throw new Error(`Tool result validation failed for ${toolName}`);
+    }
 
     // Extraire les informations d'entité si c'est un tool de création/modification
     const entityType = TOOL_TO_ENTITY_TYPE[toolName];
     let entityCreated: ToolExecutionResult['entityCreated'] = undefined;
 
-    if (entityType && result.success) {
-      const entityInfo = extractEntityFromResult(toolName, result.message);
+    if (entityType && parsedResult.data.success) {
+      const entityInfo = extractEntityFromResult(toolName, parsedResult.data.message);
       if (entityInfo) {
         entityCreated = {
           type: entityType,
@@ -195,7 +259,7 @@ async function executeToolCalls(
 
     results.push({
       id: toolCall.id,
-      result: result.message,
+      result: parsedResult.data.message,
       toolName,
       stepLabel,
       entityCreated,
@@ -219,14 +283,27 @@ function getToolsForMode(mode: ChatMode) {
 }
 
 export async function POST(request: Request) {
+  const requestStart = Date.now();
   try {
     const body = await request.json();
-    const { message, history, mode = 'auto', contextId = null } = body as {
-      message: string;
-      history?: Array<{ role: string; content: string }>;
-      mode?: ChatMode;
-      contextId?: string | null;
-    };
+    const parsedBody = ChatRequestSchema.safeParse(body);
+    if (!parsedBody.success) {
+      return NextResponse.json(
+        { error: 'Requête invalide' },
+        { status: 400 }
+      );
+    }
+    const { message, history, mode = 'auto', contextId = null, confirmedAction, confirmedToolCallId } = parsedBody.data;
+
+    ensureWithinBudget(requestStart);
+
+    const parsedContextId = parseContextIdString(contextId);
+    if (contextId && !parsedContextId) {
+      return NextResponse.json(
+        { error: 'ContextId invalide' },
+        { status: 400 }
+      );
+    }
 
     if (!message) {
       return NextResponse.json({ error: 'Message requis' }, { status: 400 });
@@ -266,7 +343,12 @@ export async function POST(request: Request) {
 
     // Premier appel avec tool_choice: 'auto'
     console.log(`Calling OpenAI with auto... (mode: ${mode})`);
-    const response = await callOpenAI(apiKey, messages, 'auto', toolsForMode);
+    const response = await withTimeout(
+      callOpenAI(apiKey, messages, 'auto', toolsForMode),
+      OPENAI_TIMEOUT_MS,
+      'OpenAI'
+    );
+    ensureWithinBudget(requestStart);
 
     if (!response.ok) {
       let errorMessage = 'Erreur de communication avec l\'assistant';
@@ -309,6 +391,7 @@ export async function POST(request: Request) {
     if (choice.message.tool_calls && choice.message.tool_calls.length > 0) {
       console.log('Tool calls detected, executing...');
       const toolResults = await executeToolCalls(supabase, userId, choice.message.tool_calls);
+      ensureWithinBudget(requestStart);
 
       // Construire les messages avec le format correct pour les tool results
       const messagesWithToolResults: ChatMessage[] = [
@@ -336,7 +419,12 @@ export async function POST(request: Request) {
 
       // Second appel pour obtenir la réponse finale (avec tools auto pour permettre un second tool call si nécessaire)
       console.log('Getting final response...');
-      const followUpResponse = await callOpenAI(apiKey, messagesWithToolResults, 'auto', toolsForMode);
+      const followUpResponse = await withTimeout(
+        callOpenAI(apiKey, messagesWithToolResults, 'auto', toolsForMode),
+        OPENAI_TIMEOUT_MS,
+        'OpenAI follow-up'
+      );
+      ensureWithinBudget(requestStart);
 
       if (followUpResponse.ok) {
         const followUpData = await followUpResponse.json();
@@ -346,6 +434,7 @@ export async function POST(request: Request) {
         if (followUpChoice.message.tool_calls && followUpChoice.message.tool_calls.length > 0) {
           console.log('Follow-up tool calls detected, executing...');
           const followUpToolResults = await executeToolCalls(supabase, userId, followUpChoice.message.tool_calls);
+          ensureWithinBudget(requestStart);
 
           // Ajouter aux étapes et entités
           workingSteps.push(...followUpToolResults.map(tr => tr.stepLabel));
@@ -368,7 +457,12 @@ export async function POST(request: Request) {
           ];
 
           // Dernier appel pour la réponse finale
-          const finalResponse = await callOpenAI(apiKey, messagesWithAllToolResults, 'none');
+          const finalResponse = await withTimeout(
+            callOpenAI(apiKey, messagesWithAllToolResults, 'none'),
+            OPENAI_TIMEOUT_MS,
+            'OpenAI final'
+          );
+          ensureWithinBudget(requestStart);
           if (finalResponse.ok) {
             const finalData = await finalResponse.json();
             const finalContent = finalData.choices[0]?.message?.content;
@@ -415,7 +509,12 @@ export async function POST(request: Request) {
                 })),
               ];
 
-              const finalRetryResponse = await callOpenAI(apiKey, messagesWithRetryResults, 'none');
+              const finalRetryResponse = await withTimeout(
+                callOpenAI(apiKey, messagesWithRetryResults, 'none'),
+                OPENAI_TIMEOUT_MS,
+                'OpenAI final retry'
+              );
+              ensureWithinBudget(requestStart);
               if (finalRetryResponse.ok) {
                 const finalRetryData = await finalRetryResponse.json();
                 const finalRetryContent = finalRetryData.choices?.[0]?.message?.content;
@@ -451,7 +550,12 @@ export async function POST(request: Request) {
       console.log('Retry with required tool_choice - response suggested failure:', responseContent.substring(0, 100));
 
       try {
-        const retryResponse = await callOpenAI(apiKey, messages, 'required', toolsForMode);
+        const retryResponse = await withTimeout(
+          callOpenAI(apiKey, messages, 'required', toolsForMode),
+          OPENAI_TIMEOUT_MS,
+          'OpenAI retry'
+        );
+        ensureWithinBudget(requestStart);
 
         if (retryResponse.ok) {
           const retryData = await retryResponse.json();
@@ -465,6 +569,7 @@ export async function POST(request: Request) {
             if (retryChoice.message.tool_calls && retryChoice.message.tool_calls.length > 0) {
               console.log('Retry: Tool calls detected, executing...');
               const toolResults = await executeToolCalls(supabase, userId, retryChoice.message.tool_calls);
+              ensureWithinBudget(requestStart);
               const workingSteps = toolResults.map(tr => tr.stepLabel);
               const entitiesCreated = toolResults
                 .filter(tr => tr.entityCreated)
@@ -484,7 +589,12 @@ export async function POST(request: Request) {
                 })),
               ];
 
-              const followUpResponse = await callOpenAI(apiKey, messagesWithToolResults, 'none');
+              const followUpResponse = await withTimeout(
+                callOpenAI(apiKey, messagesWithToolResults, 'none'),
+                OPENAI_TIMEOUT_MS,
+                'OpenAI retry follow-up'
+              );
+              ensureWithinBudget(requestStart);
 
               if (followUpResponse.ok) {
                 const followUpData = await followUpResponse.json();

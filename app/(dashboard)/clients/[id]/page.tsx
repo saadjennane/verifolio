@@ -3,15 +3,8 @@ import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getUserId } from '@/lib/supabase/auth-helper';
 import { ClientForm } from '@/components/forms/ClientForm';
+import { ClientPaymentsSection } from '@/components/clients/ClientPaymentsSection';
 import { Badge } from '@/components/ui';
-
-const CURRENCY_SYMBOLS: Record<string, string> = {
-  EUR: '€',
-  USD: '$',
-  GBP: '£',
-  CHF: 'CHF',
-  MAD: 'DH',
-};
 
 interface ClientPageProps {
   params: Promise<{ id: string }>;
@@ -40,14 +33,6 @@ export default async function ClientPage({ params }: ClientPageProps) {
     .single();
 
   const currency = company?.default_currency || 'EUR';
-  const currencySymbol = CURRENCY_SYMBOLS[currency] || currency;
-
-  // Récupérer le solde client
-  const { data: balance } = await supabase
-    .from('client_balances')
-    .select('*')
-    .eq('client_id', id)
-    .single();
 
   // Récupérer les contacts liés à ce client
   const { data: clientContacts } = await supabase
@@ -73,32 +58,10 @@ export default async function ClientPage({ params }: ClientPageProps) {
           </div>
         </div>
 
-        {/* Solde client */}
-        {balance && (
-          <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
-            <h2 className="text-sm font-medium text-gray-500 mb-3">Solde client</h2>
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div>
-                <p className="text-lg font-semibold text-gray-900">
-                  {Number(balance.total_facture).toFixed(2)} {currencySymbol}
-                </p>
-                <p className="text-xs text-gray-500">Facturé</p>
-              </div>
-              <div>
-                <p className="text-lg font-semibold text-green-600">
-                  {Number(balance.total_paye).toFixed(2)} {currencySymbol}
-                </p>
-                <p className="text-xs text-gray-500">Payé</p>
-              </div>
-              <div>
-                <p className={`text-lg font-semibold ${Number(balance.total_restant) > 0 ? 'text-orange-600' : 'text-gray-400'}`}>
-                  {Number(balance.total_restant).toFixed(2)} {currencySymbol}
-                </p>
-                <p className="text-xs text-gray-500">Restant</p>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Paiements & Avances */}
+        <div className="mb-6">
+          <ClientPaymentsSection clientId={id} currency={currency} />
+        </div>
 
         {/* Contacts liés */}
         <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">

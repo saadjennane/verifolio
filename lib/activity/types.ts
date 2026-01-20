@@ -14,7 +14,8 @@ export type ActivityEntityType =
   | 'supplier_consultation'
   | 'supplier_quote'
   | 'supplier_invoice'
-  | 'expense';
+  | 'expense'
+  | 'payment';
 
 export type ActivitySource = 'manual' | 'assistant';
 
