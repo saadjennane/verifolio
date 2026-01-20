@@ -148,6 +148,9 @@ export const CRITICAL_TOOLS = [
   'mark_invoice_cancelled',
   'set_proposal_status',
   'set_quote_status',
+  'update_quote_status',
+  'update_invoice_status',
+  'update_brief_status',
   'convert_quote_to_invoice',
   'close_mission',
 ];

@@ -152,6 +152,32 @@ export const toolDefinitions = [
   {
     type: 'function' as const,
     function: {
+      name: 'update_quote_status',
+      description: 'Changer le statut d\'un devis. Statuts: brouillon → envoye → accepted/refused. IMPORTANT: Demander confirmation avant de marquer comme accepté ou refusé.',
+      parameters: {
+        type: 'object',
+        properties: {
+          quote_id: {
+            type: 'string',
+            description: 'ID du devis (UUID)',
+          },
+          quote_numero: {
+            type: 'string',
+            description: 'Numéro du devis (pour recherche si quote_id non fourni)',
+          },
+          status: {
+            type: 'string',
+            enum: ['brouillon', 'envoye', 'accepted', 'refused'],
+            description: 'Nouveau statut du devis',
+          },
+        },
+        required: ['status'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
       name: 'create_invoice',
       description: 'Créer une nouvelle facture pour un client. Le client doit exister. IMPORTANT : Toute facture DOIT être liée à une mission (mission_id obligatoire).',
       parameters: {
@@ -250,6 +276,32 @@ export const toolDefinitions = [
             description: 'Nouvelles notes',
           },
         },
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'update_invoice_status',
+      description: 'Changer le statut d\'une facture. Statuts: brouillon → envoyee → payee/annulee. IMPORTANT: Demander confirmation avant de marquer comme envoyée ou annulée.',
+      parameters: {
+        type: 'object',
+        properties: {
+          invoice_id: {
+            type: 'string',
+            description: 'ID de la facture (UUID)',
+          },
+          invoice_numero: {
+            type: 'string',
+            description: 'Numéro de la facture (pour recherche si invoice_id non fourni)',
+          },
+          status: {
+            type: 'string',
+            enum: ['brouillon', 'envoyee', 'payee', 'annulee'],
+            description: 'Nouveau statut de la facture',
+          },
+        },
+        required: ['status'],
       },
     },
   },
@@ -1459,6 +1511,28 @@ export const toolDefinitions = [
       },
     },
   },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'update_brief_status',
+      description: 'Changer le statut d\'un brief. Statuts: DRAFT → SENT → RESPONDED.',
+      parameters: {
+        type: 'object',
+        properties: {
+          brief_id: {
+            type: 'string',
+            description: 'ID du brief (UUID)',
+          },
+          status: {
+            type: 'string',
+            enum: ['DRAFT', 'SENT', 'RESPONDED'],
+            description: 'Nouveau statut du brief',
+          },
+        },
+        required: ['brief_id', 'status'],
+      },
+    },
+  },
   // ============================================================================
   // REVIEW TOOLS
   // ============================================================================
@@ -1540,9 +1614,11 @@ export type ToolName =
   | 'update_client'
   | 'create_quote'
   | 'list_quotes'
+  | 'update_quote_status'
   | 'create_invoice'
   | 'list_invoices'
   | 'update_invoice'
+  | 'update_invoice_status'
   | 'convert_quote_to_invoice'
   | 'mark_invoice_paid'
   | 'send_email'
@@ -1593,6 +1669,7 @@ export type ToolName =
   | 'create_brief'
   | 'list_briefs'
   | 'send_brief'
+  | 'update_brief_status'
   // Review tools
   | 'create_review_request'
   | 'list_reviews'

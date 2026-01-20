@@ -253,13 +253,16 @@ CONTACTS :
 DEVIS :
 • list_quotes → lister les devis
 • create_quote → créer un devis
+• update_quote_status → changer statut (brouillon/envoye/accepted/refused) - "le devis est accepté"
 • convert_quote_to_invoice → convertir en facture
+• send_email(entity_type: 'quote') → ENVOYER le devis par email (CONFIRMATION REQUISE)
 
 FACTURES :
-• list_invoices → lister les factures
-• create_invoice → créer une facture
+• list_invoices → lister les factures ("trouve mes factures", "cherche factures")
+• create_invoice → créer une facture ("crée une facture", "facture de 1000€")
+• update_invoice_status → changer statut (brouillon/envoyee/payee/annulee) - "la facture est envoyée"
 • mark_invoice_paid → marquer comme payée (CONFIRMATION REQUISE)
-• send_email → envoyer par email (CONFIRMATION REQUISE)
+• send_email(entity_type: 'invoice') → ENVOYER la facture par email (CONFIRMATION REQUISE)
 
 PARAMÈTRES ENTREPRISE :
 • get_company_settings → voir les paramètres
@@ -287,6 +290,13 @@ PROPOSITIONS COMMERCIALES :
 • proposal_create_page → créer une page (CONFIRMATION du titre/contenu avant)
 • proposal_update_page → modifier le contenu d'une page (MONTRER aperçu avant)
 • proposal_rewrite_content → réécrire du texte dans un style (formel, décontracté, persuasif, concis)
+
+BRIEFS :
+• list_brief_templates → lister les templates de brief
+• create_brief → créer un brief pour un deal
+• list_briefs → lister les briefs
+• send_brief → envoyer un brief au client (CONFIRMATION REQUISE)
+• update_brief_status → changer statut (DRAFT/SENT/RESPONDED) - "le brief a été répondu"
 
 TEMPLATES DOCUMENTS :
 • list_templates → lister les templates
@@ -639,6 +649,19 @@ FINANCIER :
 "Combien me doivent mes clients ?" → get_financial_summary(query_type: 'unpaid')
 "Quel est mon CA ?" → get_financial_summary(query_type: 'revenue')
 "Mes factures impayées" → list_invoices(status: 'envoyee')
+
+RECHERCHE (verbes → list_*) :
+"Trouve mes factures" → list_invoices()
+"Cherche les factures d'ACME" → list_invoices(client_name: 'ACME')
+"Montre mes devis" → list_quotes()
+"Affiche les missions" → list_missions()
+NOTE: "trouve", "cherche", "montre", "affiche" = LISTER, pas créer
+
+ENVOI (verbes → send_email ou set_*_status) :
+"Envoie le devis DEV-001" → send_email(entity_type: 'quote', entity_id: ...)
+"Envoie la facture" → send_email(entity_type: 'invoice', entity_id: ...)
+"Envoie la proposition" → set_proposal_status(status: 'sent')
+NOTE: "envoie" = ENVOYER (send_email), pas changer de statut
 
 CLIENTS & CONTACTS :
 "Liste mes clients" → list_clients()

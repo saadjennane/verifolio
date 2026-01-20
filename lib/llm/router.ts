@@ -100,12 +100,16 @@ async function executeToolCallInternal(
       return await createQuote(supabase, userId, args);
     case 'list_quotes':
       return await listQuotes(supabase, userId, args);
+    case 'update_quote_status':
+      return await updateQuoteStatus(supabase, userId, args);
     case 'create_invoice':
       return await createInvoice(supabase, userId, args);
     case 'list_invoices':
       return await listInvoices(supabase, userId, args);
     case 'update_invoice':
       return await updateInvoice(supabase, userId, args);
+    case 'update_invoice_status':
+      return await updateInvoiceStatus(supabase, userId, args);
     case 'convert_quote_to_invoice':
       return await convertQuoteToInvoice(supabase, userId, args);
     case 'mark_invoice_paid':
@@ -203,6 +207,8 @@ async function executeToolCallInternal(
       return await listBriefs(supabase, userId, args);
     case 'send_brief':
       return await sendBrief(supabase, userId, args);
+    case 'update_brief_status':
+      return await updateBriefStatus(supabase, userId, args);
     // Review tools
     case 'create_review_request':
       return await createReviewRequest(supabase, userId, args);
@@ -635,6 +641,83 @@ async function listQuotes(
   };
 }
 
+async function updateQuoteStatus(
+  supabase: Supabase,
+  userId: string | null,
+  args: Record<string, unknown>
+): Promise<ToolResult> {
+  const { quote_id, quote_numero, status } = args;
+
+  if (!status) {
+    return { success: false, message: 'Le nouveau statut est requis.' };
+  }
+
+  const validStatuses = ['brouillon', 'envoye', 'accepted', 'refused'];
+  if (!validStatuses.includes(status as string)) {
+    return { success: false, message: `Statut invalide. Valeurs possibles: ${validStatuses.join(', ')}` };
+  }
+
+  // Find quote by ID or numero
+  let quoteId = quote_id as string | undefined;
+
+  if (!quoteId && quote_numero) {
+    const { data: found } = await supabase
+      .from('quotes')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('numero', quote_numero)
+      .single();
+
+    if (found) {
+      quoteId = found.id;
+    }
+  }
+
+  if (!quoteId) {
+    return { success: false, message: 'Devis non trouvé. Précisez l\'ID ou le numéro du devis.' };
+  }
+
+  // Get current quote
+  const { data: currentQuote } = await supabase
+    .from('quotes')
+    .select('*, client:clients(nom)')
+    .eq('id', quoteId)
+    .eq('user_id', userId)
+    .single();
+
+  if (!currentQuote) {
+    return { success: false, message: 'Devis non trouvé.' };
+  }
+
+  // Update status
+  const { data, error } = await supabase
+    .from('quotes')
+    .update({ status: status as string })
+    .eq('id', quoteId)
+    .select()
+    .single();
+
+  if (error) {
+    return { success: false, message: `Erreur: ${error.message}` };
+  }
+
+  const statusLabels: Record<string, string> = {
+    brouillon: 'Brouillon',
+    envoye: 'Envoyé',
+    accepted: 'Accepté',
+    refused: 'Refusé',
+  };
+
+  const clientNom = (currentQuote.client as { nom: string })?.nom || 'N/A';
+  const statusLabel = statusLabels[status as string] || status;
+
+  return {
+    success: true,
+    data,
+    message: `Devis ${currentQuote.numero} pour ${clientNom} marqué comme "${statusLabel}".`,
+  };
+}
+
 async function createInvoice(
   supabase: Supabase,
   userId: string | null,
@@ -950,6 +1033,90 @@ async function updateInvoice(
     success: true,
     data: { id: invoiceId, numero: finalNumero },
     message: `Facture ${finalNumero} modifiée pour ${clientNom}.\nModifications:\n- ${changes.join('\n- ')}\n(ID: ${invoiceId})`,
+  };
+}
+
+async function updateInvoiceStatus(
+  supabase: Supabase,
+  userId: string | null,
+  args: Record<string, unknown>
+): Promise<ToolResult> {
+  const { invoice_id, invoice_numero, status } = args;
+
+  if (!status) {
+    return { success: false, message: 'Le nouveau statut est requis.' };
+  }
+
+  const validStatuses = ['brouillon', 'envoyee', 'payee', 'annulee'];
+  if (!validStatuses.includes(status as string)) {
+    return { success: false, message: `Statut invalide. Valeurs possibles: ${validStatuses.join(', ')}` };
+  }
+
+  // Find invoice by ID or numero
+  let invoiceId = invoice_id as string | undefined;
+
+  if (!invoiceId && invoice_numero) {
+    const { data: found } = await supabase
+      .from('invoices')
+      .select('id')
+      .eq('user_id', userId)
+      .ilike('numero', `%${invoice_numero}%`)
+      .single();
+
+    if (found) {
+      invoiceId = found.id;
+    }
+  }
+
+  if (!invoiceId) {
+    return { success: false, message: 'Facture non trouvée. Précisez l\'ID ou le numéro de la facture.' };
+  }
+
+  // Get current invoice
+  const { data: currentInvoice } = await supabase
+    .from('invoices')
+    .select('*, client:clients(nom)')
+    .eq('id', invoiceId)
+    .eq('user_id', userId)
+    .single();
+
+  if (!currentInvoice) {
+    return { success: false, message: 'Facture non trouvée.' };
+  }
+
+  // Update status
+  const updateData: Record<string, unknown> = { status: status as string };
+
+  // Set paid_at if marking as paid
+  if (status === 'payee') {
+    updateData.paid_at = new Date().toISOString();
+  }
+
+  const { data, error } = await supabase
+    .from('invoices')
+    .update(updateData)
+    .eq('id', invoiceId)
+    .select()
+    .single();
+
+  if (error) {
+    return { success: false, message: `Erreur: ${error.message}` };
+  }
+
+  const statusLabels: Record<string, string> = {
+    brouillon: 'Brouillon',
+    envoyee: 'Envoyée',
+    payee: 'Payée',
+    annulee: 'Annulée',
+  };
+
+  const clientNom = (currentInvoice.client as { nom: string })?.nom || 'N/A';
+  const statusLabel = statusLabels[status as string] || status;
+
+  return {
+    success: true,
+    data,
+    message: `Facture ${currentInvoice.numero} pour ${clientNom} marquée comme "${statusLabel}".`,
   };
 }
 
@@ -4242,6 +4409,78 @@ async function sendBrief(
     success: true,
     data: { ...data, public_url: publicUrl },
     message: `Brief "${brief.title}" envoyé au client ${brief.client?.nom}.\nLien public: ${publicUrl}`,
+  };
+}
+
+async function updateBriefStatus(
+  supabase: Supabase,
+  userId: string | null,
+  args: Record<string, unknown>
+): Promise<ToolResult> {
+  const { brief_id, status } = args;
+
+  if (!brief_id) {
+    return { success: false, message: 'ID du brief requis.' };
+  }
+
+  if (!status) {
+    return { success: false, message: 'Le nouveau statut est requis.' };
+  }
+
+  const validStatuses = ['DRAFT', 'SENT', 'RESPONDED'];
+  if (!validStatuses.includes(status as string)) {
+    return { success: false, message: `Statut invalide. Valeurs possibles: ${validStatuses.join(', ')}` };
+  }
+
+  // Get current brief
+  const { data: currentBrief } = await supabase
+    .from('briefs')
+    .select('*, client:clients(nom)')
+    .eq('id', brief_id)
+    .eq('user_id', userId)
+    .single();
+
+  if (!currentBrief) {
+    return { success: false, message: 'Brief non trouvé.' };
+  }
+
+  // Update status
+  const updateData: Record<string, unknown> = { status: status as string };
+
+  // Set sent_at if marking as sent
+  if (status === 'SENT' && !currentBrief.sent_at) {
+    updateData.sent_at = new Date().toISOString();
+  }
+
+  // Set responded_at if marking as responded
+  if (status === 'RESPONDED') {
+    updateData.responded_at = new Date().toISOString();
+  }
+
+  const { data, error } = await supabase
+    .from('briefs')
+    .update(updateData)
+    .eq('id', brief_id)
+    .select()
+    .single();
+
+  if (error) {
+    return { success: false, message: `Erreur: ${error.message}` };
+  }
+
+  const statusLabels: Record<string, string> = {
+    DRAFT: 'Brouillon',
+    SENT: 'Envoyé',
+    RESPONDED: 'Répondu',
+  };
+
+  const clientNom = (currentBrief.client as { nom: string })?.nom || 'N/A';
+  const statusLabel = statusLabels[status as string] || status;
+
+  return {
+    success: true,
+    data,
+    message: `Brief "${currentBrief.title}" pour ${clientNom} marqué comme "${statusLabel}".`,
   };
 }
 
