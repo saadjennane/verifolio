@@ -238,7 +238,8 @@ DONNÉES FINANCIÈRES :
 
 CLIENTS :
 • list_clients → lister les clients
-• create_client → créer un client (type: particulier/entreprise)
+• create_client → créer un client (type: particulier/entreprise, custom_fields: {ICE, SIRET...})
+• update_client → modifier un client (email, telephone, adresse, custom_fields)
 
 CONTACTS :
 • create_contact → créer un contact indépendant
@@ -642,6 +643,9 @@ FINANCIER :
 CLIENTS & CONTACTS :
 "Liste mes clients" → list_clients()
 "Crée un client Acme" → create_client(type: 'entreprise', nom: 'Acme')
+"Crée un client X avec ICE 123" → create_client(type: 'entreprise', nom: 'X', custom_fields: {ICE: '123'})
+"Modifie l'email du client Acme" → update_client(client_name: 'Acme', email: 'nouveau@email.com')
+"Ajoute le mail test@acme.com au client TestICE3" → update_client(client_name: 'TestICE3', email: 'test@acme.com')
 "Qui contacter chez Acme pour la facturation ?" → get_contact_for_context(context: "FACTURATION")
 
 DOCUMENTS DEPUIS UN DEAL :

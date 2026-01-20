@@ -54,6 +54,44 @@ export const toolDefinitions = [
   {
     type: 'function' as const,
     function: {
+      name: 'update_client',
+      description: 'Modifier un client existant. Utiliser pour mettre à jour email, téléphone, adresse ou champs personnalisés.',
+      parameters: {
+        type: 'object',
+        properties: {
+          client_id: {
+            type: 'string',
+            description: 'ID du client (optionnel si client_name fourni)',
+          },
+          client_name: {
+            type: 'string',
+            description: 'Nom du client pour recherche (optionnel si client_id fourni)',
+          },
+          email: {
+            type: 'string',
+            description: 'Nouvel email',
+          },
+          telephone: {
+            type: 'string',
+            description: 'Nouveau téléphone',
+          },
+          adresse: {
+            type: 'string',
+            description: 'Nouvelle adresse',
+          },
+          custom_fields: {
+            type: 'object',
+            description: 'Champs personnalisés à mettre à jour. Ex: {"ICE": "123456"}',
+            additionalProperties: { type: 'string' },
+          },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
       name: 'create_quote',
       description: 'Créer un nouveau devis pour un client. Le client doit exister. IMPORTANT : Tout devis DOIT être lié à un deal (deal_id obligatoire).',
       parameters: {
@@ -1499,6 +1537,7 @@ export const toolDefinitions = [
 export type ToolName =
   | 'create_client'
   | 'list_clients'
+  | 'update_client'
   | 'create_quote'
   | 'list_quotes'
   | 'create_invoice'

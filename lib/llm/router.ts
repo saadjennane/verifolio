@@ -10,6 +10,7 @@ type Supabase = SupabaseClient;
 // Mapping des tools vers les types d'entité pour le logging
 const TOOL_TO_ENTITY: Record<string, { entityType: ActivityEntityType; action: ActivityAction }> = {
   create_client: { entityType: 'client', action: 'create' },
+  update_client: { entityType: 'client', action: 'update' },
   create_contact: { entityType: 'contact', action: 'create' },
   update_contact: { entityType: 'contact', action: 'update' },
   create_deal: { entityType: 'deal', action: 'create' },
@@ -93,6 +94,8 @@ async function executeToolCallInternal(
       return await createClient(supabase, userId, args);
     case 'list_clients':
       return await listClients(supabase, userId);
+    case 'update_client':
+      return await updateClient(supabase, userId, args);
     case 'create_quote':
       return await createQuote(supabase, userId, args);
     case 'list_quotes':
@@ -329,6 +332,101 @@ async function findClientByName(
   const { data } = await query.single();
 
   return data;
+}
+
+async function updateClient(
+  supabase: Supabase,
+  userId: string | null,
+  args: Record<string, unknown>
+): Promise<ToolResult> {
+  const { client_id, client_name, email, telephone, adresse, custom_fields } = args;
+
+  // Find client by ID or name
+  let clientId = client_id as string | undefined;
+  let clientData: { id: string; nom: string } | null = null;
+
+  if (!clientId && client_name) {
+    const found = await findClientByName(supabase, userId, client_name as string);
+    if (found) {
+      clientId = found.id;
+      clientData = found;
+    }
+  }
+
+  if (!clientId) {
+    return { success: false, message: 'Client non trouvé. Précisez le nom ou l\'ID du client.' };
+  }
+
+  // Build update object with only provided fields
+  const updates: Record<string, unknown> = {};
+  if (email !== undefined) updates.email = email;
+  if (telephone !== undefined) updates.telephone = telephone;
+  if (adresse !== undefined) updates.adresse = adresse;
+
+  // Update client basic fields if any
+  if (Object.keys(updates).length > 0) {
+    const { error } = await supabase
+      .from('clients')
+      .update(updates)
+      .eq('id', clientId)
+      .eq('user_id', userId);
+
+    if (error) {
+      return { success: false, message: `Erreur: ${error.message}` };
+    }
+  }
+
+  // Update custom field values if provided
+  const customFieldsData = custom_fields as Record<string, string> | undefined;
+  if (customFieldsData && Object.keys(customFieldsData).length > 0) {
+    const { data: fields } = await supabase
+      .from('custom_fields')
+      .select('id, label')
+      .eq('user_id', userId)
+      .eq('scope', 'client')
+      .eq('is_active', true);
+
+    if (fields) {
+      const fieldMap = new Map<string, string>();
+      for (const f of fields) {
+        fieldMap.set(f.label.toLowerCase(), f.id);
+      }
+
+      for (const [label, value] of Object.entries(customFieldsData)) {
+        const fieldId = fieldMap.get(label.toLowerCase());
+        if (fieldId && value) {
+          await supabase.from('custom_field_values').upsert(
+            {
+              user_id: userId,
+              field_id: fieldId,
+              entity_type: 'client',
+              entity_id: clientId,
+              value_text: value,
+            },
+            { onConflict: 'user_id,field_id,entity_type,entity_id' }
+          );
+        }
+      }
+    }
+  }
+
+  // Get updated client data
+  const { data: updatedClient } = await supabase
+    .from('clients')
+    .select('*')
+    .eq('id', clientId)
+    .single();
+
+  const updatedFields = [
+    ...Object.keys(updates),
+    ...(customFieldsData ? Object.keys(customFieldsData) : []),
+  ];
+
+  return {
+    success: true,
+    data: updatedClient,
+    message: `Client "${updatedClient?.nom || clientData?.nom}" mis à jour (${updatedFields.join(', ')}).`,
+  };
 }
 
 async function createQuote(

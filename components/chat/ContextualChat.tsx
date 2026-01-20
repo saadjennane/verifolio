@@ -26,6 +26,79 @@ interface EntityCreated {
 // Limite de caractères pour les messages
 const MAX_MESSAGE_LENGTH = 1000;
 
+// Détecter l'intention de l'utilisateur pour afficher des étapes préliminaires
+function detectPreliminarySteps(message: string): string[] {
+  const lower = message.toLowerCase();
+
+  // Modification de client (email, téléphone, etc.) - doit être AVANT création
+  // "Ajoute le mail X au client Y" = modification, pas création
+  if (lower.includes('client') &&
+      (lower.includes('mail') || lower.includes('email') || lower.includes('téléphone') ||
+       lower.includes('telephone') || lower.includes('adresse'))) {
+    return [
+      'Analyse de la demande',
+      'Recherche du client',
+      'Mise à jour du client',
+    ];
+  }
+
+  // Création de client avec champs personnalisés (ICE, SIRET)
+  // "Crée un client X avec ICE Y" = création avec custom fields
+  if ((lower.includes('crée') || lower.includes('créer') || lower.includes('ajoute un client') || lower.includes('ajoute le client')) &&
+      lower.includes('client') &&
+      (lower.includes('ice') || lower.includes('siret'))) {
+    return [
+      'Analyse de la demande',
+      'Vérification du client existant',
+      'Création du client',
+      'Ajout des champs personnalisés',
+    ];
+  }
+
+  // Création de client simple
+  // "Crée un client X" ou "Ajoute un client X"
+  if ((lower.includes('crée') || lower.includes('créer') || lower.includes('ajoute un client') || lower.includes('ajoute le client')) &&
+      lower.includes('client')) {
+    return [
+      'Analyse de la demande',
+      'Vérification du client existant',
+      'Création du client',
+    ];
+  }
+
+  // Création de devis
+  if ((lower.includes('crée') || lower.includes('créer')) &&
+      (lower.includes('devis') || lower.includes('quote'))) {
+    return [
+      'Analyse de la demande',
+      'Recherche du client',
+      'Création du devis',
+    ];
+  }
+
+  // Création de facture
+  if ((lower.includes('crée') || lower.includes('créer')) &&
+      lower.includes('facture')) {
+    return [
+      'Analyse de la demande',
+      'Recherche du client',
+      'Création de la facture',
+    ];
+  }
+
+  // Modification/mise à jour générique
+  if (lower.includes('modif') || lower.includes('change') || lower.includes('met à jour')) {
+    return ['Analyse de la demande', 'Mise à jour des données'];
+  }
+
+  // Questions/recherches
+  if (lower.includes('?') || lower.includes('combien') || lower.includes('liste') || lower.includes('montre')) {
+    return ['Recherche des données'];
+  }
+
+  return [];
+}
+
 // Détecter si un message demande une confirmation
 function detectConfirmationRequest(content: string): { detected: boolean; options: string[] } {
   // Patterns de demande de confirmation
@@ -99,14 +172,37 @@ export function ContextualChat() {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  // Sync local working with context working
+  // Sync local working with context working (from store to local)
+  // Only sync steps and isActive, NOT isCollapsed (which is UI-only state)
   useEffect(() => {
     if (contextWorking) {
-      setLocalWorking(contextWorking);
+      setLocalWorking(prev => ({
+        ...contextWorking,
+        isCollapsed: prev.isCollapsed, // Preserve local collapse state
+      }));
     } else {
-      setLocalWorking(initialWorkingState);
+      setLocalWorking(prev => ({
+        ...initialWorkingState,
+        isCollapsed: prev.isCollapsed, // Preserve local collapse state
+      }));
     }
   }, [contextWorking]);
+
+  // Sync local working to store (from local to store) - avoids calling setWorking inside setLocalWorking
+  const prevLocalWorkingRef = useRef<WorkingState>(initialWorkingState);
+  useEffect(() => {
+    // Only sync if localWorking changed (excluding isCollapsed which is UI-only)
+    const prevWithoutCollapse = { ...prevLocalWorkingRef.current, isCollapsed: false };
+    const currWithoutCollapse = { ...localWorking, isCollapsed: false };
+
+    if (JSON.stringify(prevWithoutCollapse) !== JSON.stringify(currWithoutCollapse)) {
+      prevLocalWorkingRef.current = localWorking;
+      // Only update store if we're in a working state that we initiated
+      if (localWorking.isActive || localWorking.steps.length > 0) {
+        setWorking(localWorking);
+      }
+    }
+  }, [localWorking, setWorking]);
 
   // Improved scroll to bottom
   const scrollToBottom = useCallback(() => {
@@ -175,54 +271,47 @@ export function ContextualChat() {
       contextId: contextId ? contextIdToString(contextId) : null,
     };
     setLocalWorking(newWorking);
-    setWorking(newWorking);
   };
 
   const completeCurrentStep = useCallback(() => {
-    const steps = [...localWorking.steps];
-    const currentIndex = steps.findIndex((s) => s.status === 'in_progress');
+    setLocalWorking(prev => {
+      const steps = [...prev.steps];
+      const currentIndex = steps.findIndex((s) => s.status === 'in_progress');
 
-    if (currentIndex >= 0 && currentIndex < steps.length - 1) {
-      steps[currentIndex] = { ...steps[currentIndex], status: 'completed' };
-      steps[currentIndex + 1] = { ...steps[currentIndex + 1], status: 'in_progress' };
-    } else if (currentIndex >= 0) {
-      steps[currentIndex] = { ...steps[currentIndex], status: 'completed' };
-    }
+      if (currentIndex >= 0 && currentIndex < steps.length - 1) {
+        steps[currentIndex] = { ...steps[currentIndex], status: 'completed' };
+        steps[currentIndex + 1] = { ...steps[currentIndex + 1], status: 'in_progress' };
+      } else if (currentIndex >= 0) {
+        steps[currentIndex] = { ...steps[currentIndex], status: 'completed' };
+      }
 
-    const newWorking = {
-      ...localWorking,
-      steps,
-      isActive: steps.some((s) => s.status === 'in_progress' || s.status === 'pending'),
-    };
-
-    setLocalWorking(newWorking);
-    setWorking(newWorking);
-  }, [localWorking, setWorking]);
+      return {
+        ...prev,
+        steps,
+        isActive: steps.some((s) => s.status === 'in_progress' || s.status === 'pending'),
+      };
+    });
+  }, []);
 
   const stopWorking = useCallback(() => {
-    const newWorking = {
-      ...localWorking,
+    setLocalWorking(prev => ({
+      ...prev,
       isActive: false,
-      steps: localWorking.steps.map((step) =>
+      steps: prev.steps.map((step) =>
         step.status === 'in_progress' || step.status === 'pending'
           ? { ...step, status: 'cancelled' as const }
           : step
       ),
-    };
-    setLocalWorking(newWorking);
-    setWorking(newWorking);
-  }, [localWorking, setWorking]);
+    }));
+  }, []);
 
   const clearWorking = useCallback(() => {
     setLocalWorking(initialWorkingState);
-    setWorking(null);
-  }, [setWorking]);
+  }, []);
 
   const toggleWorkingCollapse = useCallback(() => {
-    const newWorking = { ...localWorking, isCollapsed: !localWorking.isCollapsed };
-    setLocalWorking(newWorking);
-    setWorking(newWorking);
-  }, [localWorking, setWorking]);
+    setLocalWorking(prev => ({ ...prev, isCollapsed: !prev.isCollapsed }));
+  }, []);
 
   // Handle accepting a proactive suggestion
   const handleAcceptSuggestion = async (suggestion: ScreenSuggestion) => {
@@ -309,6 +398,41 @@ export function ContextualChat() {
     setInput('');
     setLoading(true);
 
+    // Détecter et afficher immédiatement les étapes préliminaires
+    const preliminarySteps = detectPreliminarySteps(userContent);
+    let stepIndex = 0;
+    let progressInterval: NodeJS.Timeout | null = null;
+
+    if (preliminarySteps.length > 0) {
+      // Créer les étapes avec la première en cours
+      const workingState: WorkingState = {
+        isActive: true,
+        isCollapsed: false,
+        steps: preliminarySteps.map((label, index) => ({
+          id: `step-${Date.now()}-${index}`,
+          label,
+          status: index === 0 ? 'in_progress' : 'pending',
+        })),
+        contextId: contextId ? contextIdToString(contextId) : null,
+      };
+      setLocalWorking(workingState);
+
+      // Progresser automatiquement toutes les 1.5s
+      progressInterval = setInterval(() => {
+        stepIndex++;
+        if (stepIndex < preliminarySteps.length) {
+          setLocalWorking(prev => {
+            const newSteps = prev.steps.map((s, i) => ({
+              ...s,
+              status: i < stepIndex ? 'completed' as const :
+                      i === stepIndex ? 'in_progress' as const : 'pending' as const
+            }));
+            return { ...prev, steps: newSteps };
+          });
+        }
+      }, 1500);
+    }
+
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
@@ -327,8 +451,22 @@ export function ContextualChat() {
         throw new Error(data.error || "Erreur de communication avec l'assistant");
       }
 
-      // Si des étapes de travail sont retournées, les afficher
-      if (data.workingSteps && data.workingSteps.length > 0) {
+      // Arrêter la progression automatique
+      if (progressInterval) {
+        clearInterval(progressInterval);
+      }
+
+      // Compléter toutes les étapes préliminaires et garder collapsed
+      if (preliminarySteps.length > 0) {
+        setLocalWorking(prev => {
+          const newSteps = prev.steps.map(s => ({ ...s, status: 'completed' as const }));
+          // Garder visible mais collapsed après complétion
+          return { ...prev, steps: newSteps, isActive: false, isCollapsed: true };
+        });
+      }
+
+      // Si des étapes de travail supplémentaires sont retournées par l'API, les afficher
+      if (data.workingSteps && data.workingSteps.length > 0 && preliminarySteps.length === 0) {
         startWorking(data.workingSteps);
         for (let i = 0; i < data.workingSteps.length; i++) {
           await new Promise((resolve) => setTimeout(resolve, 300));
@@ -358,13 +496,12 @@ export function ContextualChat() {
         }
       }
 
-      if (data.workingSteps && data.workingSteps.length > 0) {
-        setTimeout(() => {
-          clearWorking();
-        }, 3000);
-      }
+      // Ne pas clear les steps - les garder visibles en collapsed
     } catch (error) {
       console.error('Chat error:', error);
+      if (progressInterval) {
+        clearInterval(progressInterval);
+      }
       clearWorking();
 
       const errorMessage = error instanceof Error

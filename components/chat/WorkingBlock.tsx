@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { WorkingStep } from '@/lib/chat/working';
 
 interface WorkingBlockProps {
@@ -50,6 +50,9 @@ export function WorkingBlock({
   onStop,
 }: WorkingBlockProps) {
   const [isVisible, setIsVisible] = useState(true);
+  // Track if user manually toggled to prevent auto-collapse override
+  const userToggledRef = useRef(false);
+  const hasAutoCollapsedRef = useRef(false);
 
   // Compter les étapes par statut
   const completedCount = steps.filter((s) => s.status === 'completed').length;
@@ -57,15 +60,30 @@ export function WorkingBlock({
   const hasInProgress = steps.some((s) => s.status === 'in_progress');
   const allCompleted = completedCount === totalCount && totalCount > 0;
 
-  // Auto-collapse quand tout est terminé
+  // Handle user toggle - mark as user-initiated
+  const handleToggle = () => {
+    userToggledRef.current = true;
+    onToggleCollapse();
+  };
+
+  // Auto-collapse only ONCE when all steps complete, and only if user hasn't toggled
   useEffect(() => {
-    if (allCompleted && !isCollapsed) {
+    if (allCompleted && !isCollapsed && !hasAutoCollapsedRef.current && !userToggledRef.current) {
       const timer = setTimeout(() => {
+        hasAutoCollapsedRef.current = true;
         onToggleCollapse();
       }, 1500);
       return () => clearTimeout(timer);
     }
   }, [allCompleted, isCollapsed, onToggleCollapse]);
+
+  // Reset refs when steps change (new operation)
+  useEffect(() => {
+    if (steps.length > 0 && steps.some(s => s.status === 'in_progress' || s.status === 'pending')) {
+      userToggledRef.current = false;
+      hasAutoCollapsedRef.current = false;
+    }
+  }, [steps]);
 
   // Ne pas afficher si pas d'étapes
   if (steps.length === 0 || !isVisible) {
@@ -86,7 +104,7 @@ export function WorkingBlock({
         {/* Header - toujours visible */}
         <div className="w-full px-3 py-2 flex items-center justify-between">
           <button
-            onClick={onToggleCollapse}
+            onClick={handleToggle}
             className="flex items-center gap-2 text-left"
           >
             <span
