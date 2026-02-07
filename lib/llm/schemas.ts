@@ -43,8 +43,13 @@ export const ChatHistoryItemSchema = z.object({
   content: z.string(),
 });
 
+// Limite de caractères pour les messages utilisateur (protection contre abus/coûts)
+const MAX_MESSAGE_LENGTH = 8000;
+
 export const ChatRequestSchema = z.object({
-  message: z.string().min(1),
+  message: z.string().min(1).max(MAX_MESSAGE_LENGTH, {
+    message: `Le message ne peut pas dépasser ${MAX_MESSAGE_LENGTH} caractères`,
+  }),
   history: z.array(ChatHistoryItemSchema).optional(),
   mode: z.enum(['plan', 'auto', 'demander']).optional(),
   contextId: z.string().nullable().optional(),

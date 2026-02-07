@@ -16,6 +16,9 @@ interface TabsState {
   historyPanelOpen: boolean;
   // Compteur de refresh par type d'entité
   refreshTriggers: Record<EntityType, number>;
+  // Mobile states
+  mobileSidebarOpen: boolean;
+  mobileChatOpen: boolean;
 
   // Actions
   openTab: (tabConfig: TabConfig, permanent?: boolean) => void;
@@ -35,6 +38,11 @@ interface TabsState {
   getActiveTab: () => Tab | null;
   // Nouveau: déclencher un refresh pour un type d'entité
   triggerRefresh: (entityType: EntityType) => void;
+  // Mobile actions
+  toggleMobileSidebar: () => void;
+  setMobileSidebarOpen: (open: boolean) => void;
+  toggleMobileChat: () => void;
+  setMobileChatOpen: (open: boolean) => void;
 }
 
 export const useTabsStore = create<TabsState>()(
@@ -59,6 +67,8 @@ export const useTabsStore = create<TabsState>()(
         suppliers: 0,
         expenses: 0,
       },
+      mobileSidebarOpen: false,
+      mobileChatOpen: false,
 
       openTab: (tabConfig, permanent = false) => {
         const { tabs } = get();
@@ -192,6 +202,21 @@ export const useTabsStore = create<TabsState>()(
           },
         }));
       },
+
+      // Mobile actions
+      toggleMobileSidebar: () =>
+        set((state) => ({
+          mobileSidebarOpen: !state.mobileSidebarOpen,
+        })),
+
+      setMobileSidebarOpen: (open) => set({ mobileSidebarOpen: open }),
+
+      toggleMobileChat: () =>
+        set((state) => ({
+          mobileChatOpen: !state.mobileChatOpen,
+        })),
+
+      setMobileChatOpen: (open) => set({ mobileChatOpen: open }),
     }),
     {
       name: 'verifolio-tabs',
