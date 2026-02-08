@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Download, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -81,6 +82,7 @@ export function MissionDetailTab({ missionId }: MissionDetailTabProps) {
   const [creatingBL, setCreatingBL] = useState(false);
   const [blTitle, setBLTitle] = useState('');
   const [showBLForm, setShowBLForm] = useState(false);
+  const [downloadingBL, setDownloadingBL] = useState<string | null>(null);
 
   // Pièces jointes (PO du deal)
   const [dealPO, setDealPO] = useState<EntityDocument | null>(null);
@@ -209,6 +211,30 @@ export function MissionDetailTab({ missionId }: MissionDetailTabProps) {
       }
     } catch (error) {
       console.error('Error updating delivery note:', error);
+    }
+  }
+
+  async function downloadDeliveryNotePDF(dn: DeliveryNote) {
+    setDownloadingBL(dn.id);
+    try {
+      const response = await fetch(`/api/pdf/delivery-note/${dn.id}`);
+      if (!response.ok) {
+        throw new Error('Erreur lors du téléchargement');
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${dn.delivery_note_number}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Download error:', error);
+      alert('Erreur lors du téléchargement du PDF');
+    } finally {
+      setDownloadingBL(null);
     }
   }
 
@@ -684,8 +710,18 @@ export function MissionDetailTab({ missionId }: MissionDetailTabProps) {
                         Envoyer
                       </Button>
                     )}
-                    <Button size="sm" variant="outline" onClick={() => alert('Voir BL - à implémenter')}>
-                      Voir
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => downloadDeliveryNotePDF(dn)}
+                      disabled={downloadingBL === dn.id}
+                    >
+                      {downloadingBL === dn.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4" />
+                      )}
+                      <span className="ml-1">PDF</span>
                     </Button>
                   </div>
                 </div>

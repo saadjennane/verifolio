@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import { Download, Loader2 } from 'lucide-react';
 import type {
   ProposalPublicView as ProposalPublicViewType,
   ProposalStatus,
@@ -25,12 +26,36 @@ export function ProposalPublicView({ proposal }: ProposalPublicViewProps) {
   const { status: initialStatus, title, client_name, token, theme, sections, company, comments: initialComments } = proposal;
   const [comments, setComments] = useState<ProposalComment[]>(initialComments);
   const [status, setStatus] = useState<ProposalStatus>(initialStatus);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const accentColor = theme.accentColor || '#3B82F6';
   const statusInfo = STATUS_LABELS[status];
 
   const handleCommentAdded = (comment: ProposalComment) => {
     setComments((prev) => [...prev, comment]);
+  };
+
+  const handleDownloadPDF = async () => {
+    setIsDownloading(true);
+    try {
+      const response = await fetch(`/api/public/proposals/${token}/pdf`);
+      if (!response.ok) {
+        throw new Error('Erreur lors du téléchargement');
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `proposition-${title.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Download error:', error);
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   return (
@@ -64,10 +89,24 @@ export function ProposalPublicView({ proposal }: ProposalPublicViewProps) {
                 </span>
               )}
             </div>
-            <div
-              className={`px-3 py-1 rounded-full text-sm font-medium ${statusInfo.color}`}
-            >
-              {statusInfo.label}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleDownloadPDF}
+                disabled={isDownloading}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                {isDownloading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                Télécharger PDF
+              </button>
+              <div
+                className={`px-3 py-1 rounded-full text-sm font-medium ${statusInfo.color}`}
+              >
+                {statusInfo.label}
+              </div>
             </div>
           </div>
         </div>
