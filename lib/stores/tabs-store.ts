@@ -45,11 +45,21 @@ interface TabsState {
   setMobileChatOpen: (open: boolean) => void;
 }
 
+// Dashboard tab pinné par défaut
+const DASHBOARD_TAB = {
+  id: 'dashboard',
+  type: 'dashboard' as const,
+  path: '/',
+  title: 'Dashboard',
+  isPreview: false,
+  pinned: true,
+};
+
 export const useTabsStore = create<TabsState>()(
   persist(
     (set, get) => ({
-      tabs: [],
-      activeTabId: null,
+      tabs: [DASHBOARD_TAB],
+      activeTabId: 'dashboard',
       chatPanelOpen: true,
       chatPanelWidth: 320,
       sidebarCollapsed: false,
@@ -118,6 +128,11 @@ export const useTabsStore = create<TabsState>()(
 
       closeTab: (tabId) => {
         const { tabs, activeTabId } = get();
+        const tabToClose = tabs.find((t) => t.id === tabId);
+
+        // Ne pas fermer les onglets pinned
+        if (tabToClose?.pinned) return;
+
         const index = tabs.findIndex((t) => t.id === tabId);
         const newTabs = tabs.filter((t) => t.id !== tabId);
 
@@ -228,6 +243,24 @@ export const useTabsStore = create<TabsState>()(
         sidebarCollapsed: state.sidebarCollapsed,
         historyPanelOpen: state.historyPanelOpen,
       }),
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as Partial<TabsState>;
+        // S'assurer que le Dashboard est toujours présent et en première position
+        const tabs = persisted.tabs || [];
+        const hasDashboard = tabs.some((t) => t.id === 'dashboard');
+        const finalTabs = hasDashboard ? tabs : [DASHBOARD_TAB, ...tabs];
+        // S'assurer que le dashboard est toujours pinned
+        const tabsWithPinnedDashboard = finalTabs.map((t) =>
+          t.id === 'dashboard' ? { ...t, pinned: true } : t
+        );
+
+        return {
+          ...currentState,
+          ...persisted,
+          tabs: tabsWithPinnedDashboard,
+          activeTabId: persisted.activeTabId || 'dashboard',
+        };
+      },
     }
   )
 );

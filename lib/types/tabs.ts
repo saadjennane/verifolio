@@ -78,6 +78,7 @@ export interface Tab {
   isPreview: boolean;
   entityId?: string;
   isDirty?: boolean;
+  pinned?: boolean;
 }
 
 export interface TabConfig {

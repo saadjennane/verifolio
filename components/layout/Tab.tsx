@@ -29,7 +29,7 @@ export function Tab({ tab }: TabProps) {
   };
 
   const handleMiddleClick = (e: React.MouseEvent) => {
-    if (e.button === 1) {
+    if (e.button === 1 && !tab.pinned) {
       e.preventDefault();
       closeTab(tab.id);
     }
@@ -95,31 +95,33 @@ export function Tab({ tab }: TabProps) {
         {tab.title}
       </span>
 
-      {/* Dirty indicator or close button */}
-      <div className="flex-shrink-0 w-4 h-4 flex items-center justify-center">
-        {tab.isDirty ? (
-          <span className="w-2 h-2 rounded-full bg-primary" />
-        ) : (
-          <button
-            onClick={handleClose}
-            className="hidden group-hover:flex items-center justify-center w-4 h-4 rounded hover:bg-accent"
-          >
-            <svg
-              className="w-3 h-3 text-muted-foreground"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
+      {/* Dirty indicator or close button (sauf si pinned) */}
+      {!tab.pinned && (
+        <div className="flex-shrink-0 w-4 h-4 flex items-center justify-center">
+          {tab.isDirty ? (
+            <span className="w-2 h-2 rounded-full bg-primary" />
+          ) : (
+            <button
+              onClick={handleClose}
+              className="hidden group-hover:flex items-center justify-center w-4 h-4 rounded hover:bg-accent"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
-        )}
-      </div>
+              <svg
+                className="w-3 h-3 text-muted-foreground"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
