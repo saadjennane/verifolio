@@ -239,7 +239,6 @@ export function ContextualChat() {
   const [localWorking, setLocalWorking] = useState<WorkingState>(initialWorkingState);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [errorMessageIds, setErrorMessageIds] = useState<Set<string>>(new Set());
-  const [pendingEntity, setPendingEntity] = useState<EntityCreated | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -406,43 +405,11 @@ export function ContextualChat() {
       clearMessages();
       setShowClearConfirm(false);
       setErrorMessageIds(new Set());
-      setPendingEntity(null);
     } else {
       setShowClearConfirm(true);
       setTimeout(() => setShowClearConfirm(false), 3000);
     }
   };
-
-  // Ouvrir l'entité créée
-  const handleOpenEntity = useCallback(() => {
-    if (!pendingEntity) return;
-
-    const typeToPath: Record<string, string> = {
-      clients: '/clients',
-      invoices: '/invoices',
-      quotes: '/quotes',
-      deals: '/deals',
-      missions: '/missions',
-      proposals: '/proposals',
-      briefs: '/briefs',
-      contacts: '/contacts',
-      reviews: '/reviews',
-    };
-
-    const basePath = typeToPath[pendingEntity.type];
-    if (basePath) {
-      openTab(
-        {
-          type: pendingEntity.type.slice(0, -1) as 'client' | 'invoice' | 'quote' | 'deal' | 'mission' | 'proposal' | 'brief' | 'contact' | 'review',
-          path: `${basePath}/${pendingEntity.id}`,
-          title: pendingEntity.title,
-          entityId: pendingEntity.id,
-        },
-        true
-      );
-      setPendingEntity(null);
-    }
-  }, [pendingEntity, openTab]);
 
   // Envoyer une réponse rapide (pour les boutons de confirmation)
   const handleQuickReply = useCallback((reply: string) => {
@@ -549,7 +516,7 @@ export function ContextualChat() {
 
       addMessage({ role: 'assistant', content: data.message });
 
-      // Gérer les entités créées : refresh + stocker pour proposition d'ouverture
+      // Gérer les entités créées : refresh + ouverture automatique
       if (data.entitiesCreated && data.entitiesCreated.length > 0) {
         const entities = data.entitiesCreated as EntityCreated[];
 
@@ -562,10 +529,33 @@ export function ContextualChat() {
           }
         }
 
-        // Stocker l'entité pour permettre l'ouverture via clic
+        // Ouvrir automatiquement la première entité créée dans un nouvel onglet
         const firstEntity = entities[0];
         if (firstEntity) {
-          setPendingEntity(firstEntity);
+          const typeToPath: Record<string, string> = {
+            clients: '/clients',
+            invoices: '/invoices',
+            quotes: '/quotes',
+            deals: '/deals',
+            missions: '/missions',
+            proposals: '/proposals',
+            briefs: '/briefs',
+            contacts: '/contacts',
+            reviews: '/reviews',
+          };
+
+          const basePath = typeToPath[firstEntity.type];
+          if (basePath) {
+            openTab(
+              {
+                type: firstEntity.type.slice(0, -1) as 'client' | 'invoice' | 'quote' | 'deal' | 'mission' | 'proposal' | 'brief' | 'contact' | 'review',
+                path: `${basePath}/${firstEntity.id}`,
+                title: firstEntity.title,
+                entityId: firstEntity.id,
+              },
+              true // permanent tab
+            );
+          }
         }
       }
 
@@ -756,21 +746,6 @@ export function ContextualChat() {
                 {option}
               </button>
             ))}
-          </div>
-        )}
-
-        {/* Bouton pour ouvrir l'entité créée - Bubble Style */}
-        {pendingEntity && !loading && (
-          <div className="flex justify-center pt-2">
-            <button
-              onClick={handleOpenEntity}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary/10 hover:bg-primary/20 text-primary rounded-full shadow-sm transition-all hover:scale-105"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
-              Ouvrir « {pendingEntity.title} »
-            </button>
           </div>
         )}
 
