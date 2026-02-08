@@ -48,11 +48,20 @@ const responseWithTool = (toolName: string, args: Record<string, unknown>) =>
     })
   );
 
+const contentResponse = (msg: string) =>
+  new Response(
+    JSON.stringify({
+      choices: [{ message: { content: msg } }],
+    })
+  );
+
 describe('Tool result safety and read-before-write', () => {
   beforeEach(() => {
     executeToolCallMock.mockReset();
+    executeToolCallMock.mockResolvedValue({ success: true, message: 'OK' });
     fetchMock.mockReset();
     vi.stubGlobal('fetch', fetchMock);
+    vi.stubEnv('OPENAI_API_KEY', 'test-key');
   });
 
   afterEach(() => {

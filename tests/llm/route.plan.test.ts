@@ -62,8 +62,10 @@ const makeRequest = (body: Record<string, unknown>) =>
 describe('PLAN mode enforcement (matrix cases 1-5)', () => {
   beforeEach(() => {
     executeToolCallMock.mockReset();
+    executeToolCallMock.mockResolvedValue({ success: true, message: 'OK' });
     fetchMock.mockReset();
     vi.stubGlobal('fetch', fetchMock);
+    vi.stubEnv('OPENAI_API_KEY', 'test-key');
   });
 
   afterEach(() => {
@@ -71,7 +73,9 @@ describe('PLAN mode enforcement (matrix cases 1-5)', () => {
   });
 
   it('allows READ_ONLY without confirmation (case 1)', async () => {
-    fetchMock.mockResolvedValueOnce(toolCallResponse('list_clients', {}));
+    fetchMock
+      .mockResolvedValueOnce(toolCallResponse('list_clients', {}))
+      .mockResolvedValueOnce(contentResponse('Done'));
     const res = await POST(makeRequest({ message: 'hi', mode: 'plan', contextId: 'client:abc' }));
     expect(res.status).toBe(200);
     expect(executeToolCallMock).toHaveBeenCalledTimes(1);

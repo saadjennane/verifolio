@@ -387,9 +387,54 @@ export async function POST(request: Request) {
 
     console.log('OpenAI response:', JSON.stringify(choice.message, null, 2));
 
-    // Si tool calls → exécuter et obtenir la réponse finale
+    // Si tool calls → vérifier les permissions avant d'exécuter
     if (choice.message.tool_calls && choice.message.tool_calls.length > 0) {
-      console.log('Tool calls detected, executing...');
+      console.log('Tool calls detected, checking permissions...');
+
+      // Vérifier les permissions pour chaque tool call
+      for (const toolCall of choice.message.tool_calls) {
+        const toolName = toolCall.function.name;
+        const permission = getToolPermission(toolName, mode);
+
+        console.log(`Tool ${toolName}: permission=${permission}, confirmedAction=${confirmedAction}`);
+
+        // Si confirmation requise et non fournie, bloquer l'exécution
+        if (permission === 'confirm' && !confirmedAction) {
+          let parsedArgs: Record<string, unknown> = {};
+          try {
+            parsedArgs = JSON.parse(toolCall.function.arguments);
+          } catch {
+            // Ignorer les erreurs de parsing pour le message de confirmation
+          }
+
+          return NextResponse.json(
+            {
+              mode,
+              tool: toolName,
+              toolCallId: toolCall.id,
+              args: parsedArgs,
+              requiresConfirmation: true,
+              message: `L'action "${toolName}" nécessite une confirmation en mode ${mode.toUpperCase()}.`,
+            },
+            { status: 403 }
+          );
+        }
+
+        // Si action interdite (mode plan), bloquer
+        if (permission === 'forbidden') {
+          return NextResponse.json(
+            {
+              mode,
+              tool: toolName,
+              forbidden: true,
+              message: `L'action "${toolName}" n'est pas autorisée en mode ${mode.toUpperCase()}.`,
+            },
+            { status: 403 }
+          );
+        }
+      }
+
+      console.log('Permissions OK, executing tools...');
       const toolResults = await executeToolCalls(supabase, userId, choice.message.tool_calls);
       ensureWithinBudget(requestStart);
 

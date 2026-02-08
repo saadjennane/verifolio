@@ -41,6 +41,13 @@ const toolCallResponse = (tool: string, args: Record<string, unknown> = {}) =>
     })
   );
 
+const contentResponse = (msg: string) =>
+  new Response(
+    JSON.stringify({
+      choices: [{ message: { content: msg } }],
+    })
+  );
+
 const makeRequest = (body: Record<string, unknown>) =>
   new Request('http://localhost/api/chat', {
     method: 'POST',
@@ -51,8 +58,10 @@ const makeRequest = (body: Record<string, unknown>) =>
 describe('AUTO mode enforcement (matrix cases 13-17)', () => {
   beforeEach(() => {
     executeToolCallMock.mockReset();
+    executeToolCallMock.mockResolvedValue({ success: true, message: 'OK' });
     fetchMock.mockReset();
     vi.stubGlobal('fetch', fetchMock);
+    vi.stubEnv('OPENAI_API_KEY', 'test-key');
   });
 
   afterEach(() => {
@@ -60,14 +69,18 @@ describe('AUTO mode enforcement (matrix cases 13-17)', () => {
   });
 
   it('allows READ_ONLY without confirmation (case 13)', async () => {
-    fetchMock.mockResolvedValueOnce(toolCallResponse('list_clients', {}));
+    fetchMock
+      .mockResolvedValueOnce(toolCallResponse('list_clients', {}))
+      .mockResolvedValueOnce(contentResponse('Done'));
     const res = await POST(makeRequest({ message: 'hi', mode: 'auto', contextId: 'client:abc' }));
     expect(res.status).toBe(200);
     expect(executeToolCallMock).toHaveBeenCalledTimes(1);
   });
 
   it('allows SAFE_WRITE without confirmation (case 14)', async () => {
-    fetchMock.mockResolvedValueOnce(toolCallResponse('create_client', { nom: 'Acme', type: 'entreprise' }));
+    fetchMock
+      .mockResolvedValueOnce(toolCallResponse('create_client', { nom: 'Acme', type: 'entreprise' }))
+      .mockResolvedValueOnce(contentResponse('Done'));
     const res = await POST(makeRequest({ message: 'create', mode: 'auto', contextId: 'client:abc' }));
     expect(res.status).toBe(200);
     expect(executeToolCallMock).toHaveBeenCalledTimes(1);
@@ -83,7 +96,9 @@ describe('AUTO mode enforcement (matrix cases 13-17)', () => {
   });
 
   it('allows CRITICAL with valid confirmation (case 16)', async () => {
-    fetchMock.mockResolvedValueOnce(toolCallResponse('send_invoice', { id: 'inv-1' }));
+    fetchMock
+      .mockResolvedValueOnce(toolCallResponse('send_invoice', { id: 'inv-1' }))
+      .mockResolvedValueOnce(contentResponse('Done'));
     const res = await POST(
       makeRequest({
         message: 'send',
