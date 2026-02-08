@@ -1,6 +1,8 @@
 'use client';
 
-import { Badge } from '@/components/ui';
+import { useState } from 'react';
+import { Sparkles, Loader2 } from 'lucide-react';
+import { Badge, Button } from '@/components/ui';
 import type {
   BriefWithDetails,
   BriefQuestion,
@@ -23,6 +25,33 @@ interface BriefPreviewProps {
 
 export function BriefPreview({ brief, showResponses = false, companyLogoUrl }: BriefPreviewProps) {
   const theme = getBriefTheme(brief.theme_color);
+
+  // AI Summary state
+  const [summary, setSummary] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const generateSummary = async () => {
+    setIsGenerating(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/ai/brief-summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ briefId: brief.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Erreur lors de la génération');
+      }
+      setSummary(data.data.summary);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erreur inconnue';
+      setError(message);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   return (
     <div
@@ -82,6 +111,51 @@ export function BriefPreview({ brief, showResponses = false, companyLogoUrl }: B
             {brief.sent_at && ` - Envoye le ${new Date(brief.sent_at).toLocaleDateString('fr-FR')}`}
           </p>
         </div>
+
+        {/* AI Summary Section */}
+        {showResponses && brief.status === 'RESPONDED' && (
+          <div className="space-y-4 pb-6">
+            <div className="text-center">
+              <Button
+                onClick={generateSummary}
+                disabled={isGenerating}
+                className="gap-2"
+                style={{
+                  backgroundColor: theme.accent,
+                  color: 'white',
+                }}
+              >
+                {isGenerating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                {isGenerating ? 'Generation en cours...' : 'Generer le resume IA'}
+              </Button>
+            </div>
+
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+                <p className="text-red-600 text-sm">{error}</p>
+              </div>
+            )}
+
+            {summary && (
+              <div
+                className="bg-white rounded-lg shadow-sm border-l-4 p-6"
+                style={{ borderLeftColor: theme.accent }}
+              >
+                <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <Sparkles className="h-4 w-4" style={{ color: theme.accent }} />
+                  Resume IA
+                </h3>
+                <div className="text-gray-700 whitespace-pre-wrap text-sm leading-relaxed">
+                  {summary}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
