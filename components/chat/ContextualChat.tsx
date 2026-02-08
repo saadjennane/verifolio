@@ -616,7 +616,7 @@ export function ContextualChat() {
   return (
     <div
       ref={panelRef}
-      className="flex flex-col bg-gradient-to-b from-muted/30 to-background border-l border-border relative"
+      className="flex flex-col bg-slate-50 dark:bg-slate-900 border-l border-border relative"
       style={{ width: chatPanelWidth, minWidth: 280, maxWidth: 600 }}
     >
       {/* Resize handle */}
