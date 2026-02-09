@@ -9,7 +9,7 @@ interface TabProps {
 }
 
 export function Tab({ tab }: TabProps) {
-  const { activeTabId, setActiveTab, closeTab, makeTabPermanent, tabs, reorderTabs } = useTabsStore();
+  const { activeTabId, setActiveTab, closeTab, pinTab, tabs, reorderTabs } = useTabsStore();
   const [isDragging, setIsDragging] = React.useState(false);
   const isActive = tab.id === activeTabId;
 
@@ -18,8 +18,9 @@ export function Tab({ tab }: TabProps) {
   };
 
   const handleDoubleClick = () => {
-    if (tab.isPreview) {
-      makeTabPermanent(tab.id);
+    // R3: Double-clic fige l'onglet temporaire
+    if (tab.isTemporary) {
+      pinTab(tab.id);
     }
   };
 
@@ -88,7 +89,7 @@ export function Tab({ tab }: TabProps) {
       <span
         className={`
           truncate flex-1
-          ${tab.isPreview ? 'italic text-muted-foreground' : 'text-foreground'}
+          ${tab.isTemporary ? 'italic text-muted-foreground' : 'text-foreground'}
           ${tab.isDirty ? 'font-medium' : ''}
         `}
       >

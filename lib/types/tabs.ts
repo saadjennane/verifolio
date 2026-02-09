@@ -70,15 +70,41 @@ export type TabType =
   | 'expense'
   | 'new-expense';
 
+/**
+ * Source de l'ouverture d'un onglet
+ * - sidebar: clic depuis la barre de navigation
+ * - user: clic à l'intérieur d'un onglet ou action directe
+ * - llm: ouverture par l'assistant IA
+ */
+export type TabOpenedBy = 'sidebar' | 'user' | 'llm';
+
 export interface Tab {
   id: string;
   type: TabType;
   path: string;
   title: string;
-  isPreview: boolean;
+  /**
+   * Onglet temporaire (true) ou figé/pinned (false)
+   * Un onglet temporaire peut être remplacé ou fermé automatiquement
+   */
+  isTemporary: boolean;
   entityId?: string;
+  /**
+   * Contenu non sauvegardé - empêche la fermeture automatique
+   */
   isDirty?: boolean;
+  /**
+   * Onglet épinglé (Dashboard) - ne peut jamais être fermé
+   */
   pinned?: boolean;
+  /**
+   * Source de l'ouverture de l'onglet
+   */
+  openedBy?: TabOpenedBy;
+  /**
+   * Timestamp du dernier accès (pour cleanup des plus anciens)
+   */
+  lastAccessedAt?: number;
 }
 
 export interface TabConfig {
@@ -86,6 +112,10 @@ export interface TabConfig {
   path: string;
   title: string;
   entityId?: string;
+  /**
+   * Source de l'ouverture (optionnel, défaut: 'user')
+   */
+  openedBy?: TabOpenedBy;
 }
 
 export const TAB_ICONS: Record<TabType, string> = {

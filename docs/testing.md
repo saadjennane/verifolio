@@ -367,18 +367,83 @@ Tests exhaustifs de chaque tool LLM :
 
 ---
 
+### Tests du Store d'Onglets
+
+#### lib/tabs-store.test.ts (21 tests)
+
+Tests du système de gestion des onglets inspiré de VS Code avec onglets temporaires et figés.
+
+**Règles d'ouverture testées (R1-R4) :**
+
+| Test | Description |
+|------|-------------|
+| R1 - Sidebar opens temporary | Sidebar ouvre onglet temporaire |
+| R1 - Replace temporary | Remplace le temporaire actif |
+| R1 - Not replace pinned | Ne remplace pas un onglet figé |
+| R2 - Navigate within tab | Navigation dans le même onglet |
+| R2 - forceNew (Ctrl+Click) | Ouvre nouvel onglet avec Ctrl+Click |
+| R3 - pinTab (double-clic) | Double-clic fige l'onglet |
+| R4 - LLM opens new | LLM ouvre TOUJOURS nouvel onglet |
+| R4 - LLM not replace | LLM ne remplace jamais |
+
+**Règles de fermeture testées (F1-F3) :**
+
+| Test | Description |
+|------|-------------|
+| closeTab | Ferme un onglet temporaire |
+| Not close pinned | Dashboard jamais fermé |
+| Not close dirty | Onglet modifié jamais fermé |
+| F2 - Max 5 cleanup | Nettoie si > 5 temporaires |
+| F2 - Not close active | Ne ferme pas l'onglet actif |
+| F3 - closeAllTemporary | Ferme tous les temporaires |
+| F3 - Keep pinned | Garde les onglets figés |
+| F3 - Keep dirty | Garde les onglets modifiés |
+
+**Tests de compatibilité :**
+
+| Test | Description |
+|------|-------------|
+| getTemporaryTabsCount | Compte correct des temporaires |
+| lastAccessedAt | Mise à jour du timestamp |
+| makeTabPermanent legacy | API legacy fonctionne |
+| boolean param legacy | Paramètre boolean accepté |
+
+**Fichier source**: `lib/stores/tabs-store.ts`
+
+```typescript
+// Types clés
+interface Tab {
+  id: string;
+  type: TabType;
+  isTemporary: boolean;  // Onglet temporaire vs figé
+  isDirty?: boolean;     // Contenu non sauvegardé
+  pinned?: boolean;      // Jamais fermable (Dashboard)
+  openedBy?: TabOpenedBy; // 'sidebar' | 'user' | 'llm'
+  lastAccessedAt?: number;
+}
+
+// Actions principales
+openTab(config, { source, pinned, forceNew })
+pinTab(tabId)         // Double-clic fige l'onglet
+closeTab(tabId)       // Ferme (sauf pinned/dirty)
+closeAllTemporaryTabs() // Ferme tous les temporaires
+cleanupTemporaryTabs()  // Maintient max 5 temporaires
+```
+
+---
+
 ## Statistiques
 
 | Catégorie | Fichiers | Tests |
 |-----------|----------|-------|
-| Unitaires (lib) | 1 | 17 |
+| Unitaires (lib) | 2 | 38 |
 | Comportement | 10 | ~60 |
 | Routes | 7 | ~25 |
 | Sécurité | 2 | ~11 |
 | Schémas | 1 | 2 |
 | E2E | 1 | 8 |
 | Outils | 1 | ~180 |
-| **Total** | **23** | **~305** |
+| **Total** | **24** | **~326** |
 
 ---
 
