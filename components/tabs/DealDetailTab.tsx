@@ -8,10 +8,10 @@ import { BadgeSelector } from '@/components/ui/BadgeSelector';
 import { TagColorPicker } from '@/components/ui/TagColorPicker';
 import { StructureTemplateModal } from '@/components/modals/StructureTemplateModal';
 import { CreateBriefModal } from '@/components/modals/CreateBriefModal';
-import { CreateTaskModal } from '@/components/modals/CreateTaskModal';
 import { DealContactsEditor } from '@/components/deals/DealContactsEditor';
 import { DealPOUploader } from '@/components/deals/DealPOUploader';
 import { AdminChecklist, type ChecklistItem } from '@/components/ui/AdminChecklist';
+import { EntityTasksSection } from '@/components/tasks/EntityTasksSection';
 import { useTabsStore } from '@/lib/stores/tabs-store';
 import { getCurrencySymbol } from '@/lib/utils/currency';
 import { getTagColorClass, type TagColor } from '@/lib/constants/badges-tags';
@@ -50,7 +50,6 @@ export function DealDetailTab({ dealId }: DealDetailTabProps) {
   const [tagColor, setTagColor] = useState<TagColor>('gray');
   const [showProposalModal, setShowProposalModal] = useState(false);
   const [showBriefModal, setShowBriefModal] = useState(false);
-  const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
 
   // Briefs linked to this deal
   const [briefs, setBriefs] = useState<BriefListItem[]>([]);
@@ -426,16 +425,6 @@ export function DealDetailTab({ dealId }: DealDetailTabProps) {
           </Badge>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={() => setShowCreateTaskModal(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-            title="Creer un todo"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-            </svg>
-            Todo
-          </button>
           <Button variant="outline" onClick={handleBack}>
             Retour
           </Button>
@@ -814,6 +803,17 @@ export function DealDetailTab({ dealId }: DealDetailTabProps) {
           </div>
         </Card>
 
+        {/* Taches */}
+        <Card className="lg:col-span-2">
+          <div className="p-6">
+            <EntityTasksSection
+              entityType="deal"
+              entityId={dealId}
+              entityName={deal.title}
+            />
+          </div>
+        </Card>
+
         {/* Badges */}
         <Card>
           <div className="p-6">
@@ -861,15 +861,6 @@ export function DealDetailTab({ dealId }: DealDetailTabProps) {
         dealId={dealId}
         dealTitle={deal.title}
         onCreated={handleBriefCreated}
-      />
-
-      {/* Modal creation todo */}
-      <CreateTaskModal
-        isOpen={showCreateTaskModal}
-        onClose={() => setShowCreateTaskModal(false)}
-        entityType="deal"
-        entityId={dealId}
-        entityName={deal.title}
       />
     </div>
   );

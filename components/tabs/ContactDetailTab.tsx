@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useTabsStore } from '@/lib/stores/tabs-store';
 import { Badge, Button, Card } from '@/components/ui';
-import { CreateTaskModal } from '@/components/modals/CreateTaskModal';
+import { EntityTasksSection } from '@/components/tasks/EntityTasksSection';
 import type { Contact } from '@/lib/types/contacts';
 
 function formatContactName(contact: Contact): string {
@@ -94,7 +94,6 @@ export function ContactDetailTab({ contactId }: ContactDetailTabProps) {
   const [activeTab, setActiveTab] = useState<TabId>('infos');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
 
   useEffect(() => {
     fetchContact();
@@ -324,16 +323,6 @@ export function ContactDetailTab({ contactId }: ContactDetailTabProps) {
               )}
             </div>
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowCreateTaskModal(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                title="Créer un todo"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                </svg>
-                Todo
-              </button>
               <Button onClick={handleEdit}>Modifier</Button>
             </div>
           </div>
@@ -533,6 +522,19 @@ export function ContactDetailTab({ contactId }: ContactDetailTabProps) {
           </div>
         )}
 
+        {/* Section Taches */}
+        {contact && (
+          <Card className="mt-6">
+            <div className="p-6">
+              <EntityTasksSection
+                entityType="contact"
+                entityId={contact.id}
+                entityName={formatContactName(contact)}
+              />
+            </div>
+          </Card>
+        )}
+
         {/* Modal de confirmation de suppression */}
         {showDeleteConfirm && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -554,17 +556,6 @@ export function ContactDetailTab({ contactId }: ContactDetailTabProps) {
           </div>
         )}
       </div>
-
-      {/* Modal creation todo */}
-      {contact && (
-        <CreateTaskModal
-          isOpen={showCreateTaskModal}
-          onClose={() => setShowCreateTaskModal(false)}
-          entityType="contact"
-          entityId={contact.id}
-          entityName={formatContactName(contact)}
-        />
-      )}
     </div>
   );
 }

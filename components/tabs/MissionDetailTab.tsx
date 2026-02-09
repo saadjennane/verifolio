@@ -8,8 +8,8 @@ import { Card } from '@/components/ui/Card';
 import { BadgeSelector } from '@/components/ui/BadgeSelector';
 import { TagColorPicker } from '@/components/ui/TagColorPicker';
 import { MissionContactsEditor } from '@/components/missions/MissionContactsEditor';
-import { CreateTaskModal } from '@/components/modals/CreateTaskModal';
 import { AdminChecklist, type ChecklistItem } from '@/components/ui/AdminChecklist';
+import { EntityTasksSection } from '@/components/tasks/EntityTasksSection';
 import { useTabsStore } from '@/lib/stores/tabs-store';
 import { getCurrencySymbol } from '@/lib/utils/currency';
 import { getTagColorClass, type TagColor } from '@/lib/constants/badges-tags';
@@ -87,7 +87,6 @@ export function MissionDetailTab({ missionId }: MissionDetailTabProps) {
   // Pièces jointes (PO du deal)
   const [dealPO, setDealPO] = useState<EntityDocument | null>(null);
   const [loadingPO, setLoadingPO] = useState(false);
-  const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
 
   useEffect(() => {
     loadMission();
@@ -410,16 +409,6 @@ export function MissionDetailTab({ missionId }: MissionDetailTabProps) {
           </div>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={() => setShowCreateTaskModal(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-            title="Creer un todo"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-            </svg>
-            Todo
-          </button>
           <Button variant="outline" onClick={handleBack}>
             Retour
           </Button>
@@ -1016,16 +1005,18 @@ export function MissionDetailTab({ missionId }: MissionDetailTabProps) {
             />
           </div>
         </Card>
-      </div>
 
-      {/* Modal creation todo */}
-      <CreateTaskModal
-        isOpen={showCreateTaskModal}
-        onClose={() => setShowCreateTaskModal(false)}
-        entityType="mission"
-        entityId={missionId}
-        entityName={mission.title}
-      />
+        {/* Taches */}
+        <Card className="lg:col-span-2">
+          <div className="p-6">
+            <EntityTasksSection
+              entityType="mission"
+              entityId={missionId}
+              entityName={mission.title}
+            />
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }

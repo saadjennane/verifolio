@@ -432,6 +432,57 @@ cleanupTemporaryTabs()  // Maintient max 5 temporaires
 
 ---
 
+### Tests de la Section Taches Liees
+
+#### components/tasks/EntityTasksSection.tsx
+
+Composant affichant les taches liees a une entite avec vues liste et kanban.
+
+**Tests manuels recommandes :**
+
+| Test | Description | Verification |
+|------|-------------|--------------|
+| Affichage liste | Ouvrir fiche Deal/Mission/Contact/Client | Section "Taches" visible |
+| Toggle vue | Cliquer icone Liste/Kanban | Vue change correctement |
+| Creer tache | Cliquer "+ Tache", remplir, sauvegarder | Tache apparait dans la liste |
+| Marquer fait | Cocher une tache | Passe en "Terminees" (kanban) ou barre (liste) |
+| Mettre en attente | Cliquer "Attendre" sur tache ouverte | Modal raison, tache passe en "En attente" |
+| Supprimer tache | Cliquer X sur une tache | Confirmation, tache supprimee |
+| Appliquer template | Cliquer "Template", choisir, appliquer | Taches du template ajoutees |
+| Barre progression | Avoir des taches terminees | Pourcentage affiche correctement |
+| Indicateur retard | Tache avec date passee | Badge "EN RETARD" rouge |
+
+**Integration dans les pages :**
+
+| Page | Composant | entityType |
+|------|-----------|------------|
+| Fiche Deal | `DealDetailTab.tsx` | `deal` |
+| Fiche Mission | `MissionDetailTab.tsx` | `mission` |
+| Fiche Contact | `ContactDetailTab.tsx` | `contact` |
+| Fiche Client | `ClientDetailTab.tsx` | `client` |
+
+**Fichier source**: `components/tasks/EntityTasksSection.tsx`
+
+```typescript
+// Props
+interface EntityTasksSectionProps {
+  entityType: TaskEntityType;  // 'deal' | 'mission' | 'client' | 'contact' | 'invoice'
+  entityId: string;
+  entityName?: string;
+  className?: string;
+}
+
+// Vues disponibles
+type ViewMode = 'list' | 'kanban';
+
+// Colonnes Kanban
+- A faire (open) - bleu
+- En attente (en_attente) - jaune
+- Terminees (done) - vert
+```
+
+---
+
 ## Statistiques
 
 | Catégorie | Fichiers | Tests |
