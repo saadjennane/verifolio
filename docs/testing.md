@@ -219,6 +219,25 @@ hasResponsesToSummarize(brief: BriefWithDetails): boolean
 | Deals urgents | Détecte les deals à relancer |
 | Demandes review | Suggère des demandes de review |
 
+#### daily-report.test.ts (6 tests)
+
+| Test | Entrée | Attendu |
+|------|--------|---------|
+| Déclencheur principal | "Mon rapport du jour" | Appel `get_financial_summary` + `list_invoices` |
+| Variante informelle | "Quoi de beau aujourd'hui ?" | Même comportement |
+| Variante courte | "Rapport" | Même comportement |
+| Format de sortie | - | Structure avec CA, Facturation, Top 3 actions |
+| Outils READ_ONLY | - | Uniquement `get_financial_summary`, `list_invoices`, `list_deals` |
+| Longueur réponse | - | Entre 120 et 220 mots |
+
+**Déclencheurs reconnus** :
+- "Mon rapport du jour"
+- "Quoi de beau aujourd'hui ?"
+- "Qu'est-ce que j'ai à faire ?"
+- "Rapport"
+- "Ma journée"
+- "État de mon activité"
+
 ---
 
 ### Tests de Route
