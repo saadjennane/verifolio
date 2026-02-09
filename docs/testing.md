@@ -483,6 +483,98 @@ type ViewMode = 'list' | 'kanban';
 
 ---
 
+### Tests des Templates de Taches
+
+#### Fonctionnalite Task Templates
+
+Systeme de templates permettant de creer des groupes de taches predefinies avec des delais relatifs (day_offset) par rapport a une date de reference.
+
+**Page de gestion**: `/settings/task-templates`
+
+**Tests manuels recommandes - Interface :**
+
+| Test | Description | Verification |
+|------|-------------|--------------|
+| Acces page | Aller dans Parametres > Templates de taches | Page affichee avec liste des templates |
+| Creer template | Cliquer "Nouveau template", remplir nom | Template cree, apparait dans la liste |
+| Modifier template | Cliquer sur un template, modifier le nom | Nom mis a jour |
+| Supprimer template | Cliquer X sur template, confirmer | Template supprime de la liste |
+| Ajouter item | Dans un template, cliquer "Ajouter tache" | Nouvelle ligne apparait |
+| Modifier item | Changer titre, day_offset, owner_scope | Item mis a jour |
+| Supprimer item | Cliquer X sur un item | Item supprime |
+| Day offset negatif | Creer item avec offset -7 | Accepte, affiche "J-7" |
+| Day offset positif | Creer item avec offset +14 | Accepte, affiche "J+14" |
+| Owner scope | Changer entre Moi/Client/Fournisseur | Valeur sauvegardee |
+
+**Tests manuels recommandes - Application :**
+
+| Test | Description | Verification |
+|------|-------------|--------------|
+| Bouton template | Sur fiche Deal/Mission/Client, cliquer "Template" | Modal de selection apparait |
+| Selectionner template | Choisir un template dans la liste | Template selectionne |
+| Date reference | Choisir une date de reference | Date selectionnee |
+| Appliquer | Cliquer "Appliquer" | Taches creees avec dates calculees |
+| Calcul dates | Template avec J+7, date ref = 1er janvier | Tache due le 8 janvier |
+| Owner scope preserve | Template avec owner_scope=client | Tache creee avec owner_scope=client |
+
+**Tests API :**
+
+| Endpoint | Methode | Test | Verification |
+|----------|---------|------|--------------|
+| `/api/task-templates` | GET | Lister templates | Retourne array de templates avec items |
+| `/api/task-templates` | POST | Creer template | Template cree, retourne id |
+| `/api/task-templates/[id]` | GET | Detail template | Retourne template avec items |
+| `/api/task-templates/[id]` | PUT | Modifier template | Template mis a jour |
+| `/api/task-templates/[id]` | DELETE | Supprimer template | Template supprime (soft delete) |
+| `/api/task-templates/[id]/apply` | POST | Appliquer template | Taches creees pour l'entite |
+
+**Tests outils LLM :**
+
+| Outil | Test | Verification |
+|-------|------|--------------|
+| `create_task_template` | Creer template via chat | Template cree avec items |
+| `get_task_templates` | Lister templates via chat | Liste retournee |
+| `apply_task_template` | Appliquer template via chat | Taches creees |
+
+**Structure de donnees :**
+
+```typescript
+// Template
+interface TaskTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  entity_type: 'deal' | 'mission' | 'client';
+  items: TaskTemplateItem[];
+}
+
+// Item de template
+interface TaskTemplateItem {
+  id: string;
+  template_id: string;
+  title: string;
+  day_offset: number;        // Negatif = avant, positif = apres
+  owner_scope: 'me' | 'client' | 'supplier';
+  position: number;
+}
+
+// Application
+// POST /api/task-templates/[id]/apply
+{
+  entity_type: 'deal',
+  entity_id: 'uuid',
+  reference_date: '2024-01-15'
+}
+```
+
+**Fichiers sources**:
+- Page: `app/(dashboard)/settings/task-templates/page.tsx`
+- API: `app/api/task-templates/route.ts`, `app/api/task-templates/[id]/route.ts`
+- Types: `lib/tasks/types.ts`, `lib/tasks/templates.ts`
+- Outils LLM: `lib/llm/tools/task-template-tools.ts`
+
+---
+
 ## Statistiques
 
 | Catégorie | Fichiers | Tests |
