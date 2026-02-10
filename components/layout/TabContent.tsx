@@ -205,10 +205,18 @@ function EmptyState() {
 }
 
 export function TabContent() {
-  const { tabs, activeTabId } = useTabsStore();
+  const { tabs, activeTabId, setActiveTab } = useTabsStore();
   const activeTab = tabs.find((t) => t.id === activeTabId);
 
+  // Si pas d'onglet actif, activer le Dashboard automatiquement
   if (!activeTab) {
+    const dashboardTab = tabs.find((t) => t.id === 'dashboard');
+    if (dashboardTab) {
+      // Activer le dashboard au prochain tick pour éviter les updates pendant le rendu
+      setTimeout(() => setActiveTab('dashboard'), 0);
+      return <DashboardTab />;
+    }
+    // Fallback: si même le dashboard n'existe pas (ne devrait jamais arriver)
     return <EmptyState />;
   }
 

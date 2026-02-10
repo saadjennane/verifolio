@@ -509,11 +509,16 @@ export const useTabsStore = create<TabsState>()(
           t.id === 'dashboard' ? { ...t, pinned: true, isTemporary: false } : t
         );
 
+        // S'assurer que activeTabId pointe vers un onglet existant
+        const requestedActiveId = persisted.activeTabId || 'dashboard';
+        const activeTabExists = tabs.some((t) => t.id === requestedActiveId);
+        const validActiveTabId = activeTabExists ? requestedActiveId : 'dashboard';
+
         return {
           ...currentState,
           ...persisted,
           tabs,
-          activeTabId: persisted.activeTabId || 'dashboard',
+          activeTabId: validActiveTabId,
         };
       },
     }
