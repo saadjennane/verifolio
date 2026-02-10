@@ -56,7 +56,7 @@ SELECT
   p.mission_id,
   m.title AS mission_title,
   p.deal_id,
-  d.name AS deal_name,
+  d.title AS deal_name,
   p.amount,
   p.payment_date,
   p.payment_method,
