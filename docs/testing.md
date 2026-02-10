@@ -656,6 +656,124 @@ vi.mock('@/lib/supabase/server', () => ({
 
 ---
 
+### Tests du Module Documents (Clients & Fournisseurs)
+
+#### Documents Hub Refonte
+
+Le module Documents est divisé en deux familles : **Documents Clients** (sortants) et **Documents Fournisseurs** (entrants/sortants).
+
+**Page de test**: `/documents`
+
+**Tests manuels recommandés - Navigation :**
+
+| Test | Description | Vérification |
+|------|-------------|--------------|
+| Onglets principaux | Cliquer sur "Clients" puis "Fournisseurs" | Les sous-onglets changent selon la famille |
+| Clients - Propositions | Aller dans Clients > Propositions | Liste des propositions affichée |
+| Clients - Briefs | Aller dans Clients > Briefs | Liste des briefs affichée |
+| Clients - Devis | Aller dans Clients > Devis | Liste des devis affichée |
+| Clients - Factures | Aller dans Clients > Factures | Liste des factures affichée |
+| Clients - Bons de livraison | Aller dans Clients > BL | Liste des BL client affichée |
+| Fournisseurs - Factures | Aller dans Fournisseurs > Factures | Liste factures fournisseurs |
+| Fournisseurs - Devis | Aller dans Fournisseurs > Devis | Liste devis fournisseurs |
+| Fournisseurs - BL | Aller dans Fournisseurs > BL | Liste BL fournisseurs |
+| Fournisseurs - Bons de commande | Aller dans Fournisseurs > BC | Liste bons de commande |
+
+**Tests manuels recommandés - Création :**
+
+| Test | Description | Vérification |
+|------|-------------|--------------|
+| Créer BL client | Clients > BL > "+ Nouveau", sélectionner mission | Bon de livraison créé avec numéro auto |
+| Créer BC fournisseur | Fournisseurs > BC > "+ Nouveau", sélectionner fournisseur | Bon de commande créé avec numéro auto |
+| Créer BL fournisseur | Fournisseurs > BL > "+ Nouveau", sélectionner fournisseur | BL fournisseur créé |
+| Modal sélection fournisseur | Créer document fournisseur | Modal affiche liste des fournisseurs |
+
+**Tests manuels recommandés - Bulk Actions :**
+
+| Test | Description | Vérification |
+|------|-------------|--------------|
+| Mode sélection | Cliquer "Modifier" | Checkboxes apparaissent |
+| Sélection multiple | Cocher plusieurs documents | Compteur affiché dans la barre |
+| Tout sélectionner | Cliquer "Tout sélectionner" | Tous les documents cochés |
+| Suppression groupée | Sélectionner + "Supprimer" | Confirmation, documents supprimés |
+
+**Tests API :**
+
+| Endpoint | Méthode | Test | Vérification |
+|----------|---------|------|--------------|
+| `/api/delivery-notes` | GET | Lister BL clients | Retourne array de BL |
+| `/api/delivery-notes` | POST | Créer BL client | BL créé avec numéro généré |
+| `/api/delivery-notes/[id]` | GET | Détail BL | Retourne BL avec relations |
+| `/api/delivery-notes/[id]` | PATCH | Modifier BL | BL mis à jour |
+| `/api/delivery-notes/[id]` | DELETE | Supprimer BL | Soft delete appliqué |
+| `/api/purchase-orders` | GET | Lister BC | Retourne array de BC |
+| `/api/purchase-orders` | POST | Créer BC | BC créé avec numéro généré |
+| `/api/purchase-orders/[id]` | GET | Détail BC | Retourne BC avec relations |
+| `/api/purchase-orders/[id]` | PATCH | Modifier BC | BC mis à jour |
+| `/api/purchase-orders/[id]` | DELETE | Supprimer BC | Soft delete appliqué |
+| `/api/suppliers/delivery-notes` | GET | Lister BL fournisseurs | Retourne array de BL |
+| `/api/suppliers/delivery-notes` | POST | Créer BL fournisseur | BL créé |
+| `/api/suppliers/delivery-notes/[id]` | GET | Détail BL fournisseur | Retourne BL avec relations |
+| `/api/suppliers/delivery-notes/[id]` | PATCH | Modifier BL fournisseur | BL mis à jour |
+| `/api/suppliers/delivery-notes/[id]` | DELETE | Supprimer BL fournisseur | Soft delete appliqué |
+
+**Statuts par type de document :**
+
+| Type | Statuts disponibles |
+|------|---------------------|
+| BL Client | brouillon, envoyé, signé |
+| Bon de Commande | brouillon, envoyé, confirmé, livré, annulé |
+| BL Fournisseur | reçu, vérifié, litige |
+
+**Structure de données :**
+
+```typescript
+// Bon de livraison client
+interface DeliveryNote {
+  id: string;
+  numero: string;           // Auto-généré (BL-2024-001)
+  mission_id: string;
+  client_id: string;
+  date_emission: string;
+  status: 'brouillon' | 'envoye' | 'signe';
+  line_items: DeliveryNoteLineItem[];
+}
+
+// Bon de commande fournisseur
+interface PurchaseOrder {
+  id: string;
+  numero: string;           // Auto-généré (BC-2024-001)
+  supplier_id: string;
+  supplier_quote_id?: string;
+  date_emission: string;
+  date_livraison_prevue?: string;
+  total_ht: number;
+  total_ttc: number;
+  status: 'brouillon' | 'envoye' | 'confirme' | 'livre' | 'annule';
+  line_items: PurchaseOrderLineItem[];
+}
+
+// BL fournisseur (reçu)
+interface SupplierDeliveryNote {
+  id: string;
+  supplier_id: string;
+  purchase_order_id?: string;
+  reference?: string;
+  date_reception: string;
+  status: 'recu' | 'verifie' | 'litige';
+  document_url?: string;
+}
+```
+
+**Fichiers sources**:
+- UI: `components/tabs/DocumentsListTab.tsx`
+- Modal: `components/documents/EntitySelectionModal.tsx`
+- Types: `lib/delivery-notes/types.ts`, `lib/purchase-orders/types.ts`, `lib/suppliers/types.ts`
+- API: `app/api/delivery-notes/`, `app/api/purchase-orders/`, `app/api/suppliers/delivery-notes/`
+- DB: `supabase/migrations/087_supplier_documents.sql`
+
+---
+
 ## Ajout de Nouveaux Tests
 
 1. Créer le fichier dans le bon dossier (`tests/lib/` ou `tests/llm/`)

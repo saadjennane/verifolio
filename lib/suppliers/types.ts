@@ -206,3 +206,66 @@ export interface ListSupplierInvoicesFilter {
   supplier_id?: string;
   status?: SupplierInvoiceStatus;
 }
+
+// Supplier Delivery Note Types (received from suppliers)
+export interface SupplierDeliveryNote {
+  id: string;
+  user_id: string;
+  supplier_id: string;
+  supplier_quote_id: string | null;
+  purchase_order_id: string | null;
+  reference: string | null;
+  date_reception: string;
+  notes: string | null;
+  document_url: string | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+export interface SupplierDeliveryNoteListItem extends SupplierDeliveryNote {
+  supplier: {
+    id: string;
+    nom: string;
+  } | null;
+}
+
+export interface SupplierDeliveryNoteWithRelations extends SupplierDeliveryNote {
+  supplier: {
+    id: string;
+    nom: string;
+    email: string | null;
+  } | null;
+  supplier_quote: {
+    id: string;
+    reference: string | null;
+  } | null;
+  purchase_order: {
+    id: string;
+    numero: string;
+  } | null;
+}
+
+export interface CreateSupplierDeliveryNotePayload {
+  supplier_id: string;
+  supplier_quote_id?: string;
+  purchase_order_id?: string;
+  reference?: string;
+  date_reception?: string;
+  notes?: string;
+  document_url?: string;
+}
+
+export interface UpdateSupplierDeliveryNotePayload {
+  supplier_id?: string;
+  supplier_quote_id?: string | null;
+  purchase_order_id?: string | null;
+  reference?: string;
+  date_reception?: string;
+  notes?: string;
+  document_url?: string;
+}
+
+export interface ListSupplierDeliveryNotesFilter {
+  supplier_id?: string;
+}

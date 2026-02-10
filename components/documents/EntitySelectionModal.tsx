@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { X, Search, Briefcase, FolderKanban } from 'lucide-react';
+import { X, Search, Briefcase, FolderKanban, Truck } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
-type EntityType = 'mission' | 'deal';
+type EntityType = 'mission' | 'deal' | 'supplier';
 
 interface Mission {
   id: string;
@@ -18,6 +18,12 @@ interface Deal {
   titre: string;
   statut: string;
   client: { nom: string } | null;
+}
+
+interface Supplier {
+  id: string;
+  nom: string;
+  email: string | null;
 }
 
 interface EntitySelectionModalProps {
@@ -55,11 +61,18 @@ export function EntitySelectionModal({
   const [loading, setLoading] = useState(true);
   const [missions, setMissions] = useState<Mission[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
 
-  const title = entityType === 'mission' ? 'Sélectionner une mission' : 'Sélectionner un deal';
+  const title = entityType === 'mission'
+    ? 'Sélectionner une mission'
+    : entityType === 'deal'
+    ? 'Sélectionner un deal'
+    : 'Sélectionner un fournisseur';
   const emptyMessage = entityType === 'mission'
     ? 'Aucune mission disponible. Créez d\'abord une mission.'
-    : 'Aucun deal disponible. Créez d\'abord un deal.';
+    : entityType === 'deal'
+    ? 'Aucun deal disponible. Créez d\'abord un deal.'
+    : 'Aucun fournisseur disponible. Créez d\'abord un fournisseur.';
 
   useEffect(() => {
     if (!isOpen) return;
@@ -87,7 +100,7 @@ export function EntitySelectionModal({
           client: m.client as unknown as { nom: string } | null,
         }));
         setMissions(transformed);
-      } else {
+      } else if (entityType === 'deal') {
         // Load deals that can have quotes (not lost)
         const { data, error } = await supabase
           .from('deals')
@@ -108,6 +121,20 @@ export function EntitySelectionModal({
           client: d.client as unknown as { nom: string } | null,
         }));
         setDeals(transformed);
+      } else {
+        // Load suppliers (clients with is_supplier = true)
+        const { data, error } = await supabase
+          .from('clients')
+          .select('id, nom, email')
+          .eq('is_supplier', true)
+          .is('deleted_at', null)
+          .order('nom', { ascending: true });
+
+        if (error) {
+          console.error('Error loading suppliers:', error);
+        }
+
+        setSuppliers(data || []);
       }
 
       setLoading(false);
@@ -131,20 +158,27 @@ export function EntitySelectionModal({
         m.title.toLowerCase().includes(searchLower) ||
         m.client?.nom.toLowerCase().includes(searchLower)
       );
-    } else {
+    } else if (entityType === 'deal') {
       return deals.filter(d =>
         d.titre.toLowerCase().includes(searchLower) ||
         d.client?.nom.toLowerCase().includes(searchLower)
       );
+    } else {
+      return suppliers.filter(s =>
+        s.nom.toLowerCase().includes(searchLower) ||
+        (s.email && s.email.toLowerCase().includes(searchLower))
+      );
     }
-  }, [entityType, missions, deals, search]);
+  }, [entityType, missions, deals, suppliers, search]);
 
   if (!isOpen) return null;
 
-  const handleSelect = (entity: Mission | Deal) => {
+  const handleSelect = (entity: Mission | Deal | Supplier) => {
     const entityTitle = entityType === 'mission'
       ? (entity as Mission).title
-      : (entity as Deal).titre;
+      : entityType === 'deal'
+      ? (entity as Deal).titre
+      : (entity as Supplier).nom;
     onSelect(entity.id, entityTitle);
     onClose();
   };
@@ -157,8 +191,10 @@ export function EntitySelectionModal({
           <div className="flex items-center gap-3">
             {entityType === 'mission' ? (
               <Briefcase className="h-5 w-5 text-blue-600" />
-            ) : (
+            ) : entityType === 'deal' ? (
               <FolderKanban className="h-5 w-5 text-blue-600" />
+            ) : (
+              <Truck className="h-5 w-5 text-blue-600" />
             )}
             <h2 className="text-lg font-medium text-gray-900">{title}</h2>
           </div>
@@ -217,7 +253,8 @@ export function EntitySelectionModal({
                       </div>
                     </button>
                   ))
-                : (filteredEntities as Deal[]).map((deal) => (
+                : entityType === 'deal'
+                ? (filteredEntities as Deal[]).map((deal) => (
                     <button
                       key={deal.id}
                       onClick={() => handleSelect(deal)}
@@ -235,6 +272,20 @@ export function EntitySelectionModal({
                         </span>
                       </div>
                     </button>
+                  ))
+                : (filteredEntities as Supplier[]).map((supplier) => (
+                    <button
+                      key={supplier.id}
+                      onClick={() => handleSelect(supplier)}
+                      className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-b-0"
+                    >
+                      <div>
+                        <p className="font-medium text-gray-900">{supplier.nom}</p>
+                        {supplier.email && (
+                          <p className="text-sm text-gray-500">{supplier.email}</p>
+                        )}
+                      </div>
+                    </button>
                   ))}
             </div>
           )}
@@ -245,7 +296,9 @@ export function EntitySelectionModal({
           <p className="text-xs text-gray-500 text-center">
             {entityType === 'mission'
               ? 'Une facture doit être liée à une mission'
-              : 'Un devis doit être lié à un deal'}
+              : entityType === 'deal'
+              ? 'Un devis doit être lié à un deal'
+              : 'Un document fournisseur doit être lié à un fournisseur'}
           </p>
         </div>
       </div>

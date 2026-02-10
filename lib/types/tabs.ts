@@ -35,6 +35,10 @@ export type TabType =
   | 'new-invoice'
   | 'new-invoice-for-mission'
   | 'edit-invoice'
+  | 'delivery-notes'
+  | 'delivery-note'
+  | 'new-delivery-note'
+  | 'new-delivery-note-for-mission'
   | 'proposals'
   | 'proposal'
   | 'new-proposal'
@@ -66,6 +70,12 @@ export type TabType =
   | 'supplier-invoices'
   | 'supplier-invoice'
   | 'new-supplier-invoice'
+  | 'supplier-delivery-notes'
+  | 'supplier-delivery-note'
+  | 'new-supplier-delivery-note'
+  | 'purchase-orders'
+  | 'purchase-order'
+  | 'new-purchase-order'
   | 'expenses'
   | 'expense'
   | 'new-expense';
@@ -189,6 +199,19 @@ export const TAB_ICONS: Record<TabType, string> = {
   expenses: 'credit-card',
   expense: 'credit-card',
   'new-expense': 'plus',
+  // Client Delivery Notes
+  'delivery-notes': 'package',
+  'delivery-note': 'package',
+  'new-delivery-note': 'package-plus',
+  'new-delivery-note-for-mission': 'package-plus',
+  // Supplier Delivery Notes
+  'supplier-delivery-notes': 'package-check',
+  'supplier-delivery-note': 'package-check',
+  'new-supplier-delivery-note': 'package-plus',
+  // Purchase Orders
+  'purchase-orders': 'shopping-cart',
+  'purchase-order': 'shopping-cart',
+  'new-purchase-order': 'plus',
 };
 
 export function pathToTabConfig(pathname: string): TabConfig | null {
