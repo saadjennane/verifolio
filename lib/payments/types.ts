@@ -10,7 +10,13 @@ export type PaymentMethod =
   | 'prelevement'
   | 'autre';
 
-export type PaymentType = 'payment' | 'advance' | 'refund';
+export type PaymentType =
+  | 'payment'           // Paiement client sur facture (IN)
+  | 'advance'           // Avance client (IN)
+  | 'refund'            // Remboursement client (OUT)
+  | 'supplier_payment'  // Paiement fournisseur (OUT)
+  | 'supplier_advance'  // Avance fournisseur (OUT)
+  | 'supplier_refund';  // Remboursement fournisseur (IN)
 
 export type InvoicePaymentStatus = 'non_paye' | 'partiel' | 'paye';
 
@@ -24,6 +30,8 @@ export interface Payment {
   client_id: string | null;
   invoice_id: string | null;
   mission_id: string | null;
+  supplier_id: string | null;
+  supplier_invoice_id: string | null;
   amount: number;
   payment_date: string;
   payment_method: PaymentMethod;
@@ -58,6 +66,8 @@ export interface PaymentCreate {
   client_id?: string;
   invoice_id?: string;
   mission_id?: string;
+  supplier_id?: string;
+  supplier_invoice_id?: string;
   amount: number;
   payment_date?: string;
   payment_method?: PaymentMethod;
@@ -140,9 +150,12 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
 };
 
 export const PAYMENT_TYPE_LABELS: Record<PaymentType, string> = {
-  payment: 'Paiement',
-  advance: 'Avance',
-  refund: 'Remboursement',
+  payment: 'Paiement client',
+  advance: 'Avance client',
+  refund: 'Remboursement client',
+  supplier_payment: 'Paiement fournisseur',
+  supplier_advance: 'Avance fournisseur',
+  supplier_refund: 'Remboursement fournisseur',
 };
 
 export const PAYMENT_STATUS_LABELS: Record<InvoicePaymentStatus, string> = {

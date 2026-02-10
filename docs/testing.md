@@ -774,6 +774,141 @@ interface SupplierDeliveryNote {
 
 ---
 
+### Tests du Module Tresorerie
+
+#### Vue Tresorerie (Cash View)
+
+Module cross-entite permettant de visualiser et gerer les encaissements (IN) et decaissements (OUT) avec KPIs et actions rapides.
+
+**Page de test**: `/treasury` (via sidebar)
+
+**Tests manuels recommandes - Navigation :**
+
+| Test | Description | Verification |
+|------|-------------|--------------|
+| Acces sidebar | Cliquer sur "Tresorerie" dans la sidebar | Onglet Tresorerie s'ouvre |
+| KPIs affiches | Page chargee | 9 cartes KPI visibles (meme si 0) |
+| Periode preset | Cliquer sur "Ce mois" / "Cette semaine" | KPIs et mouvements se mettent a jour |
+| Filtres avances | Ouvrir filtres, changer direction/type | Liste filtree correctement |
+
+**Tests manuels recommandes - Encaissements :**
+
+| Test | Description | Verification |
+|------|-------------|--------------|
+| Ouvrir modal | Cliquer "Encaisser" (bouton vert) | Modal s'ouvre avec liste factures clients |
+| Selectionner facture | Choisir une facture dans la liste | Montant restant pre-rempli |
+| Paiement total | Laisser montant = remaining, valider | Mouvement cree, facture passe en "payee" |
+| Paiement partiel | Mettre montant < remaining, valider | Mouvement cree, remaining decremente |
+| Validation montant | Mettre montant > remaining | Erreur affichee, pas de creation |
+
+**Tests manuels recommandes - Decaissements :**
+
+| Test | Description | Verification |
+|------|-------------|--------------|
+| Ouvrir modal | Cliquer "Decaisser" (bouton rouge) | Modal s'ouvre avec liste factures fournisseurs |
+| Selectionner facture | Choisir une facture fournisseur | Montant restant pre-rempli |
+| Paiement fournisseur | Entrer montant, valider | Mouvement OUT cree |
+| Statut auto | Payer totalite d'une facture | Facture passe en "paid" automatiquement |
+
+**Tests manuels recommandes - Table mouvements :**
+
+| Test | Description | Verification |
+|------|-------------|--------------|
+| Liste mouvements | Avoir des paiements | Mouvements affiches groupes par date |
+| Direction IN | Encaissement effectue | Badge vert "Encaissement" |
+| Direction OUT | Decaissement effectue | Badge rouge "Decaissement" |
+| Lien facture | Cliquer sur numero facture | Onglet facture s'ouvre |
+| Lien client/fournisseur | Cliquer sur nom | Onglet client/fournisseur s'ouvre |
+
+**Tests API :**
+
+| Endpoint | Methode | Test | Verification |
+|----------|---------|------|--------------|
+| `/api/treasury/summary` | GET | KPIs periode | Retourne 9 KPIs calcules |
+| `/api/treasury/movements` | GET | Liste mouvements | Retourne mouvements filtres |
+| `/api/treasury/encaissement` | POST | Creer encaissement | Paiement IN cree, statut maj |
+| `/api/treasury/decaissement` | POST | Creer decaissement | Paiement OUT cree, statut maj |
+| `/api/treasury/pending?type=client` | GET | Factures a encaisser | Liste factures clients non payees |
+| `/api/treasury/pending?type=supplier` | GET | Factures a payer | Liste factures fournisseurs non payees |
+
+**KPIs calcules :**
+
+| KPI | Description | Formule |
+|-----|-------------|---------|
+| Total encaisse | Somme IN sur periode | SUM(amount) WHERE direction='in' |
+| Total decaisse | Somme OUT sur periode | SUM(amount) WHERE direction='out' |
+| Solde net | Difference | encaisse - decaisse |
+| A encaisser | Factures clients non payees | SUM(remaining) invoices |
+| A payer | Factures fournisseurs non payees | SUM(remaining) supplier_invoices |
+| En retard encaissement | A encaisser avec echeance passee | WHERE date_echeance < TODAY |
+| En retard paiement | A payer avec echeance passee | WHERE date_echeance < TODAY |
+| A venir encaissement | A encaisser echeance future | WHERE date_echeance >= TODAY |
+| A venir paiement | A payer echeance future | WHERE date_echeance >= TODAY |
+
+**Structure de donnees :**
+
+```typescript
+// KPIs
+interface TreasuryKPIs {
+  total_encaisse: number;
+  total_decaisse: number;
+  solde_net: number;
+  a_encaisser: number;
+  a_payer: number;
+  en_retard_encaissement: number;
+  en_retard_paiement: number;
+  a_venir_encaissement: number;
+  a_venir_paiement: number;
+}
+
+// Mouvement unifie
+interface TreasuryMovement {
+  id: string;
+  direction: 'in' | 'out';
+  movement_type: 'payment' | 'advance' | 'refund' | 'supplier_payment' | 'supplier_advance' | 'supplier_refund';
+  amount: number;
+  payment_method: string;
+  payment_date: string;
+  reference?: string;
+  source_type: 'invoice' | 'supplier_invoice';
+  source_id: string;
+  source_numero: string;
+  entity_id: string;
+  entity_name: string;
+}
+
+// Payload encaissement
+interface CreateEncaissementPayload {
+  invoice_id: string;
+  amount: number;
+  payment_method: string;
+  payment_date: string;
+  reference?: string;
+  notes?: string;
+}
+
+// Payload decaissement
+interface CreateDecaissementPayload {
+  supplier_invoice_id: string;
+  amount: number;
+  payment_method: string;
+  payment_date: string;
+  reference?: string;
+  notes?: string;
+}
+```
+
+**Fichiers sources**:
+- Tab: `components/tabs/TreasuryTab.tsx`
+- UI: `components/treasury/TreasuryKPICards.tsx`, `TreasuryFilters.tsx`, `TreasuryTable.tsx`
+- Modals: `components/treasury/EncaissementModal.tsx`, `DecaissementModal.tsx`
+- Types: `lib/treasury/types.ts`
+- Lib: `lib/treasury/treasury.ts`
+- API: `app/api/treasury/summary/`, `movements/`, `encaissement/`, `decaissement/`, `pending/`
+- DB: `supabase/migrations/088_treasury_module.sql`
+
+---
+
 ## Ajout de Nouveaux Tests
 
 1. Créer le fichier dans le bon dossier (`tests/lib/` ou `tests/llm/`)

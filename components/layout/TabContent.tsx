@@ -152,6 +152,10 @@ const ReviewTemplateFormTab = dynamic(() => import('@/components/tabs/ReviewTemp
   loading: () => <TabLoading />,
 });
 
+const TreasuryTab = dynamic(() => import('@/components/tabs/TreasuryTab').then(m => ({ default: m.TreasuryTab })), {
+  loading: () => <TabLoading />,
+});
+
 function TabLoading() {
   return (
     <div className="flex items-center justify-center h-full">
@@ -358,6 +362,9 @@ export function TabContent() {
 
     case 'edit-review-template':
       return <ReviewTemplateFormTab templateId={activeTab.entityId} />;
+
+    case 'treasury':
+      return <TreasuryTab />;
 
     default:
       return <EmptyState />;

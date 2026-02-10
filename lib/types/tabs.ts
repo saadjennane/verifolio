@@ -78,7 +78,9 @@ export type TabType =
   | 'new-purchase-order'
   | 'expenses'
   | 'expense'
-  | 'new-expense';
+  | 'new-expense'
+  // Treasury
+  | 'treasury';
 
 /**
  * Source de l'ouverture d'un onglet
@@ -212,6 +214,8 @@ export const TAB_ICONS: Record<TabType, string> = {
   'purchase-orders': 'shopping-cart',
   'purchase-order': 'shopping-cart',
   'new-purchase-order': 'plus',
+  // Treasury
+  treasury: 'wallet',
 };
 
 export function pathToTabConfig(pathname: string): TabConfig | null {
@@ -531,6 +535,11 @@ export function pathToTabConfig(pathname: string): TabConfig | null {
       title: 'Dépense',
       entityId: expenseMatch[1],
     };
+  }
+
+  // Treasury
+  if (pathname === '/treasury') {
+    return { type: 'treasury', path: '/treasury', title: 'Trésorerie' };
   }
 
   return null;
