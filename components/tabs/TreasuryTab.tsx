@@ -89,8 +89,8 @@ export function TreasuryTab() {
   useEffect(() => {
     fetch('/api/settings/currency')
       .then((res) => res.json())
-      .then((data) => {
-        if (data.currency) setCurrency(data.currency);
+      .then((response) => {
+        if (response.data?.currency) setCurrency(response.data.currency);
       })
       .catch(console.error);
   }, []);
