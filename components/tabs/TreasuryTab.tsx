@@ -31,6 +31,7 @@ export function TreasuryTab() {
   );
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [currency, setCurrency] = useState<string>('EUR');
 
   const [periodPreset, setPeriodPreset] = useState<PeriodPreset>('this_month');
   const [filters, setFilters] = useState<TreasuryFiltersType>(() => {
@@ -83,6 +84,16 @@ export function TreasuryTab() {
       setRefreshing(false);
     }
   }, [filters]);
+
+  // Fetch currency setting
+  useEffect(() => {
+    fetch('/api/settings/currency')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.currency) setCurrency(data.currency);
+      })
+      .catch(console.error);
+  }, []);
 
   // Initial fetch
   useEffect(() => {
@@ -155,7 +166,7 @@ export function TreasuryTab() {
         </div>
 
         {/* KPI Cards */}
-        <TreasuryKPICards kpis={kpis} loading={loading} />
+        <TreasuryKPICards kpis={kpis} currency={currency} loading={loading} />
 
         {/* Filters */}
         <TreasuryFilters
@@ -173,7 +184,7 @@ export function TreasuryTab() {
               {movements.length} mouvement{movements.length > 1 ? 's' : ''}
             </span>
           </div>
-          <TreasuryTable movements={movements} loading={loading} />
+          <TreasuryTable movements={movements} currency={currency} loading={loading} />
         </div>
       </div>
 
@@ -183,6 +194,7 @@ export function TreasuryTab() {
         onClose={() => setShowEncaissementModal(false)}
         onSubmit={handleEncaissement}
         pendingInvoices={pendingClientInvoices}
+        currency={currency}
       />
 
       <DecaissementModal
@@ -190,6 +202,7 @@ export function TreasuryTab() {
         onClose={() => setShowDecaissementModal(false)}
         onSubmit={handleDecaissement}
         pendingInvoices={pendingSupplierInvoices}
+        currency={currency}
       />
     </div>
   );
