@@ -22,6 +22,7 @@ export interface Company {
   siret: string | null;
   footer: string | null;
   logo_url: string | null;
+  default_currency: string | null;
   default_tax_rate: number;
   quote_prefix: string;
   invoice_prefix: string;

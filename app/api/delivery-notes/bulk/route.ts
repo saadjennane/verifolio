@@ -3,8 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { getUserId } from '@/lib/supabase/auth-helper';
 
 /**
- * DELETE /api/quotes/bulk
- * Soft delete multiple quotes
+ * DELETE /api/delivery-notes/bulk
+ * Soft delete multiple delivery notes
  * Body: { ids: string[] }
  */
 export async function DELETE(request: Request) {
@@ -27,7 +27,7 @@ export async function DELETE(request: Request) {
     }
 
     const { data, error } = await supabase
-      .from('quotes')
+      .from('delivery_notes')
       .update({ deleted_at: new Date().toISOString() })
       .eq('user_id', userId)
       .in('id', ids)
@@ -35,7 +35,7 @@ export async function DELETE(request: Request) {
       .select('id');
 
     if (error) {
-      console.error('Bulk delete quotes error:', error);
+      console.error('Bulk delete delivery_notes error:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
@@ -44,7 +44,7 @@ export async function DELETE(request: Request) {
       deleted: data?.length || 0,
     });
   } catch (error) {
-    console.error('DELETE /api/quotes/bulk error:', error);
+    console.error('DELETE /api/delivery-notes/bulk error:', error);
     return NextResponse.json(
       { error: 'Erreur lors de la suppression' },
       { status: 500 }
@@ -53,9 +53,9 @@ export async function DELETE(request: Request) {
 }
 
 /**
- * PATCH /api/quotes/bulk
- * Update status for multiple quotes
- * Body: { ids: string[], updates: { status: 'brouillon' | 'envoye' } }
+ * PATCH /api/delivery-notes/bulk
+ * Update status for multiple delivery notes
+ * Body: { ids: string[], updates: { status: 'brouillon' | 'envoye' | 'signe' } }
  */
 export async function PATCH(request: Request) {
   try {
@@ -83,7 +83,7 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const validStatuses = ['brouillon', 'envoye', 'accepted', 'refused'];
+    const validStatuses = ['brouillon', 'envoye', 'signe'];
     if (!validStatuses.includes(updates.status)) {
       return NextResponse.json(
         { error: `status invalide (${validStatuses.join(', ')})` },
@@ -92,7 +92,7 @@ export async function PATCH(request: Request) {
     }
 
     const { data, error } = await supabase
-      .from('quotes')
+      .from('delivery_notes')
       .update({ status: updates.status })
       .eq('user_id', userId)
       .in('id', ids)
@@ -100,7 +100,7 @@ export async function PATCH(request: Request) {
       .select('id');
 
     if (error) {
-      console.error('Bulk update quotes error:', error);
+      console.error('Bulk update delivery_notes error:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
@@ -109,7 +109,7 @@ export async function PATCH(request: Request) {
       updated: data?.length || 0,
     });
   } catch (error) {
-    console.error('PATCH /api/quotes/bulk error:', error);
+    console.error('PATCH /api/delivery-notes/bulk error:', error);
     return NextResponse.json(
       { error: 'Erreur lors de la mise a jour' },
       { status: 500 }

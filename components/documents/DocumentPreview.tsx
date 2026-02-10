@@ -1,4 +1,5 @@
 import type { QuoteWithClientAndItems, InvoiceWithClientAndItems, Company } from '@/lib/supabase/types';
+import { getCurrencySymbol } from '@/lib/utils/currency';
 
 interface DocumentPreviewProps {
   type: 'quote' | 'invoice';
@@ -10,6 +11,7 @@ export function DocumentPreview({ type, document, company }: DocumentPreviewProp
   const isInvoice = type === 'invoice';
   const title = isInvoice ? 'FACTURE' : 'DEVIS';
   const items = document.items || [];
+  const currencySymbol = getCurrencySymbol(company?.default_currency);
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-8 shadow-sm" style={{ minHeight: '800px' }}>
@@ -65,9 +67,9 @@ export function DocumentPreview({ type, document, company }: DocumentPreviewProp
             <tr key={index} className="border-b border-gray-100">
               <td className="py-3 text-sm text-gray-900">{item.description}</td>
               <td className="py-3 text-sm text-gray-700 text-right">{Number(item.quantite)}</td>
-              <td className="py-3 text-sm text-gray-700 text-right">{Number(item.prix_unitaire).toFixed(2)} €</td>
+              <td className="py-3 text-sm text-gray-700 text-right">{Number(item.prix_unitaire).toFixed(2)} {currencySymbol}</td>
               <td className="py-3 text-sm text-gray-700 text-right">{Number(item.tva_rate)}%</td>
-              <td className="py-3 text-sm text-gray-900 text-right font-medium">{Number(item.montant_ht).toFixed(2)} €</td>
+              <td className="py-3 text-sm text-gray-900 text-right font-medium">{Number(item.montant_ht).toFixed(2)} {currencySymbol}</td>
             </tr>
           ))}
         </tbody>
@@ -78,15 +80,15 @@ export function DocumentPreview({ type, document, company }: DocumentPreviewProp
         <div className="w-64 space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-gray-500">Total HT</span>
-            <span className="text-gray-900">{Number(document.total_ht).toFixed(2)} €</span>
+            <span className="text-gray-900">{Number(document.total_ht).toFixed(2)} {currencySymbol}</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-gray-500">TVA</span>
-            <span className="text-gray-900">{Number(document.total_tva).toFixed(2)} €</span>
+            <span className="text-gray-900">{Number(document.total_tva).toFixed(2)} {currencySymbol}</span>
           </div>
           <div className="flex justify-between text-lg font-bold border-t border-gray-200 pt-2">
             <span className="text-blue-600">Total TTC</span>
-            <span className="text-blue-600">{Number(document.total_ttc).toFixed(2)} €</span>
+            <span className="text-blue-600">{Number(document.total_ttc).toFixed(2)} {currencySymbol}</span>
           </div>
         </div>
       </div>

@@ -83,7 +83,7 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const validStatuses = ['DRAFT', 'SENT'];
+    const validStatuses = ['DRAFT', 'SENT', 'RESPONDED'];
     if (!validStatuses.includes(updates.status)) {
       return NextResponse.json(
         { error: `status invalide (${validStatuses.join(', ')})` },

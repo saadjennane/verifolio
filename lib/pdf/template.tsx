@@ -1,4 +1,5 @@
 import type { QuoteWithClientAndItems, InvoiceWithClientAndItems, Company } from '@/lib/supabase/types';
+import { getCurrencySymbol } from '@/lib/utils/currency';
 
 interface TemplateData {
   type: 'quote' | 'invoice';
@@ -10,6 +11,7 @@ export function generateDocumentHTML({ type, document, company }: TemplateData):
   const isInvoice = type === 'invoice';
   const title = isInvoice ? 'FACTURE' : 'DEVIS';
   const items = document.items || [];
+  const currencySymbol = getCurrencySymbol(company?.default_currency);
 
   const invoice = document as InvoiceWithClientAndItems;
   const quote = document as QuoteWithClientAndItems;
@@ -239,9 +241,9 @@ export function generateDocumentHTML({ type, document, company }: TemplateData):
         <tr>
           <td>${item.description}</td>
           <td class="right">${Number(item.quantite)}</td>
-          <td class="right">${Number(item.prix_unitaire).toFixed(2)} €</td>
+          <td class="right">${Number(item.prix_unitaire).toFixed(2)} ${currencySymbol}</td>
           <td class="right">${Number(item.tva_rate)}%</td>
-          <td class="right bold">${Number(item.montant_ht).toFixed(2)} €</td>
+          <td class="right bold">${Number(item.montant_ht).toFixed(2)} ${currencySymbol}</td>
         </tr>
       `).join('')}
     </tbody>
@@ -251,15 +253,15 @@ export function generateDocumentHTML({ type, document, company }: TemplateData):
     <div class="totals-box">
       <div class="totals-row">
         <span class="label">Total HT</span>
-        <span>${Number(document.total_ht).toFixed(2)} €</span>
+        <span>${Number(document.total_ht).toFixed(2)} ${currencySymbol}</span>
       </div>
       <div class="totals-row">
         <span class="label">TVA</span>
-        <span>${Number(document.total_tva).toFixed(2)} €</span>
+        <span>${Number(document.total_tva).toFixed(2)} ${currencySymbol}</span>
       </div>
       <div class="totals-row total">
         <span>Total TTC</span>
-        <span>${Number(document.total_ttc).toFixed(2)} €</span>
+        <span>${Number(document.total_ttc).toFixed(2)} ${currencySymbol}</span>
       </div>
     </div>
   </div>
