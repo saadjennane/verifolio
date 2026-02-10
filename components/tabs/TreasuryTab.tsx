@@ -179,7 +179,7 @@ export function TreasuryTab() {
         {/* Movements Table */}
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-foreground">Mouvements</h2>
+            <h2 className="text-lg font-semibold text-foreground">Journal des mouvements</h2>
             <span className="text-sm text-muted-foreground">
               {movements.length} mouvement{movements.length > 1 ? 's' : ''}
             </span>

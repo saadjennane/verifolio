@@ -2,10 +2,10 @@
 
 import { formatCurrency } from '@/lib/utils/currency';
 import { PAYMENT_METHOD_LABELS } from '@/lib/payments/types';
-import { DIRECTION_COLORS, MOVEMENT_TYPE_LABELS } from '@/lib/treasury/types';
 import type { TreasuryMovement } from '@/lib/treasury/types';
-import { ArrowDownCircle, ArrowUpCircle, FileText, ExternalLink } from 'lucide-react';
+import { FileText, ExternalLink } from 'lucide-react';
 import { useTabsStore } from '@/lib/stores/tabs-store';
+import { useMemo } from 'react';
 
 interface TreasuryTableProps {
   movements: TreasuryMovement[];
@@ -13,24 +13,78 @@ interface TreasuryTableProps {
   loading?: boolean;
 }
 
+function getMovementLabel(movement: TreasuryMovement): string {
+  const type = movement.direction === 'in' ? 'Paiement client' : 'Paiement fournisseur';
+
+  if (movement.counterpart_name && movement.document_numero) {
+    return `${type} — ${movement.counterpart_name}`;
+  }
+
+  if (movement.counterpart_name) {
+    return `${type} — ${movement.counterpart_name}`;
+  }
+
+  return type;
+}
+
+function isPartialPayment(movement: TreasuryMovement): boolean {
+  return (
+    movement.payment_type === 'payment' ||
+    movement.payment_type === 'supplier_payment'
+  );
+}
+
 export function TreasuryTable({ movements, currency = 'EUR', loading }: TreasuryTableProps) {
   const { openTab } = useTabsStore();
 
+  // Calculate totals
+  const { totalIn, totalOut } = useMemo(() => {
+    return movements.reduce(
+      (acc, m) => {
+        if (m.direction === 'in') {
+          acc.totalIn += m.amount;
+        } else {
+          acc.totalOut += m.amount;
+        }
+        return acc;
+      },
+      { totalIn: 0, totalOut: 0 }
+    );
+  }, [movements]);
+
   if (loading) {
     return (
-      <div className="bg-background rounded-xl border border-border">
-        <div className="p-4 space-y-3">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="animate-pulse flex items-center gap-4">
-              <div className="h-10 w-10 bg-muted rounded-full" />
-              <div className="flex-1 space-y-2">
-                <div className="h-4 bg-muted rounded w-1/3" />
-                <div className="h-3 bg-muted rounded w-1/4" />
-              </div>
-              <div className="h-5 bg-muted rounded w-24" />
-            </div>
-          ))}
-        </div>
+      <div className="bg-background rounded-xl border border-border overflow-hidden">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-border bg-muted/50">
+              <th className="text-left p-4 text-sm font-medium text-muted-foreground">Date</th>
+              <th className="text-left p-4 text-sm font-medium text-muted-foreground">
+                Designation
+              </th>
+              <th className="text-right p-4 text-sm font-medium text-green-600">IN</th>
+              <th className="text-right p-4 text-sm font-medium text-red-600">OUT</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[...Array(5)].map((_, i) => (
+              <tr key={i} className="border-b border-border animate-pulse">
+                <td className="p-4">
+                  <div className="h-4 bg-muted rounded w-24" />
+                </td>
+                <td className="p-4">
+                  <div className="h-4 bg-muted rounded w-48" />
+                </td>
+                <td className="p-4">
+                  <div className="h-4 bg-muted rounded w-20 ml-auto" />
+                </td>
+                <td className="p-4">
+                  <div className="h-4 bg-muted rounded w-20 ml-auto" />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     );
   }
@@ -71,90 +125,121 @@ export function TreasuryTable({ movements, currency = 'EUR', loading }: Treasury
     }
   };
 
-  // Group by date
-  const groupedMovements = movements.reduce(
-    (acc, movement) => {
-      if (!acc[movement.date]) {
-        acc[movement.date] = [];
-      }
-      acc[movement.date].push(movement);
-      return acc;
-    },
-    {} as Record<string, TreasuryMovement[]>
-  );
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+  };
 
   return (
-    <div className="bg-background rounded-xl border border-border divide-y divide-border overflow-hidden">
-      {Object.entries(groupedMovements).map(([date, dayMovements]) => (
-        <div key={date}>
-          {/* Date header */}
-          <div className="px-4 py-2.5 bg-muted/50 border-b border-border">
-            <span className="text-sm font-medium text-foreground">
-              {new Date(date).toLocaleDateString('fr-FR', {
-                weekday: 'long',
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric',
-              })}
-            </span>
-          </div>
+    <div className="bg-background rounded-xl border border-border overflow-hidden">
+      <table className="w-full">
+        {/* Header with totals */}
+        <thead>
+          <tr className="border-b border-border bg-muted/50">
+            <th className="text-left p-4 text-sm font-medium text-muted-foreground w-32">Date</th>
+            <th className="text-left p-4 text-sm font-medium text-muted-foreground">
+              Designation
+            </th>
+            <th className="text-right p-4 text-sm font-medium text-green-600 dark:text-green-400 w-32">
+              <div className="flex flex-col items-end">
+                <span>IN</span>
+                <span className="text-xs font-normal opacity-75">
+                  {formatCurrency(totalIn, currency)}
+                </span>
+              </div>
+            </th>
+            <th className="text-right p-4 text-sm font-medium text-red-600 dark:text-red-400 w-32">
+              <div className="flex flex-col items-end">
+                <span>OUT</span>
+                <span className="text-xs font-normal opacity-75">
+                  {formatCurrency(totalOut, currency)}
+                </span>
+              </div>
+            </th>
+          </tr>
+        </thead>
 
-          {/* Movements for this date */}
-          {dayMovements.map((movement) => {
-            const colors = DIRECTION_COLORS[movement.direction];
-            return (
-              <div
-                key={movement.id}
-                className="px-4 py-3 flex items-center gap-4 hover:bg-muted/30 transition-colors"
-              >
-                {/* Direction icon */}
-                <div className={`p-2.5 rounded-full ${colors.bg}`}>
-                  {movement.direction === 'in' ? (
-                    <ArrowDownCircle className={`w-5 h-5 ${colors.text}`} />
-                  ) : (
-                    <ArrowUpCircle className={`w-5 h-5 ${colors.text}`} />
+        <tbody>
+          {movements.map((movement) => (
+            <tr
+              key={movement.id}
+              className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
+            >
+              {/* Date */}
+              <td className="p-4 text-sm text-muted-foreground whitespace-nowrap">
+                {formatDate(movement.date)}
+              </td>
+
+              {/* Designation */}
+              <td className="p-4">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-medium text-foreground">
+                    {getMovementLabel(movement)}
+                  </span>
+
+                  {/* Document link */}
+                  {movement.document_numero && (
+                    <button
+                      onClick={() => handleInvoiceClick(movement)}
+                      className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                    >
+                      {movement.document_numero}
+                      <ExternalLink className="w-3 h-3" />
+                    </button>
+                  )}
+
+                  {/* Badges */}
+                  {movement.payment_type === 'advance' ||
+                  movement.payment_type === 'supplier_advance' ? (
+                    <span className="px-1.5 py-0.5 text-[10px] font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 rounded">
+                      Avance
+                    </span>
+                  ) : null}
+
+                  {movement.payment_type === 'refund' ||
+                  movement.payment_type === 'supplier_refund' ? (
+                    <span className="px-1.5 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded">
+                      Remboursement
+                    </span>
+                  ) : null}
+                </div>
+
+                {/* Secondary info */}
+                <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
+                  <span>{PAYMENT_METHOD_LABELS[movement.payment_method]}</span>
+                  {movement.reference && (
+                    <>
+                      <span className="text-border">·</span>
+                      <span>Ref: {movement.reference}</span>
+                    </>
                   )}
                 </div>
+              </td>
 
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-foreground truncate">
-                      {movement.counterpart_name || 'Inconnu'}
-                    </span>
-                    {movement.document_numero && (
-                      <button
-                        onClick={() => handleInvoiceClick(movement)}
-                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                      >
-                        {movement.document_numero}
-                        <ExternalLink className="w-3 h-3" />
-                      </button>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                    <span>{MOVEMENT_TYPE_LABELS[movement.movement_type]}</span>
-                    <span className="text-border">-</span>
-                    <span>{PAYMENT_METHOD_LABELS[movement.payment_method]}</span>
-                    {movement.reference && (
-                      <>
-                        <span className="text-border">-</span>
-                        <span className="truncate">Ref: {movement.reference}</span>
-                      </>
-                    )}
-                  </div>
-                </div>
+              {/* IN */}
+              <td className="p-4 text-right">
+                {movement.direction === 'in' && (
+                  <span className="font-semibold text-green-600 dark:text-green-400">
+                    +{formatCurrency(movement.amount, currency)}
+                  </span>
+                )}
+              </td>
 
-                {/* Amount */}
-                <div className={`text-right font-bold text-lg ${colors.text}`}>
-                  {movement.direction === 'in' ? '+' : '-'}
-                  {formatCurrency(movement.amount, currency)}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      ))}
+              {/* OUT */}
+              <td className="p-4 text-right">
+                {movement.direction === 'out' && (
+                  <span className="font-semibold text-red-600 dark:text-red-400">
+                    -{formatCurrency(movement.amount, currency)}
+                  </span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
