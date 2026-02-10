@@ -47,7 +47,7 @@ interface Invoice {
 
 interface Proposal {
   id: string;
-  titre: string;
+  title: string;
   created_at: string;
   status: string;
   client: { nom: string } | null;
@@ -271,7 +271,7 @@ export function DocumentsListTab({ initialTab, initialFamily = 'clients' }: Docu
       const [quotesRes, invoicesRes, proposalsRes, briefsRes, deliveryNotesRes] = await Promise.all([
         supabase.from('quotes').select('*, client:clients(nom)').is('deleted_at', null).order('date_emission', { ascending: false }),
         supabase.from('invoices').select('*, client:clients(nom), mission_invoices(mission_id)').is('deleted_at', null).order('date_emission', { ascending: false }),
-        supabase.from('proposals').select('*, client:clients(nom)').is('deleted_at', null).order('created_at', { ascending: false }),
+        supabase.from('proposals').select('*, client:clients(nom)').is('deleted_at', null).not('client_id', 'is', null).order('created_at', { ascending: false }),
         supabase.from('briefs').select('*, client:clients(nom), deal:deals(title)').is('deleted_at', null).order('created_at', { ascending: false }),
         supabase.from('delivery_notes').select('*, client:clients(id, nom), mission:missions(id, title)').is('deleted_at', null).order('date_emission', { ascending: false }),
       ]);
@@ -843,7 +843,7 @@ export function DocumentsListTab({ initialTab, initialFamily = 'clients' }: Docu
                         openTab({
                           type: 'proposal',
                           path: `/proposals/${proposal.id}`,
-                          title: proposal.titre,
+                          title: proposal.title,
                           entityId: proposal.id,
                         });
                       }
@@ -858,7 +858,7 @@ export function DocumentsListTab({ initialTab, initialFamily = 'clients' }: Docu
                         />
                       </TableCell>
                     )}
-                    <TableCell className="font-medium">{proposal.titre}</TableCell>
+                    <TableCell className="font-medium">{proposal.title}</TableCell>
                     <TableCell>{proposal.client?.nom || '-'}</TableCell>
                     <TableCell>{formatDate(proposal.created_at)}</TableCell>
                     <TableCell>
