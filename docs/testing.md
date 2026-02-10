@@ -1,7 +1,7 @@
 # Guide des Tests Verifolio
 
-> **Version**: 1.1
-> **Date**: 2025-02-08
+> **Version**: 1.2
+> **Date**: 2025-02-10
 > **Framework**: Vitest
 
 ---
@@ -588,6 +588,13 @@ interface TaskTemplateItem {
 | Outils | 1 | ~180 |
 | **Total** | **24** | **~326** |
 
+**Modules avec tests manuels documentés :**
+- Documents (Clients & Fournisseurs)
+- Trésorerie (Encaissements/Décaissements)
+- Tâches liées & Templates
+- Abonnements (Subscriptions)
+- Paiements indépendants (Association a posteriori)
+
 ---
 
 ## Bonnes Pratiques
@@ -906,6 +913,247 @@ interface CreateDecaissementPayload {
 - Lib: `lib/treasury/treasury.ts`
 - API: `app/api/treasury/summary/`, `movements/`, `encaissement/`, `decaissement/`, `pending/`
 - DB: `supabase/migrations/088_treasury_module.sql`
+
+---
+
+### Tests du Module Abonnements
+
+#### Gestion des Abonnements (Subscriptions)
+
+Module permettant de gerer les abonnements recurrents (SaaS, services) avec generation automatique des paiements et suivi des echeances.
+
+**Page de test**: Integre dans la vue Tresorerie (`/treasury`)
+
+**Tests manuels recommandes - CRUD Abonnements :**
+
+| Test | Description | Verification |
+|------|-------------|--------------|
+| Creer abonnement | Remplir nom, montant, frequence, fournisseur | Abonnement cree avec next_due_date calcule |
+| Frequence mensuelle | Choisir "Mensuel" | Echeance +1 mois |
+| Frequence trimestrielle | Choisir "Trimestriel" | Echeance +3 mois |
+| Frequence annuelle | Choisir "Annuel" | Echeance +12 mois |
+| Frequence custom | Choisir "Personnalise" + nb jours | Echeance +N jours |
+| Modifier abonnement | Changer montant/frequence | Mise a jour appliquee |
+| Suspendre abonnement | Passer status = "suspended" | Plus de paiements generes |
+| Resilier abonnement | Passer status = "cancelled" | cancelled_at renseigne |
+
+**Tests manuels recommandes - Paiements Abonnement :**
+
+| Test | Description | Verification |
+|------|-------------|--------------|
+| Generation auto | Abonnement actif avec echeance proche | Paiement cree automatiquement |
+| Auto-debit ON | auto_debit = true | Paiement passe en "completed" a la date |
+| Auto-debit OFF | auto_debit = false | Paiement reste en "pending" |
+| Marquer paye | Cliquer "Confirmer" sur paiement pending | Statut → completed, next_due_date avance |
+| Paiement en retard | Paiement pending + date passee | Badge "En retard" affiche |
+
+**Tests API :**
+
+| Endpoint | Methode | Test | Verification |
+|----------|---------|------|--------------|
+| `/api/subscriptions` | GET | Lister abonnements | Retourne liste avec supplier_name |
+| `/api/subscriptions` | POST | Creer abonnement | Abonnement cree, next_due_date calcule |
+| `/api/subscriptions/[id]` | GET | Detail abonnement | Retourne abonnement avec paiements |
+| `/api/subscriptions/[id]` | PATCH | Modifier abonnement | Mise a jour appliquee |
+| `/api/subscriptions/[id]` | DELETE | Supprimer abonnement | Soft delete ou suppression |
+| `/api/subscriptions/[id]/suspend` | POST | Suspendre | Status → suspended |
+| `/api/subscriptions/[id]/resume` | POST | Reprendre | Status → active |
+| `/api/subscriptions/[id]/cancel` | POST | Resilier | Status → cancelled |
+| `/api/subscriptions/generate` | POST | Generer paiements | Paiements crees pour echeances proches |
+| `/api/subscriptions/[id]/payments/[paymentId]/complete` | POST | Marquer paye | Paiement → completed |
+
+**KPIs Abonnements :**
+
+| KPI | Description |
+|-----|-------------|
+| Total mensuel | Cout mensuel normalise (tous abonnements actifs) |
+| Total annuel | Cout annuel estime |
+| Actifs | Nombre d'abonnements actifs |
+| Paiements en attente | Paiements pending (a confirmer manuellement) |
+| Paiements en retard | Paiements pending avec date passee |
+
+**Structure de donnees :**
+
+```typescript
+// Abonnement
+interface Subscription {
+  id: string;
+  supplier_id: string;
+  name: string;               // Nom du service (ChatGPT, Figma...)
+  amount: number;
+  currency: string;
+  frequency: 'monthly' | 'quarterly' | 'yearly' | 'custom';
+  frequency_days?: number;    // Si custom
+  start_date: string;
+  next_due_date: string;
+  auto_debit: boolean;
+  status: 'active' | 'suspended' | 'cancelled';
+  cancelled_at?: string;
+  notes?: string;
+}
+
+// Paiement abonnement
+interface SubscriptionPayment {
+  payment_id: string;
+  subscription_id: string;
+  subscription_name: string;
+  supplier_id: string;
+  supplier_name: string;
+  amount: number;
+  payment_date: string;
+  payment_status: 'pending' | 'scheduled' | 'completed';
+  effective_status: 'completed' | 'overdue' | 'due_today' | 'scheduled';
+}
+
+// Summary
+interface SubscriptionsSummary {
+  total_monthly: number;
+  total_yearly: number;
+  active_count: number;
+  pending_payments: number;
+  overdue_payments: number;
+}
+```
+
+**Fichiers sources**:
+- Types: `lib/subscriptions/types.ts`
+- Lib: `lib/subscriptions/subscriptions.ts`
+- API: `app/api/subscriptions/`
+- DB: `supabase/migrations/089_subscriptions.sql`
+
+---
+
+### Tests de la Gestion des Paiements Independants
+
+#### Association a Posteriori des Paiements
+
+Fonctionnalite permettant de creer des paiements (encaissements/decaissements) sans les lier immediatement a une facture, puis de les associer ulterieurement.
+
+**Tests manuels recommandes - Paiements non associes :**
+
+| Test | Description | Verification |
+|------|-------------|--------------|
+| Encaissement sans facture | Creer encaissement, ne pas selectionner de facture | Paiement cree avec payment_type='advance' |
+| Decaissement sans facture | Creer decaissement fournisseur sans facture | Paiement cree avec payment_type='supplier_advance' |
+| Liste non associes | Aller dans section paiements non affectes | Liste des paiements en attente d'affectation |
+| Filtre par client | Filtrer les paiements non associes par client | Seuls les paiements du client affiches |
+
+**Tests manuels recommandes - Association :**
+
+| Test | Description | Verification |
+|------|-------------|--------------|
+| Associer a facture client | Selectionner paiement + facture du meme client | Paiement lie, statut facture mis a jour |
+| Associer a facture fournisseur | Selectionner paiement + facture fournisseur | Paiement lie, statut facture mis a jour |
+| Validation client | Essayer d'associer a facture d'un autre client | Erreur: client ne correspond pas |
+| Validation montant | Associer montant > remaining | Erreur: montant superieur au reste a payer |
+| Statut automatique (total) | Associer montant = remaining | Facture passe en "payee" |
+| Statut automatique (partiel) | Associer montant < remaining | Facture passe en "partielle" |
+
+**Tests manuels recommandes - Dissociation :**
+
+| Test | Description | Verification |
+|------|-------------|--------------|
+| Dissocier paiement | Cliquer "Dissocier" sur paiement associe | Paiement redevient 'advance', facture maj |
+| Statut apres dissociation | Dissocier le seul paiement d'une facture | Facture repasse en "envoyee" |
+
+**Tests API :**
+
+| Endpoint | Methode | Test | Verification |
+|----------|---------|------|--------------|
+| `/api/payments/unassociated` | GET | Liste non associes | Retourne paiements sans facture |
+| `/api/payments/unassociated?type=client` | GET | Filtre client | Paiements clients uniquement |
+| `/api/payments/unassociated?type=supplier` | GET | Filtre fournisseur | Paiements fournisseurs uniquement |
+| `/api/payments/[id]/associate` | POST | Associer a facture | Lien cree, statut maj |
+| `/api/payments/[id]/dissociate` | POST | Dissocier de facture | Lien supprime, statut maj |
+
+**Tests RPC SQL :**
+
+| Fonction | Test | Verification |
+|----------|------|--------------|
+| `associate_payment_to_invoice` | Appel avec IDs valides | Retourne {success: true, allocated, remaining} |
+| `associate_payment_to_invoice` | Client different | Retourne {success: false, error: '...'} |
+| `associate_payment_to_supplier_invoice` | Appel avec IDs valides | Retourne {success: true, allocated, remaining} |
+| `dissociate_payment_from_invoice` | Paiement associe | Retourne {success: true}, paiement devient 'advance' |
+
+**Vues SQL disponibles :**
+
+| Vue | Description |
+|-----|-------------|
+| `unassociated_client_payments` | Paiements clients sans facture |
+| `unassociated_supplier_payments` | Paiements fournisseurs sans facture |
+| `pending_client_invoices` | Factures clients en attente (pour modal association) |
+| `pending_supplier_invoices` | Factures fournisseurs en attente |
+
+**Structure de donnees :**
+
+```typescript
+// Paiement non associe (client)
+interface UnassociatedClientPayment {
+  id: string;
+  user_id: string;
+  client_id: string;
+  client_name: string;
+  mission_id?: string;
+  mission_title?: string;
+  amount: number;
+  payment_date: string;
+  payment_method: string;
+  payment_type: 'advance';
+  reference?: string;
+  notes?: string;
+  available_amount: number;
+}
+
+// Paiement non associe (fournisseur)
+interface UnassociatedSupplierPayment {
+  id: string;
+  user_id: string;
+  supplier_id: string;
+  supplier_name: string;
+  mission_id?: string;
+  mission_title?: string;
+  deal_id?: string;
+  deal_name?: string;
+  amount: number;
+  payment_date: string;
+  payment_method: string;
+  payment_type: 'supplier_advance';
+  available_amount: number;
+}
+
+// Facture en attente (pour association)
+interface PendingInvoice {
+  id: string;
+  numero: string;
+  client_id: string;     // ou supplier_id
+  client_name: string;   // ou supplier_name
+  total_ttc: number;
+  total_paid: number;
+  remaining: number;
+  date_echeance?: string;
+}
+
+// Payload association
+interface AssociatePaymentPayload {
+  invoice_id: string;        // ou supplier_invoice_id
+  amount?: number;           // Optionnel, prend le minimum par defaut
+}
+
+// Resultat association
+interface AssociatePaymentResult {
+  success: boolean;
+  error?: string;
+  allocated?: number;
+  remaining?: number;
+  new_status?: string;
+}
+```
+
+**Fichiers sources**:
+- Vues SQL: `supabase/migrations/090_unassociated_payments.sql`
+- Fonctions RPC: `associate_payment_to_invoice`, `associate_payment_to_supplier_invoice`, `dissociate_payment_from_invoice`
+- Modal: `components/payments/PaymentAssociationModal.tsx`
+- API: `app/api/payments/[id]/associate/`, `app/api/payments/[id]/dissociate/`
 
 ---
 

@@ -7,6 +7,7 @@ import { useTabsStore } from '@/lib/stores/tabs-store';
 import { DocumentPreview } from '@/components/documents/DocumentPreview';
 import { DocumentActions } from '@/components/documents/DocumentActions';
 import { SendHistory } from '@/components/documents/SendHistory';
+import { StampedDocumentUploader } from '@/components/invoices/StampedDocumentUploader';
 import { Badge, Button } from '@/components/ui';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { formatCurrency } from '@/lib/utils/currency';
@@ -255,6 +256,9 @@ export function InvoiceDetailTab({ invoiceId }: InvoiceDetailTabProps) {
                   })}
                 </DropdownMenuContent>
               </DropdownMenu>
+              {invoice?.stamped_document_url && (
+                <Badge variant="green">Cachetee</Badge>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <Button variant="secondary" onClick={handleEdit}>
@@ -293,6 +297,29 @@ export function InvoiceDetailTab({ invoiceId }: InvoiceDetailTabProps) {
               </p>
             </div>
           </div>
+        </div>
+
+        {/* Stamped Document Section */}
+        <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6">
+          <h3 className="text-sm font-medium text-gray-900 mb-3">Facture Cachetee</h3>
+          <StampedDocumentUploader
+            invoiceId={invoiceId}
+            stampedDocumentUrl={invoice?.stamped_document_url || null}
+            onUploadComplete={() => {
+              // Refresh invoice data
+              const supabase = createClient();
+              supabase
+                .from('invoices')
+                .select('stamped_document_url')
+                .eq('id', invoiceId)
+                .single()
+                .then(({ data }) => {
+                  if (data && invoice) {
+                    setInvoice({ ...invoice, stamped_document_url: data.stamped_document_url });
+                  }
+                });
+            }}
+          />
         </div>
 
         {/* Actions + Send History */}

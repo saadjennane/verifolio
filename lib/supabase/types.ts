@@ -112,6 +112,7 @@ export interface Invoice {
   total_ttc: number;
   notes: string | null;
   pdf_url: string | null;
+  stamped_document_url: string | null;
   vat_enabled: boolean;
   created_at: string;
   updated_at: string;

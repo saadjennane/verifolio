@@ -42,6 +42,7 @@ interface Invoice {
   total_ttc: number;
   client: { nom: string } | null;
   mission_id: string | null;
+  stamped_document_url: string | null;
 }
 
 interface Proposal {
@@ -785,7 +786,12 @@ export function DocumentsListTab({ initialTab, initialFamily = 'clients' }: Docu
                     <TableCell>{invoice.client?.nom || '-'}</TableCell>
                     <TableCell>{formatDate(invoice.date_emission)}</TableCell>
                     <TableCell>
-                      {renderStatusBadge('invoices', invoice.id, invoice.status)}
+                      <div className="flex items-center gap-1.5">
+                        {renderStatusBadge('invoices', invoice.id, invoice.status)}
+                        {invoice.stamped_document_url && (
+                          <Badge variant="green">Cachetee</Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>{formatAmount(invoice.total_ttc)}</TableCell>
                     <TableCell>

@@ -226,16 +226,41 @@ export async function POST(request: Request) {
 
     if (attach_pdf && config.supports_pdf && (resource_type === 'quote' || resource_type === 'invoice')) {
       try {
-        const pdfBuffer = await generatePDF({
-          type: resource_type,
-          document: resource,
-          company,
-        });
+        let pdfBuffer: Buffer | null = null;
+        let filename = `${resource.numero || resource_type}.pdf`;
+        let contentType = 'application/pdf';
+
+        // Pour les factures : priorite au document cachete si present
+        if (resource_type === 'invoice' && resource.stamped_document_url) {
+          const { data: stampedFile, error: stampedError } = await supabase.storage
+            .from('verifolio-docs')
+            .download(resource.stamped_document_url);
+
+          if (!stampedError && stampedFile) {
+            pdfBuffer = Buffer.from(await stampedFile.arrayBuffer());
+            // Preserver l'extension originale
+            const ext = resource.stamped_document_url.split('.').pop()?.toLowerCase();
+            if (ext && ['png', 'jpg', 'jpeg'].includes(ext)) {
+              filename = `${resource.numero || 'facture'}.${ext}`;
+              contentType = ext === 'png' ? 'image/png' : 'image/jpeg';
+            }
+          }
+        }
+
+        // Fallback : generer PDF frais si pas de document cachete
+        if (!pdfBuffer) {
+          pdfBuffer = await generatePDF({
+            type: resource_type,
+            document: resource,
+            company,
+          });
+        }
+
         if (pdfBuffer) {
           attachments.push({
-            filename: `${resource.numero || resource_type}.pdf`,
+            filename,
             content: pdfBuffer,
-            contentType: 'application/pdf',
+            contentType,
           });
         }
       } catch (pdfError) {
