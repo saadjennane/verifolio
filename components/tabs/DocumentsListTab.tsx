@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -20,6 +20,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ChevronDown, Upload, Building2, Users } from 'lucide-react';
+import { getCurrencySymbol } from '@/lib/utils/currency';
 
 // ================== TYPES ==================
 
@@ -187,6 +188,7 @@ export function DocumentsListTab({ initialTab, initialFamily = 'clients' }: Docu
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
 
   const [loading, setLoading] = useState(true);
+  const [currency, setCurrency] = useState<string>('EUR');
 
   // Modal state
   const [showMissionModal, setShowMissionModal] = useState(false);
@@ -248,6 +250,13 @@ export function DocumentsListTab({ initialTab, initialFamily = 'clients' }: Docu
 
   useEffect(() => {
     loadDocuments();
+    // Fetch currency setting
+    fetch('/api/settings/currency')
+      .then((res) => res.json())
+      .then((response) => {
+        if (response.data?.currency) setCurrency(response.data.currency);
+      })
+      .catch(console.error);
   }, []);
 
   async function loadDocuments() {
@@ -306,10 +315,11 @@ export function DocumentsListTab({ initialTab, initialFamily = 'clients' }: Docu
 
   function formatAmount(amount: number | null | undefined) {
     if (!amount) return '-';
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'EUR',
-    }).format(amount);
+    const symbol = getCurrencySymbol(currency);
+    return `${new Intl.NumberFormat('fr-FR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount)} ${symbol}`;
   }
 
   // ================== CLIENT DOC HANDLERS ==================
@@ -484,6 +494,99 @@ export function DocumentsListTab({ initialTab, initialFamily = 'clients' }: Docu
     }
   }
 
+  // Change status of a single document
+  async function handleSingleStatusChange(
+    docType: 'quotes' | 'invoices' | 'proposals' | 'briefs' | 'delivery-notes',
+    docId: string,
+    newStatus: string
+  ) {
+    try {
+      const response = await fetch(`/api/${docType}/bulk`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [docId], updates: { status: newStatus } }),
+      });
+
+      if (response.ok) {
+        loadDocuments();
+      }
+    } catch (error) {
+      console.error('Status change error:', error);
+    }
+  }
+
+  // Get status options based on document type
+  function getStatusOptionsForDocType(docType: 'quotes' | 'invoices' | 'proposals' | 'briefs' | 'delivery-notes') {
+    switch (docType) {
+      case 'quotes':
+        return [
+          { value: 'brouillon', label: 'Brouillon' },
+          { value: 'envoye', label: 'Envoyé' },
+          { value: 'accepted', label: 'Accepté' },
+          { value: 'refused', label: 'Refusé' },
+        ];
+      case 'invoices':
+        return [
+          { value: 'brouillon', label: 'Brouillon' },
+          { value: 'envoyee', label: 'Envoyée' },
+          { value: 'payee', label: 'Payée' },
+          { value: 'annulee', label: 'Annulée' },
+        ];
+      case 'proposals':
+      case 'briefs':
+        return [
+          { value: 'DRAFT', label: 'Brouillon' },
+          { value: 'SENT', label: 'Envoyé' },
+          { value: 'RESPONDED', label: 'Répondu' },
+        ];
+      case 'delivery-notes':
+        return [
+          { value: 'brouillon', label: 'Brouillon' },
+          { value: 'envoye', label: 'Envoyé' },
+          { value: 'signe', label: 'Signé' },
+        ];
+      default:
+        return [];
+    }
+  }
+
+  // Render a clickable status badge with dropdown
+  function renderStatusBadge(
+    docType: 'quotes' | 'invoices' | 'proposals' | 'briefs' | 'delivery-notes',
+    docId: string,
+    currentStatus: string
+  ) {
+    const options = getStatusOptionsForDocType(docType);
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+          <button className="focus:outline-none">
+            <Badge
+              variant={statusVariants[currentStatus] || 'gray'}
+              className="cursor-pointer hover:opacity-80 transition-opacity"
+            >
+              {statusLabels[currentStatus] || currentStatus}
+            </Badge>
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
+          {options.map((option) => (
+            <DropdownMenuItem
+              key={option.value}
+              onClick={() => handleSingleStatusChange(docType, docId, option.value)}
+              className={option.value === currentStatus ? 'bg-muted' : ''}
+            >
+              <Badge variant={statusVariants[option.value] || 'gray'} className="mr-2">
+                {option.label}
+              </Badge>
+              {option.value === currentStatus && <span className="ml-auto text-xs">✓</span>}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  }
+
   const getStatusOptions = (): { value: string; label: string }[] => {
     if (family === 'clients') {
       switch (clientTab) {
@@ -612,9 +715,7 @@ export function DocumentsListTab({ initialTab, initialFamily = 'clients' }: Docu
                     <TableCell>{quote.client?.nom || '-'}</TableCell>
                     <TableCell>{formatDate(quote.date_emission)}</TableCell>
                     <TableCell>
-                      <Badge variant={statusVariants[quote.status] || 'gray'}>
-                        {statusLabels[quote.status] || quote.status}
-                      </Badge>
+                      {renderStatusBadge('quotes', quote.id, quote.status)}
                     </TableCell>
                     <TableCell>{formatAmount(quote.total_ttc)}</TableCell>
                     <TableCell>
@@ -680,9 +781,7 @@ export function DocumentsListTab({ initialTab, initialFamily = 'clients' }: Docu
                     <TableCell>{invoice.client?.nom || '-'}</TableCell>
                     <TableCell>{formatDate(invoice.date_emission)}</TableCell>
                     <TableCell>
-                      <Badge variant={statusVariants[invoice.status] || 'gray'}>
-                        {statusLabels[invoice.status] || invoice.status}
-                      </Badge>
+                      {renderStatusBadge('invoices', invoice.id, invoice.status)}
                     </TableCell>
                     <TableCell>{formatAmount(invoice.total_ttc)}</TableCell>
                     <TableCell>
@@ -753,9 +852,7 @@ export function DocumentsListTab({ initialTab, initialFamily = 'clients' }: Docu
                     <TableCell>{proposal.client?.nom || '-'}</TableCell>
                     <TableCell>{formatDate(proposal.created_at)}</TableCell>
                     <TableCell>
-                      <Badge variant={statusVariants[proposal.status] || 'gray'}>
-                        {statusLabels[proposal.status] || proposal.status}
-                      </Badge>
+                      {renderStatusBadge('proposals', proposal.id, proposal.status)}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -822,9 +919,7 @@ export function DocumentsListTab({ initialTab, initialFamily = 'clients' }: Docu
                     <TableCell>{brief.deal?.title || '-'}</TableCell>
                     <TableCell>{formatDate(brief.created_at)}</TableCell>
                     <TableCell>
-                      <Badge variant={statusVariants[brief.status] || 'gray'}>
-                        {statusLabels[brief.status] || brief.status}
-                      </Badge>
+                      {renderStatusBadge('briefs', brief.id, brief.status)}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -884,9 +979,7 @@ export function DocumentsListTab({ initialTab, initialFamily = 'clients' }: Docu
                     <TableCell>{dn.mission?.title || '-'}</TableCell>
                     <TableCell>{formatDate(dn.date_emission)}</TableCell>
                     <TableCell>
-                      <Badge variant={statusVariants[dn.status] || 'gray'}>
-                        {statusLabels[dn.status] || dn.status}
-                      </Badge>
+                      {renderStatusBadge('delivery-notes', dn.id, dn.status)}
                     </TableCell>
                   </TableRow>
                 ))}
