@@ -7,11 +7,12 @@ import { InvoicePaymentsSection } from '@/components/invoices/InvoicePaymentsSec
 import { Badge, Button } from '@/components/ui';
 import type { InvoiceStatus, InvoiceWithClientAndItems } from '@/lib/supabase/types';
 
-const statusConfig: Record<InvoiceStatus, { label: string; variant: 'gray' | 'blue' | 'green' }> = {
+const statusConfig: Record<InvoiceStatus, { label: string; variant: 'gray' | 'blue' | 'green' | 'yellow' | 'red' }> = {
   brouillon: { label: 'Brouillon', variant: 'gray' },
   envoyee: { label: 'Envoyée', variant: 'blue' },
+  partielle: { label: 'Paiement partiel', variant: 'yellow' },
   payee: { label: 'Payée', variant: 'green' },
-  annulee: { label: 'Annulée', variant: 'gray' },
+  annulee: { label: 'Annulée', variant: 'red' },
 };
 
 interface InvoicePageProps {

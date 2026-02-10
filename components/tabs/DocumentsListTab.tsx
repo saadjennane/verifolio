@@ -115,6 +115,7 @@ const statusVariants: Record<string, 'gray' | 'blue' | 'green' | 'yellow' | 'red
   envoyee: 'blue',
   accepted: 'green',
   refused: 'red',
+  partielle: 'yellow',
   payee: 'green',
   paid: 'green',
   annulee: 'red',
@@ -138,6 +139,7 @@ const statusLabels: Record<string, string> = {
   envoyee: 'Envoyée',
   accepted: 'Acceptée',
   refused: 'Refusée',
+  partielle: 'Paiement partiel',
   payee: 'Payée',
   paid: 'Payée',
   annulee: 'Annulée',
@@ -529,6 +531,7 @@ export function DocumentsListTab({ initialTab, initialFamily = 'clients' }: Docu
         return [
           { value: 'brouillon', label: 'Brouillon' },
           { value: 'envoyee', label: 'Envoyée' },
+          { value: 'partielle', label: 'Paiement partiel' },
           { value: 'payee', label: 'Payée' },
           { value: 'annulee', label: 'Annulée' },
         ];
@@ -599,6 +602,7 @@ export function DocumentsListTab({ initialTab, initialFamily = 'clients' }: Docu
           return [
             { value: 'brouillon', label: 'Brouillon' },
             { value: 'envoyee', label: 'Envoyée' },
+            { value: 'partielle', label: 'Paiement partiel' },
             { value: 'payee', label: 'Payée' },
             { value: 'annulee', label: 'Annulée' },
           ];

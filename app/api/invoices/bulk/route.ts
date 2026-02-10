@@ -55,7 +55,7 @@ export async function DELETE(request: Request) {
 /**
  * PATCH /api/invoices/bulk
  * Update status for multiple invoices
- * Body: { ids: string[], updates: { status: 'brouillon' | 'envoyee' | 'payee' | 'annulee' } }
+ * Body: { ids: string[], updates: { status: 'brouillon' | 'envoyee' | 'partielle' | 'payee' | 'annulee' } }
  */
 export async function PATCH(request: Request) {
   try {
@@ -83,7 +83,7 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const validStatuses = ['brouillon', 'envoyee', 'payee', 'annulee'];
+    const validStatuses = ['brouillon', 'envoyee', 'partielle', 'payee', 'annulee'];
     if (!validStatuses.includes(updates.status)) {
       return NextResponse.json(
         { error: `status invalide (${validStatuses.join(', ')})` },

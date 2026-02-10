@@ -18,11 +18,12 @@ interface Invoice {
   client: { nom: string } | null;
 }
 
-const statusConfig: Record<InvoiceStatus, { label: string; variant: 'gray' | 'blue' | 'green' | 'yellow' }> = {
+const statusConfig: Record<InvoiceStatus, { label: string; variant: 'gray' | 'blue' | 'green' | 'yellow' | 'red' }> = {
   brouillon: { label: 'Brouillon', variant: 'gray' },
   envoyee: { label: 'Envoyée', variant: 'blue' },
+  partielle: { label: 'Paiement partiel', variant: 'yellow' },
   payee: { label: 'Payée', variant: 'green' },
-  annulee: { label: 'Annulée', variant: 'gray' },
+  annulee: { label: 'Annulée', variant: 'red' },
 };
 
 export function InvoicesListTab() {

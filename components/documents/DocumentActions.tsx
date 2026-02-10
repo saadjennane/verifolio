@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui';
 import { SendDocumentModal } from '@/components/documents/SendDocumentModal';
+import { PaymentModal } from '@/components/payments';
 import { useSendDocument } from '@/lib/hooks/useSendDocument';
+import type { PaymentCreate } from '@/lib/payments/types';
 
 interface DocumentActionsProps {
   type: 'quote' | 'invoice';
@@ -16,6 +18,10 @@ interface DocumentActionsProps {
   dealId?: string | null;
   missionId?: string | null;
   documentTitle?: string;
+  // For invoice payment
+  remainingAmount?: number;
+  currency?: string;
+  onPaymentAdded?: () => void;
 }
 
 export function DocumentActions({
@@ -27,15 +33,19 @@ export function DocumentActions({
   dealId,
   missionId,
   documentTitle,
+  remainingAmount,
+  currency = 'MAD',
+  onPaymentAdded,
 }: DocumentActionsProps) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const sendDocument = useSendDocument();
 
   const isInvoice = type === 'invoice';
 
-  // Déterminer l'entité pour l'envoi (deal > mission > client)
+  // Determiner l'entite pour l'envoi (deal > mission > client)
   const entityType = dealId ? 'deal' : missionId ? 'mission' : 'client';
   const entityId = dealId || missionId || clientId || '';
 
@@ -45,15 +55,15 @@ export function DocumentActions({
 
     try {
       const response = await fetch(`/api/pdf/${type}/${id}`);
-      if (!response.ok) throw new Error('Erreur génération PDF');
+      if (!response.ok) throw new Error('Erreur generation PDF');
 
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank');
 
-      setMessage({ type: 'success', text: 'PDF généré avec succès' });
+      setMessage({ type: 'success', text: 'PDF genere avec succes' });
     } catch {
-      setMessage({ type: 'error', text: 'Erreur lors de la génération du PDF' });
+      setMessage({ type: 'error', text: 'Erreur lors de la generation du PDF' });
     } finally {
       setLoading(null);
     }
@@ -70,7 +80,7 @@ export function DocumentActions({
       return;
     }
 
-    // Ouvrir la modal d'envoi avec sélection des destinataires
+    // Ouvrir la modal d'envoi avec selection des destinataires
     sendDocument.openSendModal({
       docType: type,
       documentId: id,
@@ -82,7 +92,7 @@ export function DocumentActions({
 
   // Fallback: envoi simple sans modal (quand pas de contexte deal/mission/client)
   const handleSimpleSend = async () => {
-    if (!confirm(`Envoyer le document par email à ${clientEmail} ?`)) {
+    if (!confirm(`Envoyer le document par email a ${clientEmail} ?`)) {
       return;
     }
 
@@ -98,7 +108,7 @@ export function DocumentActions({
 
       if (!response.ok) throw new Error('Erreur envoi email');
 
-      // Mettre à jour le statut
+      // Mettre a jour le statut
       const supabase = createClient();
       const table = isInvoice ? 'invoices' : 'quotes';
       const newStatus = isInvoice ? 'envoyee' : 'envoye';
@@ -108,7 +118,7 @@ export function DocumentActions({
         .update({ status: newStatus })
         .eq('id', id);
 
-      setMessage({ type: 'success', text: 'Email envoyé avec succès' });
+      setMessage({ type: 'success', text: 'Email envoye avec succes' });
       router.refresh();
     } catch {
       setMessage({ type: 'error', text: 'Erreur lors de l\'envoi de l\'email' });
@@ -118,38 +128,34 @@ export function DocumentActions({
   };
 
   const handleSendSuccess = () => {
-    setMessage({ type: 'success', text: 'Email envoyé avec succès' });
+    setMessage({ type: 'success', text: 'Email envoye avec succes' });
     router.refresh();
   };
 
-  const handleMarkPaid = async () => {
-    if (!confirm('Marquer cette facture comme payée ?')) {
-      return;
+  const handleEncaisser = () => {
+    setIsPaymentModalOpen(true);
+  };
+
+  const handlePaymentSubmit = async (data: PaymentCreate) => {
+    const res = await fetch('/api/payments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Erreur');
     }
 
-    setLoading('paid');
-    setMessage(null);
-
-    try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from('invoices')
-        .update({ status: 'payee' })
-        .eq('id', id);
-
-      if (error) throw error;
-
-      setMessage({ type: 'success', text: 'Facture marquée comme payée' });
-      router.refresh();
-    } catch {
-      setMessage({ type: 'error', text: 'Erreur lors de la mise à jour' });
-    } finally {
-      setLoading(null);
-    }
+    setMessage({ type: 'success', text: 'Paiement enregistre' });
+    setIsPaymentModalOpen(false);
+    onPaymentAdded?.();
+    router.refresh();
   };
 
   const handleConvertToInvoice = async () => {
-    if (!confirm('Créer une facture à partir de ce devis ?')) {
+    if (!confirm('Creer une facture a partir de ce devis ?')) {
       return;
     }
 
@@ -159,18 +165,18 @@ export function DocumentActions({
     try {
       const supabase = createClient();
 
-      // Récupérer le devis avec ses lignes
+      // Recuperer le devis avec ses lignes
       const { data: quote } = await supabase
         .from('quotes')
         .select('*, items:quote_line_items(*)')
         .eq('id', id)
         .single();
 
-      if (!quote) throw new Error('Devis non trouvé');
+      if (!quote) throw new Error('Devis non trouve');
 
-      // Récupérer le numéro de facture
+      // Recuperer le numero de facture
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Non authentifié');
+      if (!user) throw new Error('Non authentifie');
 
       const { data: company } = await supabase
         .from('companies')
@@ -182,7 +188,7 @@ export function DocumentActions({
       const number = company?.next_invoice_number || 1;
       const numero = `${prefix}${String(number).padStart(4, '0')}`;
 
-      // Créer la facture
+      // Creer la facture
       const { data: invoice, error: invoiceError } = await supabase
         .from('invoices')
         .insert({
@@ -221,13 +227,13 @@ export function DocumentActions({
         await supabase.from('invoice_line_items').insert(invoiceItems);
       }
 
-      // Incrémenter le compteur
+      // Incrementer le compteur
       await supabase
         .from('companies')
         .update({ next_invoice_number: number + 1 })
         .eq('user_id', user.id);
 
-      setMessage({ type: 'success', text: 'Facture créée avec succès' });
+      setMessage({ type: 'success', text: 'Facture creee avec succes' });
       router.push(`/invoices/${invoice.id}`);
     } catch {
       setMessage({ type: 'error', text: 'Erreur lors de la conversion' });
@@ -235,6 +241,9 @@ export function DocumentActions({
       setLoading(null);
     }
   };
+
+  // Show Encaisser button if invoice is not fully paid
+  const showEncaisserButton = isInvoice && status !== 'payee' && (remainingAmount === undefined || remainingAmount > 0);
 
   return (
     <div className="space-y-4">
@@ -244,7 +253,7 @@ export function DocumentActions({
           loading={loading === 'pdf'}
           variant="secondary"
         >
-          Générer PDF
+          Generer PDF
         </Button>
 
         <Button
@@ -256,13 +265,12 @@ export function DocumentActions({
           Envoyer par email
         </Button>
 
-        {isInvoice && status !== 'payee' && (
+        {showEncaisserButton && (
           <Button
-            onClick={handleMarkPaid}
-            loading={loading === 'paid'}
+            onClick={handleEncaisser}
             variant="secondary"
           >
-            Marquer payée
+            Encaisser
           </Button>
         )}
 
@@ -295,6 +303,19 @@ export function DocumentActions({
           documentTitle={sendDocument.state.documentTitle}
           contacts={sendDocument.state.contacts}
           loading={sendDocument.state.loading}
+        />
+      )}
+
+      {/* Modal de paiement */}
+      {isInvoice && (
+        <PaymentModal
+          isOpen={isPaymentModalOpen}
+          onClose={() => setIsPaymentModalOpen(false)}
+          onSubmit={handlePaymentSubmit}
+          invoiceId={id}
+          clientId={clientId}
+          remainingAmount={remainingAmount}
+          currency={currency}
         />
       )}
     </div>

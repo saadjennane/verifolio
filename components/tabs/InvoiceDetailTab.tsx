@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Trash2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useTabsStore } from '@/lib/stores/tabs-store';
@@ -9,6 +9,7 @@ import { DocumentActions } from '@/components/documents/DocumentActions';
 import { SendHistory } from '@/components/documents/SendHistory';
 import { Badge, Button } from '@/components/ui';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { formatCurrency } from '@/lib/utils/currency';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,28 +22,50 @@ interface InvoiceDetailTabProps {
   invoiceId: string;
 }
 
-const statusConfig: Record<InvoiceStatus, { label: string; variant: 'gray' | 'blue' | 'green' | 'red' }> = {
+const statusConfig: Record<InvoiceStatus, { label: string; variant: 'gray' | 'blue' | 'green' | 'red' | 'yellow' }> = {
   brouillon: { label: 'Brouillon', variant: 'gray' },
-  envoyee: { label: 'Envoyée', variant: 'blue' },
-  payee: { label: 'Payée', variant: 'green' },
-  annulee: { label: 'Annulée', variant: 'red' },
+  envoyee: { label: 'Envoyee', variant: 'blue' },
+  partielle: { label: 'Paiement partiel', variant: 'yellow' },
+  payee: { label: 'Payee', variant: 'green' },
+  annulee: { label: 'Annulee', variant: 'red' },
 };
 
 const statusOptions: { value: InvoiceStatus; label: string }[] = [
   { value: 'brouillon', label: 'Brouillon' },
-  { value: 'envoyee', label: 'Envoyée' },
-  { value: 'payee', label: 'Payée' },
-  { value: 'annulee', label: 'Annulée' },
+  { value: 'envoyee', label: 'Envoyee' },
+  { value: 'partielle', label: 'Paiement partiel' },
+  { value: 'payee', label: 'Payee' },
+  { value: 'annulee', label: 'Annulee' },
 ];
+
+interface PaymentSummary {
+  total_ttc: number;
+  total_paid: number;
+  remaining: number;
+  payment_status: string;
+}
 
 export function InvoiceDetailTab({ invoiceId }: InvoiceDetailTabProps) {
   const { openTab, updateTabTitle, closeTab, tabs, activeTabId } = useTabsStore();
   const [invoice, setInvoice] = useState<InvoiceWithClientAndItems | null>(null);
   const [company, setCompany] = useState<Company | null>(null);
+  const [paymentSummary, setPaymentSummary] = useState<PaymentSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  const fetchPaymentSummary = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/invoices/${invoiceId}/payments`);
+      if (res.ok) {
+        const json = await res.json();
+        setPaymentSummary(json.data.summary);
+      }
+    } catch (err) {
+      console.error('Error fetching payment summary:', err);
+    }
+  }, [invoiceId]);
 
   useEffect(() => {
     async function fetchInvoice() {
@@ -64,7 +87,7 @@ export function InvoiceDetailTab({ invoiceId }: InvoiceDetailTabProps) {
         return;
       }
 
-      // Récupérer la company
+      // Recuperer la company
       const { data: { user } } = await supabase.auth.getUser();
       const { data: companyData } = await supabase
         .from('companies')
@@ -75,7 +98,7 @@ export function InvoiceDetailTab({ invoiceId }: InvoiceDetailTabProps) {
       setInvoice(invoiceData as InvoiceWithClientAndItems);
       setCompany(companyData);
 
-      // Mettre à jour le titre de l'onglet
+      // Mettre a jour le titre de l'onglet
       updateTabTitle(
         useTabsStore.getState().tabs.find(t => t.entityId === invoiceId)?.id || '',
         invoiceData.numero
@@ -85,7 +108,8 @@ export function InvoiceDetailTab({ invoiceId }: InvoiceDetailTabProps) {
     }
 
     fetchInvoice();
-  }, [invoiceId, updateTabTitle]);
+    fetchPaymentSummary();
+  }, [invoiceId, updateTabTitle, fetchPaymentSummary]);
 
   const handleBackToDocuments = () => {
     openTab({ type: 'documents', path: '/documents', title: 'Documents' }, true);
@@ -144,6 +168,23 @@ export function InvoiceDetailTab({ invoiceId }: InvoiceDetailTabProps) {
     }
   };
 
+  const handlePaymentAdded = () => {
+    // Refresh payment summary
+    fetchPaymentSummary();
+    // Refresh invoice to get updated status
+    const supabase = createClient();
+    supabase
+      .from('invoices')
+      .select('status')
+      .eq('id', invoiceId)
+      .single()
+      .then(({ data }) => {
+        if (data && invoice) {
+          setInvoice({ ...invoice, status: data.status });
+        }
+      });
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -155,7 +196,7 @@ export function InvoiceDetailTab({ invoiceId }: InvoiceDetailTabProps) {
   if (notFound) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-gray-500">
-        <p className="text-lg mb-4">Facture non trouvée</p>
+        <p className="text-lg mb-4">Facture non trouvee</p>
         <button
           onClick={handleBackToDocuments}
           className="text-blue-600 hover:text-blue-700"
@@ -167,6 +208,9 @@ export function InvoiceDetailTab({ invoiceId }: InvoiceDetailTabProps) {
   }
 
   const config = statusConfig[invoice?.status as InvoiceStatus] || statusConfig.brouillon;
+  const currency = company?.default_currency || 'MAD';
+  const remaining = paymentSummary?.remaining ?? invoice?.total_ttc ?? 0;
+  const totalPaid = paymentSummary?.total_paid ?? 0;
 
   return (
     <div className="h-full overflow-auto p-6">
@@ -227,6 +271,30 @@ export function InvoiceDetailTab({ invoiceId }: InvoiceDetailTabProps) {
           </div>
         </div>
 
+        {/* Payment Summary Card */}
+        <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Total TTC</p>
+              <p className="text-lg font-semibold text-gray-900">
+                {formatCurrency(invoice?.total_ttc || 0, currency)}
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="text-sm text-gray-500">Encaisse</p>
+              <p className="text-lg font-semibold text-green-600">
+                {formatCurrency(totalPaid, currency)}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-sm text-gray-500">Restant du</p>
+              <p className={`text-xl font-bold ${remaining > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+                {formatCurrency(remaining, currency)}
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Actions + Send History */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           <div className="lg:col-span-2">
@@ -237,6 +305,9 @@ export function InvoiceDetailTab({ invoiceId }: InvoiceDetailTabProps) {
               clientEmail={invoice?.client?.email}
               clientId={invoice?.client_id}
               documentTitle={invoice?.numero || 'Facture'}
+              remainingAmount={remaining}
+              currency={currency}
+              onPaymentAdded={handlePaymentAdded}
             />
           </div>
           <div className="bg-white border border-gray-200 rounded-lg p-4">
@@ -257,8 +328,8 @@ export function InvoiceDetailTab({ invoiceId }: InvoiceDetailTabProps) {
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
         title="Supprimer la facture"
-        description={`La facture ${invoice?.numero} sera déplacée dans la corbeille. Vous pourrez la restaurer pendant 30 jours.`}
-        confirmLabel="Mettre à la corbeille"
+        description={`La facture ${invoice?.numero} sera deplacee dans la corbeille. Vous pourrez la restaurer pendant 30 jours.`}
+        confirmLabel="Mettre a la corbeille"
         cancelLabel="Annuler"
         variant="destructive"
         loading={deleting}

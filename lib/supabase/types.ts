@@ -3,7 +3,7 @@
 
 export type ClientType = 'particulier' | 'entreprise';
 export type QuoteStatus = 'brouillon' | 'envoye';
-export type InvoiceStatus = 'brouillon' | 'envoyee' | 'payee' | 'annulee';
+export type InvoiceStatus = 'brouillon' | 'envoyee' | 'partielle' | 'payee' | 'annulee';
 
 // Delivery Notes (Bons de livraison)
 export type DeliveryNoteStatus = 'DRAFT' | 'SENT' | 'CANCELLED';
