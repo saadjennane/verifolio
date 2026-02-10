@@ -9,18 +9,31 @@ import { DocumentActions } from '@/components/documents/DocumentActions';
 import { SendHistory } from '@/components/documents/SendHistory';
 import { Badge, Button } from '@/components/ui';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import type { InvoiceStatus, InvoiceWithClientAndItems, Company } from '@/lib/supabase/types';
 
 interface InvoiceDetailTabProps {
   invoiceId: string;
 }
 
-const statusConfig: Record<InvoiceStatus, { label: string; variant: 'gray' | 'blue' | 'green' }> = {
+const statusConfig: Record<InvoiceStatus, { label: string; variant: 'gray' | 'blue' | 'green' | 'red' }> = {
   brouillon: { label: 'Brouillon', variant: 'gray' },
   envoyee: { label: 'Envoyée', variant: 'blue' },
   payee: { label: 'Payée', variant: 'green' },
-  annulee: { label: 'Annulée', variant: 'gray' },
+  annulee: { label: 'Annulée', variant: 'red' },
 };
+
+const statusOptions: { value: InvoiceStatus; label: string }[] = [
+  { value: 'brouillon', label: 'Brouillon' },
+  { value: 'envoyee', label: 'Envoyée' },
+  { value: 'payee', label: 'Payée' },
+  { value: 'annulee', label: 'Annulée' },
+];
 
 export function InvoiceDetailTab({ invoiceId }: InvoiceDetailTabProps) {
   const { openTab, updateTabTitle, closeTab, tabs, activeTabId } = useTabsStore();
@@ -113,6 +126,24 @@ export function InvoiceDetailTab({ invoiceId }: InvoiceDetailTabProps) {
     openTab({ type: 'documents', path: '/documents', title: 'Documents' }, true);
   };
 
+  const handleStatusChange = async (newStatus: InvoiceStatus) => {
+    if (!invoice || invoice.status === newStatus) return;
+
+    try {
+      const response = await fetch('/api/invoices/bulk', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [invoiceId], updates: { status: newStatus } }),
+      });
+
+      if (response.ok) {
+        setInvoice({ ...invoice, status: newStatus });
+      }
+    } catch (error) {
+      console.error('Status change error:', error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -151,7 +182,35 @@ export function InvoiceDetailTab({ invoiceId }: InvoiceDetailTabProps) {
           <div className="flex items-center justify-between mt-2">
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-gray-900">{invoice?.numero}</h1>
-              <Badge variant={config.variant}>{config.label}</Badge>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="focus:outline-none">
+                    <Badge
+                      variant={config.variant}
+                      className="cursor-pointer hover:opacity-80 transition-opacity"
+                    >
+                      {config.label}
+                    </Badge>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  {statusOptions.map((option) => {
+                    const optionConfig = statusConfig[option.value];
+                    return (
+                      <DropdownMenuItem
+                        key={option.value}
+                        onClick={() => handleStatusChange(option.value)}
+                        className={option.value === invoice?.status ? 'bg-muted' : ''}
+                      >
+                        <Badge variant={optionConfig.variant} className="mr-2">
+                          {option.label}
+                        </Badge>
+                        {option.value === invoice?.status && <span className="ml-auto text-xs">✓</span>}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
             <div className="flex items-center gap-2">
               <Button variant="secondary" onClick={handleEdit}>
@@ -187,13 +246,10 @@ export function InvoiceDetailTab({ invoiceId }: InvoiceDetailTabProps) {
         </div>
 
         {/* Preview */}
-        {invoice && (
-          <DocumentPreview
-            type="invoice"
-            document={invoice}
-            company={company}
-          />
-        )}
+        <DocumentPreview
+          type="invoice"
+          documentId={invoiceId}
+        />
       </div>
 
       {/* Delete Confirmation Dialog */}

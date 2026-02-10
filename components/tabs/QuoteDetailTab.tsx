@@ -9,16 +9,33 @@ import { DocumentActions } from '@/components/documents/DocumentActions';
 import { SendHistory } from '@/components/documents/SendHistory';
 import { Badge, Button } from '@/components/ui';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import type { QuoteStatus, QuoteWithClientAndItems, Company } from '@/lib/supabase/types';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import type { QuoteWithClientAndItems, Company } from '@/lib/supabase/types';
+
+type ExtendedQuoteStatus = 'brouillon' | 'envoye' | 'accepted' | 'refused';
 
 interface QuoteDetailTabProps {
   quoteId: string;
 }
 
-const statusConfig: Record<QuoteStatus, { label: string; variant: 'gray' | 'blue' }> = {
+const statusConfig: Record<ExtendedQuoteStatus, { label: string; variant: 'gray' | 'blue' | 'green' | 'red' }> = {
   brouillon: { label: 'Brouillon', variant: 'gray' },
   envoye: { label: 'Envoyé', variant: 'blue' },
+  accepted: { label: 'Accepté', variant: 'green' },
+  refused: { label: 'Refusé', variant: 'red' },
 };
+
+const statusOptions: { value: ExtendedQuoteStatus; label: string }[] = [
+  { value: 'brouillon', label: 'Brouillon' },
+  { value: 'envoye', label: 'Envoyé' },
+  { value: 'accepted', label: 'Accepté' },
+  { value: 'refused', label: 'Refusé' },
+];
 
 export function QuoteDetailTab({ quoteId }: QuoteDetailTabProps) {
   const { openTab, updateTabTitle, closeTab, tabs, activeTabId } = useTabsStore();
@@ -124,6 +141,25 @@ export function QuoteDetailTab({ quoteId }: QuoteDetailTabProps) {
     }
   };
 
+  const handleStatusChange = async (newStatus: ExtendedQuoteStatus) => {
+    if (!quote || quote.status === newStatus) return;
+
+    try {
+      const response = await fetch('/api/quotes/bulk', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [quoteId], updates: { status: newStatus } }),
+      });
+
+      if (response.ok) {
+        // Use type assertion since extended statuses are valid at runtime
+        setQuote({ ...quote, status: newStatus as unknown as typeof quote.status });
+      }
+    } catch (error) {
+      console.error('Status change error:', error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -146,7 +182,7 @@ export function QuoteDetailTab({ quoteId }: QuoteDetailTabProps) {
     );
   }
 
-  const config = statusConfig[quote?.status as QuoteStatus] || statusConfig.brouillon;
+  const config = statusConfig[quote?.status as ExtendedQuoteStatus] || statusConfig.brouillon;
 
   return (
     <div className="h-full overflow-auto p-6">
@@ -162,7 +198,35 @@ export function QuoteDetailTab({ quoteId }: QuoteDetailTabProps) {
           <div className="flex items-center justify-between mt-2">
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-gray-900">{quote?.numero}</h1>
-              <Badge variant={config.variant}>{config.label}</Badge>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="focus:outline-none">
+                    <Badge
+                      variant={config.variant}
+                      className="cursor-pointer hover:opacity-80 transition-opacity"
+                    >
+                      {config.label}
+                    </Badge>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  {statusOptions.map((option) => {
+                    const optionConfig = statusConfig[option.value];
+                    return (
+                      <DropdownMenuItem
+                        key={option.value}
+                        onClick={() => handleStatusChange(option.value)}
+                        className={option.value === quote?.status ? 'bg-muted' : ''}
+                      >
+                        <Badge variant={optionConfig.variant} className="mr-2">
+                          {option.label}
+                        </Badge>
+                        {option.value === quote?.status && <span className="ml-auto text-xs">✓</span>}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
             <div className="flex items-center gap-2">
               <Button variant="secondary" onClick={handleEdit}>
@@ -198,13 +262,10 @@ export function QuoteDetailTab({ quoteId }: QuoteDetailTabProps) {
         </div>
 
         {/* Preview */}
-        {quote && (
-          <DocumentPreview
-            type="quote"
-            document={quote}
-            company={company}
-          />
-        )}
+        <DocumentPreview
+          type="quote"
+          documentId={quoteId}
+        />
       </div>
 
       {/* Delete Confirmation Dialog */}
