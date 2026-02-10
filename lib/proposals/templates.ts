@@ -400,7 +400,7 @@ export async function createTemplateFromProposal(
     .from('proposals')
     .select('id, titre')
     .eq('id', proposalId)
-    .eq('owner_user_id', userId)
+    .eq('user_id', userId)
     .single();
 
   if (proposalError || !proposal) {
