@@ -1,12 +1,22 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { PAYMENT_METHOD_LABELS } from '@/lib/payments/types';
 import type { PaymentMethod } from '@/lib/payments/types';
 import type { CreateEncaissementPayload, PendingClientInvoice } from '@/lib/treasury/types';
 import { formatCurrency } from '@/lib/utils/currency';
+
+interface Client {
+  id: string;
+  nom: string;
+}
+
+interface Mission {
+  id: string;
+  title: string;
+}
 
 interface EncaissementModalProps {
   isOpen: boolean;
@@ -26,39 +36,128 @@ export function EncaissementModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Client selection (required)
+  const [clients, setClients] = useState<Client[]>([]);
+  const [selectedClientId, setSelectedClientId] = useState<string>('');
+  const [loadingClients, setLoadingClients] = useState(false);
+
+  // Invoice selection (optional)
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string>('');
+  const [filteredInvoices, setFilteredInvoices] = useState<PendingClientInvoice[]>([]);
+
+  // Mission selection (optional)
+  const [missions, setMissions] = useState<Mission[]>([]);
+  const [selectedMissionId, setSelectedMissionId] = useState<string>('');
+  const [loadingMissions, setLoadingMissions] = useState(false);
+
+  // Show optional fields
+  const [showOptional, setShowOptional] = useState(false);
+
+  // Payment details
   const [amount, setAmount] = useState('');
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('virement');
   const [reference, setReference] = useState('');
   const [notes, setNotes] = useState('');
 
-  // Reset form when opening
+  // Fetch clients on open
   useEffect(() => {
     if (isOpen) {
-      setSelectedInvoiceId('');
-      setAmount('');
-      setPaymentDate(new Date().toISOString().split('T')[0]);
-      setPaymentMethod('virement');
-      setReference('');
-      setNotes('');
-      setError(null);
+      fetchClients();
+      resetForm();
     }
   }, [isOpen]);
+
+  // Filter invoices by client
+  useEffect(() => {
+    if (selectedClientId) {
+      const filtered = pendingInvoices.filter((i) => i.client_id === selectedClientId);
+      setFilteredInvoices(filtered);
+      // Reset invoice selection if client changes
+      if (selectedInvoiceId) {
+        const stillValid = filtered.some((i) => i.id === selectedInvoiceId);
+        if (!stillValid) {
+          setSelectedInvoiceId('');
+        }
+      }
+    } else {
+      setFilteredInvoices([]);
+      setSelectedInvoiceId('');
+    }
+  }, [selectedClientId, pendingInvoices, selectedInvoiceId]);
+
+  // Fetch missions for selected client
+  useEffect(() => {
+    if (selectedClientId) {
+      fetchMissions(selectedClientId);
+    } else {
+      setMissions([]);
+      setSelectedMissionId('');
+    }
+  }, [selectedClientId]);
 
   // Update amount when invoice selected
   useEffect(() => {
     if (selectedInvoiceId) {
-      const invoice = pendingInvoices.find((i) => i.id === selectedInvoiceId);
+      const invoice = filteredInvoices.find((i) => i.id === selectedInvoiceId);
       if (invoice) {
         setAmount(invoice.remaining.toFixed(2));
       }
     }
-  }, [selectedInvoiceId, pendingInvoices]);
+  }, [selectedInvoiceId, filteredInvoices]);
+
+  const resetForm = () => {
+    setSelectedClientId('');
+    setSelectedInvoiceId('');
+    setSelectedMissionId('');
+    setAmount('');
+    setPaymentDate(new Date().toISOString().split('T')[0]);
+    setPaymentMethod('virement');
+    setReference('');
+    setNotes('');
+    setError(null);
+    setShowOptional(false);
+  };
+
+  const fetchClients = async () => {
+    setLoadingClients(true);
+    try {
+      const res = await fetch('/api/clients?type=client');
+      if (res.ok) {
+        const { data } = await res.json();
+        setClients(data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching clients:', err);
+    } finally {
+      setLoadingClients(false);
+    }
+  };
+
+  const fetchMissions = async (clientId: string) => {
+    setLoadingMissions(true);
+    try {
+      const res = await fetch(`/api/missions?client_id=${clientId}`);
+      if (res.ok) {
+        const { data } = await res.json();
+        setMissions(data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching missions:', err);
+    } finally {
+      setLoadingMissions(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    // Validation
+    if (!selectedClientId) {
+      setError('Veuillez selectionner un client');
+      return;
+    }
 
     const numAmount = parseFloat(amount);
     if (isNaN(numAmount) || numAmount <= 0) {
@@ -66,27 +165,26 @@ export function EncaissementModal({
       return;
     }
 
-    if (!selectedInvoiceId) {
-      setError('Veuillez selectionner une facture');
-      return;
-    }
-
-    const selectedInvoice = pendingInvoices.find((i) => i.id === selectedInvoiceId);
-    if (selectedInvoice && numAmount > selectedInvoice.remaining) {
-      setError(`Le montant depasse le reste a encaisser (${formatCurrency(selectedInvoice.remaining, currency)})`);
-      return;
+    // Validate amount against invoice if selected
+    if (selectedInvoiceId) {
+      const selectedInvoice = filteredInvoices.find((i) => i.id === selectedInvoiceId);
+      if (selectedInvoice && numAmount > selectedInvoice.remaining) {
+        setError(`Le montant depasse le reste a encaisser (${formatCurrency(selectedInvoice.remaining, currency)})`);
+        return;
+      }
     }
 
     setLoading(true);
 
     try {
       await onSubmit({
-        invoice_id: selectedInvoiceId,
-        client_id: selectedInvoice?.client_id,
+        client_id: selectedClientId,
+        invoice_id: selectedInvoiceId || undefined,
+        mission_id: selectedMissionId || undefined,
         amount: numAmount,
         payment_date: paymentDate,
         payment_method: paymentMethod,
-        payment_type: 'payment',
+        payment_type: selectedInvoiceId ? 'payment' : 'advance',
         reference: reference || undefined,
         notes: notes || undefined,
       });
@@ -101,7 +199,7 @@ export function EncaissementModal({
 
   if (!isOpen) return null;
 
-  const selectedInvoice = pendingInvoices.find((i) => i.id === selectedInvoiceId);
+  const selectedInvoice = filteredInvoices.find((i) => i.id === selectedInvoiceId);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -125,32 +223,28 @@ export function EncaissementModal({
             </div>
           )}
 
-          {/* Invoice selection */}
+          {/* Client selection (required) */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">
-              Facture client <span className="text-red-500">*</span>
+              Client <span className="text-red-500">*</span>
             </label>
             <select
-              value={selectedInvoiceId}
-              onChange={(e) => setSelectedInvoiceId(e.target.value)}
+              value={selectedClientId}
+              onChange={(e) => setSelectedClientId(e.target.value)}
               className="w-full px-3 py-2.5 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
               required
+              disabled={loadingClients}
             >
-              <option value="">-- Selectionner une facture --</option>
-              {pendingInvoices.map((invoice) => (
-                <option key={invoice.id} value={invoice.id}>
-                  {invoice.numero} - {invoice.client_name} ({formatCurrency(invoice.remaining, currency)} restant)
+              <option value="">-- Selectionner un client --</option>
+              {clients.map((client) => (
+                <option key={client.id} value={client.id}>
+                  {client.nom}
                 </option>
               ))}
             </select>
-            {pendingInvoices.length === 0 && (
-              <p className="mt-1.5 text-xs text-muted-foreground">
-                Aucune facture en attente d&apos;encaissement
-              </p>
-            )}
           </div>
 
-          {/* Amount */}
+          {/* Amount (required) */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">
               Montant ({currency}) <span className="text-red-500">*</span>
@@ -176,7 +270,7 @@ export function EncaissementModal({
             )}
           </div>
 
-          {/* Date */}
+          {/* Date (required) */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">
               Date <span className="text-red-500">*</span>
@@ -208,33 +302,102 @@ export function EncaissementModal({
             </select>
           </div>
 
-          {/* Reference */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">
-              Reference{' '}
-              <span className="text-muted-foreground font-normal">(optionnel)</span>
-            </label>
-            <input
-              type="text"
-              value={reference}
-              onChange={(e) => setReference(e.target.value)}
-              className="w-full px-3 py-2.5 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
-              placeholder="N cheque, ref virement..."
-            />
-          </div>
+          {/* Toggle for optional fields */}
+          <button
+            type="button"
+            onClick={() => setShowOptional(!showOptional)}
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {showOptional ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            {showOptional ? 'Masquer les options' : 'Afficher plus d\'options'}
+          </button>
 
-          {/* Notes */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">
-              Notes <span className="text-muted-foreground font-normal">(optionnel)</span>
-            </label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-              className="w-full px-3 py-2.5 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
-            />
-          </div>
+          {showOptional && (
+            <>
+              {/* Invoice selection (optional) */}
+              {selectedClientId && filteredInvoices.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">
+                    Facture{' '}
+                    <span className="text-muted-foreground font-normal">(optionnel)</span>
+                  </label>
+                  <select
+                    value={selectedInvoiceId}
+                    onChange={(e) => setSelectedInvoiceId(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  >
+                    <option value="">-- Paiement sans facture --</option>
+                    {filteredInvoices.map((invoice) => (
+                      <option key={invoice.id} value={invoice.id}>
+                        {invoice.numero} ({formatCurrency(invoice.remaining, currency)} restant)
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    Sans facture, le paiement pourra etre associe plus tard
+                  </p>
+                </div>
+              )}
+
+              {/* Mission selection (optional) */}
+              {selectedClientId && missions.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">
+                    Mission{' '}
+                    <span className="text-muted-foreground font-normal">(optionnel)</span>
+                  </label>
+                  <select
+                    value={selectedMissionId}
+                    onChange={(e) => setSelectedMissionId(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    disabled={loadingMissions}
+                  >
+                    <option value="">-- Sans mission --</option>
+                    {missions.map((mission) => (
+                      <option key={mission.id} value={mission.id}>
+                        {mission.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Reference */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1.5">
+                  Reference{' '}
+                  <span className="text-muted-foreground font-normal">(optionnel)</span>
+                </label>
+                <input
+                  type="text"
+                  value={reference}
+                  onChange={(e) => setReference(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  placeholder="N cheque, ref virement..."
+                />
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1.5">
+                  Notes <span className="text-muted-foreground font-normal">(optionnel)</span>
+                </label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={2}
+                  className="w-full px-3 py-2.5 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+                />
+              </div>
+            </>
+          )}
+
+          {/* Info about payment type */}
+          {selectedClientId && !selectedInvoiceId && (
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 text-sm rounded-lg">
+              Ce paiement sera enregistre comme une <strong>avance client</strong> et pourra etre associe a une facture ulterieurement.
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex justify-end gap-3 pt-2">
@@ -243,7 +406,7 @@ export function EncaissementModal({
             </Button>
             <Button
               type="submit"
-              disabled={loading || !selectedInvoiceId}
+              disabled={loading || !selectedClientId}
               className="bg-green-600 hover:bg-green-700 text-white"
             >
               {loading ? 'Enregistrement...' : 'Encaisser'}

@@ -105,6 +105,8 @@ export interface CreateEncaissementPayload {
 export interface CreateDecaissementPayload {
   supplier_invoice_id?: string;
   supplier_id?: string;
+  mission_id?: string;
+  deal_id?: string;
   amount: number;
   payment_date?: string;
   payment_method?: PaymentMethod;

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui';
 import { SendDocumentModal } from '@/components/documents/SendDocumentModal';
-import { PaymentModal } from '@/components/payments';
+import { PaymentModal, PaymentAssociationModal } from '@/components/payments';
 import { useSendDocument } from '@/lib/hooks/useSendDocument';
 import type { PaymentCreate } from '@/lib/payments/types';
 
@@ -41,6 +41,7 @@ export function DocumentActions({
   const [loading, setLoading] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [isAssociationModalOpen, setIsAssociationModalOpen] = useState(false);
   const sendDocument = useSendDocument();
 
   const isInvoice = type === 'invoice';
@@ -134,6 +135,16 @@ export function DocumentActions({
 
   const handleEncaisser = () => {
     setIsPaymentModalOpen(true);
+  };
+
+  const handleAssocierPaiement = () => {
+    setIsAssociationModalOpen(true);
+  };
+
+  const handleAssociationSuccess = () => {
+    setMessage({ type: 'success', text: 'Paiement associe avec succes' });
+    onPaymentAdded?.();
+    router.refresh();
   };
 
   const handlePaymentSubmit = async (data: PaymentCreate) => {
@@ -266,12 +277,20 @@ export function DocumentActions({
         </Button>
 
         {showEncaisserButton && (
-          <Button
-            onClick={handleEncaisser}
-            variant="secondary"
-          >
-            Encaisser
-          </Button>
+          <>
+            <Button
+              onClick={handleEncaisser}
+              variant="secondary"
+            >
+              Encaisser
+            </Button>
+            <Button
+              onClick={handleAssocierPaiement}
+              variant="outline"
+            >
+              Associer un paiement
+            </Button>
+          </>
         )}
 
         {!isInvoice && (
@@ -315,6 +334,20 @@ export function DocumentActions({
           invoiceId={id}
           clientId={clientId}
           remainingAmount={remainingAmount}
+          currency={currency}
+        />
+      )}
+
+      {/* Modal d'association de paiement existant */}
+      {isInvoice && (
+        <PaymentAssociationModal
+          isOpen={isAssociationModalOpen}
+          onClose={() => setIsAssociationModalOpen(false)}
+          onSuccess={handleAssociationSuccess}
+          invoiceId={id}
+          clientId={clientId}
+          invoiceNumero={documentTitle || 'Facture'}
+          invoiceRemaining={remainingAmount || 0}
           currency={currency}
         />
       )}

@@ -33,6 +33,8 @@ export interface Payment {
   mission_id: string | null;
   supplier_id: string | null;
   supplier_invoice_id: string | null;
+  deal_id: string | null;
+  subscription_id: string | null;
   amount: number;
   payment_date: string;
   payment_method: PaymentMethod;
@@ -69,6 +71,8 @@ export interface PaymentCreate {
   mission_id?: string;
   supplier_id?: string;
   supplier_invoice_id?: string;
+  deal_id?: string;
+  subscription_id?: string;
   amount: number;
   payment_date?: string;
   payment_method?: PaymentMethod;
@@ -171,3 +175,81 @@ export const PAYMENT_STATUS_COLORS: Record<InvoicePaymentStatus, string> = {
   partiel: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
   paye: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
 };
+
+// ============================================================================
+// Unassociated Payments (for a posteriori association)
+// ============================================================================
+
+export interface UnassociatedClientPayment {
+  id: string;
+  user_id: string;
+  client_id: string;
+  client_name: string;
+  mission_id: string | null;
+  mission_title: string | null;
+  amount: number;
+  payment_date: string;
+  payment_method: PaymentMethod;
+  payment_type: PaymentType;
+  reference: string | null;
+  notes: string | null;
+  created_at: string;
+  allocated_amount: number;
+  available_amount: number;
+}
+
+export interface UnassociatedSupplierPayment {
+  id: string;
+  user_id: string;
+  supplier_id: string;
+  supplier_name: string;
+  mission_id: string | null;
+  mission_title: string | null;
+  deal_id: string | null;
+  deal_name: string | null;
+  amount: number;
+  payment_date: string;
+  payment_method: PaymentMethod;
+  payment_type: PaymentType;
+  reference: string | null;
+  notes: string | null;
+  created_at: string;
+  allocated_amount: number;
+  available_amount: number;
+}
+
+export interface PendingInvoice {
+  id: string;
+  user_id: string;
+  numero: string;
+  client_id: string;
+  client_name: string;
+  date_emission: string;
+  date_echeance: string | null;
+  total_ttc: number;
+  total_paid: number;
+  remaining: number;
+  status: string;
+}
+
+export interface PendingSupplierInvoice {
+  id: string;
+  user_id: string;
+  numero: string;
+  supplier_id: string;
+  supplier_name: string;
+  date_facture: string;
+  date_echeance: string | null;
+  total_ttc: number;
+  total_paid: number;
+  remaining: number;
+  status: string;
+}
+
+export interface PaymentAssociationResult {
+  success: boolean;
+  error?: string;
+  allocated?: number;
+  remaining?: number;
+  new_status?: string;
+}
