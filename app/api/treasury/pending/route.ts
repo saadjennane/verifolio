@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json({ data: invoices });
     } else {
-      // Factures clients non payees
+      // Factures clients non payees (statut envoyee uniquement)
       const { data, error } = await supabase
         .from('invoice_payment_summary')
         .select(
@@ -60,8 +60,9 @@ export async function GET(request: NextRequest) {
         `
         )
         .eq('user_id', userData.user.id)
+        .eq('status', 'envoyee')
         .neq('payment_status', 'paye')
-        .not('status', 'in', '("brouillon","annulee")')
+        .gt('remaining', 0)
         .order('date_echeance', { ascending: true, nullsFirst: false });
 
       if (error) {
