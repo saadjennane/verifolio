@@ -16,7 +16,8 @@ export type PaymentType =
   | 'refund'            // Remboursement client (OUT)
   | 'supplier_payment'  // Paiement fournisseur (OUT)
   | 'supplier_advance'  // Avance fournisseur (OUT)
-  | 'supplier_refund';  // Remboursement fournisseur (IN)
+  | 'supplier_refund'   // Remboursement fournisseur (IN)
+  | 'subscription';     // Paiement abonnement (OUT)
 
 export type InvoicePaymentStatus = 'non_paye' | 'partiel' | 'paye';
 
@@ -156,6 +157,7 @@ export const PAYMENT_TYPE_LABELS: Record<PaymentType, string> = {
   supplier_payment: 'Paiement fournisseur',
   supplier_advance: 'Avance fournisseur',
   supplier_refund: 'Remboursement fournisseur',
+  subscription: 'Abonnement',
 };
 
 export const PAYMENT_STATUS_LABELS: Record<InvoicePaymentStatus, string> = {

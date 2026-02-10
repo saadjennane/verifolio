@@ -156,6 +156,10 @@ const TreasuryTab = dynamic(() => import('@/components/tabs/TreasuryTab').then(m
   loading: () => <TabLoading />,
 });
 
+const SubscriptionsTab = dynamic(() => import('@/components/tabs/SubscriptionsTab').then(m => ({ default: m.SubscriptionsTab })), {
+  loading: () => <TabLoading />,
+});
+
 function TabLoading() {
   return (
     <div className="flex items-center justify-center h-full">
@@ -365,6 +369,9 @@ export function TabContent() {
 
     case 'treasury':
       return <TreasuryTab />;
+
+    case 'subscriptions':
+      return <SubscriptionsTab />;
 
     default:
       return <EmptyState />;

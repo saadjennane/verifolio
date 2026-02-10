@@ -80,7 +80,9 @@ export type TabType =
   | 'expense'
   | 'new-expense'
   // Treasury
-  | 'treasury';
+  | 'treasury'
+  // Subscriptions
+  | 'subscriptions';
 
 /**
  * Source de l'ouverture d'un onglet
@@ -216,6 +218,8 @@ export const TAB_ICONS: Record<TabType, string> = {
   'new-purchase-order': 'plus',
   // Treasury
   treasury: 'wallet',
+  // Subscriptions
+  subscriptions: 'repeat',
 };
 
 export function pathToTabConfig(pathname: string): TabConfig | null {
@@ -540,6 +544,11 @@ export function pathToTabConfig(pathname: string): TabConfig | null {
   // Treasury
   if (pathname === '/treasury') {
     return { type: 'treasury', path: '/treasury', title: 'Trésorerie' };
+  }
+
+  // Subscriptions
+  if (pathname === '/subscriptions') {
+    return { type: 'subscriptions', path: '/subscriptions', title: 'Abonnements' };
   }
 
   return null;
