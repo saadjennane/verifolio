@@ -180,18 +180,18 @@ JOIN clients c ON c.id = s.supplier_id;
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION calculate_next_due_date(
-  current_date DATE,
+  p_date DATE,
   p_frequency TEXT,
   p_frequency_days INT DEFAULT NULL
 )
 RETURNS DATE AS $$
 BEGIN
   RETURN CASE p_frequency
-    WHEN 'monthly' THEN current_date + INTERVAL '1 month'
-    WHEN 'quarterly' THEN current_date + INTERVAL '3 months'
-    WHEN 'yearly' THEN current_date + INTERVAL '1 year'
-    WHEN 'custom' THEN current_date + (p_frequency_days || ' days')::INTERVAL
-    ELSE current_date + INTERVAL '1 month'
+    WHEN 'monthly' THEN p_date + INTERVAL '1 month'
+    WHEN 'quarterly' THEN p_date + INTERVAL '3 months'
+    WHEN 'yearly' THEN p_date + INTERVAL '1 year'
+    WHEN 'custom' THEN p_date + (p_frequency_days || ' days')::INTERVAL
+    ELSE p_date + INTERVAL '1 month'
   END;
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
