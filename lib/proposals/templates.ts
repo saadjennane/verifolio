@@ -398,7 +398,7 @@ export async function createTemplateFromProposal(
   // Verify proposal ownership
   const { data: proposal, error: proposalError } = await supabase
     .from('proposals')
-    .select('id, titre')
+    .select('id, title')
     .eq('id', proposalId)
     .eq('user_id', userId)
     .single();

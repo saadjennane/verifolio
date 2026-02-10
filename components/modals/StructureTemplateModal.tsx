@@ -629,6 +629,149 @@ function StepStructureAI({
 }
 
 // ============================================================================
+// Step 3: Design - Style Preview Component
+// ============================================================================
+
+function StylePreview({ presetId }: { presetId: ProposalPresetId }) {
+  switch (presetId) {
+    case 'classic':
+      return (
+        <div className="w-full h-full bg-white flex flex-col p-2">
+          {/* Header avec bordure bottom */}
+          <div className="border-b-2 border-slate-800 pb-1.5 mb-2">
+            <div className="h-2 bg-slate-800 rounded w-2/3" />
+          </div>
+          {/* Section avec numéro */}
+          <div className="flex gap-1.5 mb-1.5">
+            <div className="w-4 h-4 rounded-full bg-blue-500 flex-shrink-0" />
+            <div className="flex-1 space-y-1">
+              <div className="h-1.5 bg-gray-300 rounded w-full" />
+              <div className="h-1.5 bg-gray-200 rounded w-4/5" />
+            </div>
+          </div>
+          {/* Section avec numéro */}
+          <div className="flex gap-1.5">
+            <div className="w-4 h-4 rounded-full bg-blue-500 flex-shrink-0" />
+            <div className="flex-1 space-y-1">
+              <div className="h-1.5 bg-gray-300 rounded w-full" />
+              <div className="h-1.5 bg-gray-200 rounded w-3/4" />
+            </div>
+          </div>
+        </div>
+      );
+
+    case 'modern':
+      return (
+        <div className="w-full h-full bg-white flex flex-col">
+          {/* Gradient band en haut */}
+          <div className="h-2 bg-gradient-to-r from-blue-500 to-blue-400" />
+          <div className="p-2 flex-1 flex flex-col gap-1.5">
+            <div className="h-2 bg-gray-800 rounded w-1/2" />
+            {/* Card arrondie */}
+            <div className="bg-blue-50 rounded-lg p-1.5 space-y-1">
+              <div className="h-1.5 bg-gray-300 rounded w-full" />
+              <div className="h-1.5 bg-gray-200 rounded w-4/5" />
+            </div>
+            {/* Card arrondie */}
+            <div className="bg-gray-50 rounded-lg p-1.5 space-y-1 border border-gray-200">
+              <div className="h-1.5 bg-gray-300 rounded w-full" />
+            </div>
+          </div>
+        </div>
+      );
+
+    case 'minimal':
+      return (
+        <div className="w-full h-full bg-white flex flex-col items-center p-3">
+          {/* Centré avec beaucoup d'espace */}
+          <div className="h-1.5 bg-gray-300 rounded w-1/3 mb-1" />
+          <div className="w-6 h-px bg-gray-400 my-1.5" />
+          <div className="h-1 bg-gray-200 rounded w-1/4 mb-3" />
+          {/* Contenu centré */}
+          <div className="w-full space-y-1.5">
+            <div className="h-1.5 bg-gray-200 rounded w-full" />
+            <div className="h-1.5 bg-gray-200 rounded w-5/6 mx-auto" />
+            <div className="h-1.5 bg-gray-200 rounded w-full" />
+          </div>
+        </div>
+      );
+
+    case 'elegant':
+      return (
+        <div className="w-full h-full bg-white flex flex-col p-2">
+          {/* Header élégant */}
+          <div className="text-center mb-1.5">
+            <div className="h-2 bg-gray-700 rounded w-1/2 mx-auto" />
+          </div>
+          {/* Ligne décorative gradient */}
+          <div className="h-0.5 bg-gradient-to-r from-purple-500 to-blue-500 mb-2" />
+          {/* Section avec bordure gauche */}
+          <div className="border-l-2 border-purple-400 pl-2 space-y-1 mb-2">
+            <div className="h-1.5 bg-gray-300 rounded w-full" />
+            <div className="h-1.5 bg-gray-200 rounded w-4/5" />
+          </div>
+          <div className="border-l-2 border-purple-400 pl-2 space-y-1">
+            <div className="h-1.5 bg-gray-300 rounded w-full" />
+            <div className="h-1.5 bg-gray-200 rounded w-3/4" />
+          </div>
+        </div>
+      );
+
+    case 'professional':
+      return (
+        <div className="w-full h-full bg-white flex flex-col">
+          {/* Header sombre */}
+          <div className="bg-emerald-700 p-1.5 flex justify-between items-center">
+            <div className="h-1.5 bg-white/80 rounded w-1/3" />
+            <div className="h-1.5 bg-white/60 rounded w-1/4" />
+          </div>
+          {/* Grille 2 colonnes */}
+          <div className="p-2 flex-1 space-y-1.5">
+            <div className="flex gap-1">
+              <div className="flex-1 bg-gray-100 p-1 rounded-sm">
+                <div className="h-1 bg-gray-300 rounded w-full" />
+              </div>
+              <div className="flex-1 bg-gray-100 p-1 rounded-sm">
+                <div className="h-1 bg-gray-300 rounded w-full" />
+              </div>
+            </div>
+            <div className="bg-gray-100 border-l-2 border-emerald-600 p-1">
+              <div className="h-1.5 bg-gray-400 rounded w-2/3" />
+            </div>
+          </div>
+          {/* Footer plein */}
+          <div className="bg-emerald-700 h-2" />
+        </div>
+      );
+
+    case 'creative':
+      return (
+        <div className="w-full h-full bg-white flex">
+          {/* Sidebar verticale */}
+          <div className="w-3 bg-gradient-to-b from-amber-500 to-orange-600 flex-shrink-0" />
+          {/* Contenu principal */}
+          <div className="flex-1 p-2 flex flex-col gap-1.5">
+            <div className="h-2.5 bg-gray-800 rounded w-2/3" />
+            <div className="border-l-2 border-amber-500 pl-1.5 space-y-1">
+              <div className="h-1.5 bg-gray-300 rounded w-full" />
+              <div className="h-1.5 bg-gray-200 rounded w-4/5" />
+            </div>
+            <div className="flex gap-1">
+              <div className="w-4 h-4 rounded-lg bg-amber-100 flex-shrink-0" />
+              <div className="flex-1 space-y-1">
+                <div className="h-1.5 bg-gray-300 rounded" />
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+
+    default:
+      return null;
+  }
+}
+
+// ============================================================================
 // Step 3: Design
 // ============================================================================
 
@@ -647,15 +790,6 @@ function StepDesign({
   onSubmit,
   isCreating,
 }: StepDesignProps) {
-  const presetStyles: Record<ProposalPresetId, { accent: string; style: string }> = {
-    classic: { accent: '#1e293b', style: 'border-l-4' },
-    modern: { accent: '#3b82f6', style: 'rounded-lg shadow-sm' },
-    minimal: { accent: '#6b7280', style: 'border-b' },
-    elegant: { accent: '#7c3aed', style: 'border-t-2 border-b-2' },
-    professional: { accent: '#059669', style: 'border-l-2 bg-gray-50' },
-    creative: { accent: '#f59e0b', style: 'border-l-8' },
-  };
-
   return (
     <div className="space-y-6">
       <p className="text-muted-foreground">
@@ -666,7 +800,6 @@ function StepDesign({
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {PROPOSAL_PRESETS.map((preset) => {
           const isSelected = selectedPreset === preset.id;
-          const { accent, style } = presetStyles[preset.id];
 
           return (
             <button
@@ -679,22 +812,8 @@ function StepDesign({
               }`}
             >
               {/* Visual preview */}
-              <div className="mb-2 aspect-[3/4] bg-white rounded overflow-hidden border border-border">
-                <div className="w-full h-full p-2 flex flex-col gap-1.5">
-                  <div
-                    className={`h-3 ${style}`}
-                    style={{ borderColor: accent, backgroundColor: `${accent}15` }}
-                  />
-                  <div className="flex-1 space-y-1">
-                    <div className="h-1.5 bg-gray-200 rounded w-3/4" />
-                    <div className="h-1.5 bg-gray-200 rounded w-full" />
-                    <div className="h-1.5 bg-gray-200 rounded w-5/6" />
-                  </div>
-                  <div
-                    className={`h-2 ${style}`}
-                    style={{ borderColor: accent, backgroundColor: `${accent}10` }}
-                  />
-                </div>
+              <div className="mb-2 aspect-[3/4] rounded overflow-hidden border border-border">
+                <StylePreview presetId={preset.id} />
               </div>
 
               {/* Info */}
