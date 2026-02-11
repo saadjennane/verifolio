@@ -230,10 +230,14 @@ export const toolDefinitions = [
     type: 'function' as const,
     function: {
       name: 'list_invoices',
-      description: 'Lister les factures. Peut filtrer par statut.',
+      description: 'Lister les factures. Peut filtrer par statut ou rechercher par numéro.',
       parameters: {
         type: 'object',
         properties: {
+          numero: {
+            type: 'string',
+            description: 'Numéro de facture à rechercher (ex: FAC-0001, 001). Recherche partielle supportée.',
+          },
           status: {
             type: 'string',
             enum: ['brouillon', 'envoyee', 'payee'],

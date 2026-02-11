@@ -947,6 +947,7 @@ async function listInvoices(
   args: Record<string, unknown>
 ): Promise<ToolResult> {
   const status = args.status as string | undefined;
+  const numero = args.numero as string | undefined;
 
   let query = supabase
     .from('invoices')
@@ -959,6 +960,10 @@ async function listInvoices(
 
   if (status) {
     query = query.eq('status', status);
+  }
+
+  if (numero) {
+    query = query.ilike('numero', `%${numero}%`);
   }
 
   const { data, error } = await query.limit(10);
@@ -974,7 +979,7 @@ async function listInvoices(
   const invoiceList = data.map(i => {
     const clientNom = (i.client as { nom: string })?.nom || 'N/A';
     const currencySymbol = getCurrencySymbol(i.devise);
-    return `- ${i.numero}: ${clientNom} - ${Number(i.total_ttc).toFixed(2)} ${currencySymbol} (${i.status})`;
+    return `- ${i.numero} [ID: ${i.id}]: ${clientNom} - ${Number(i.total_ttc).toFixed(2)} ${currencySymbol} (${i.status})`;
   }).join('\n');
 
   return {
