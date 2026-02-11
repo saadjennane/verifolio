@@ -12,7 +12,6 @@ interface Mission {
   description: string | null;
   estimated_amount: number | null;
   started_at: string | null;
-  visible_on_verifolio: boolean;
 }
 
 interface MissionFormTabProps {

@@ -24,7 +24,6 @@ interface Mission {
   description: string | null;
   estimated_amount: number | null;
   started_at: string | null;
-  visible_on_verifolio: boolean;
 }
 
 interface MissionFormProps {
@@ -44,7 +43,6 @@ export function MissionForm({ mission, onSuccess, onCancel, embedded }: MissionF
   const [description, setDescription] = useState(mission?.description || '');
   const [estimatedAmount, setEstimatedAmount] = useState(mission?.estimated_amount?.toString() || '');
   const [startedAt, setStartedAt] = useState(mission?.started_at || '');
-  const [visibleOnVerifolio, setVisibleOnVerifolio] = useState(mission?.visible_on_verifolio ?? true);
 
   const [clients, setClients] = useState<Client[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
@@ -164,7 +162,6 @@ export function MissionForm({ mission, onSuccess, onCancel, embedded }: MissionF
         description: description.trim() || null,
         estimated_amount: estimatedAmount ? parseFloat(estimatedAmount) : null,
         started_at: startedAt || null,
-        visible_on_verifolio: visibleOnVerifolio,
         user_id: user?.id || null,
       };
 
@@ -303,19 +300,6 @@ export function MissionForm({ mission, onSuccess, onCancel, embedded }: MissionF
         placeholder="Détails de la mission..."
         rows={4}
       />
-
-      <div className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          id="visible_on_verifolio"
-          checked={visibleOnVerifolio}
-          onChange={(e) => setVisibleOnVerifolio(e.target.checked)}
-          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-        />
-        <label htmlFor="visible_on_verifolio" className="text-sm font-medium text-gray-700">
-          Visible sur Verifolio (portfolio public)
-        </label>
-      </div>
 
       {error && (
         <p className="text-sm text-red-600">{error}</p>
