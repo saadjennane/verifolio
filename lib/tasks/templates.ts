@@ -26,6 +26,8 @@ export interface TaskTemplateItem {
   day_offset: number;
   sort_order: number;
   owner_scope: TaskOwnerScope;
+  category: string;
+  subgroup: string | null;
   created_at: string;
 }
 
@@ -51,6 +53,8 @@ export interface CreateTaskTemplateItemPayload {
   day_offset?: number;
   sort_order?: number;
   owner_scope?: TaskOwnerScope;
+  category?: string;
+  subgroup?: string;
 }
 
 export interface UpdateTaskTemplatePayload {
@@ -113,6 +117,8 @@ export async function createTaskTemplate(
       day_offset: item.day_offset ?? 0,
       sort_order: item.sort_order ?? index,
       owner_scope: item.owner_scope || 'me',
+      category: item.category || 'Général',
+      subgroup: item.subgroup || null,
     }));
 
     const { data: createdItems, error: itemsError } = await supabase
@@ -252,6 +258,8 @@ export async function addTaskTemplateItem(
       day_offset: payload.day_offset ?? 0,
       sort_order: payload.sort_order ?? nextSortOrder,
       owner_scope: payload.owner_scope || 'me',
+      category: payload.category || 'Général',
+      subgroup: payload.subgroup || null,
     })
     .select('*')
     .single();
@@ -393,4 +401,126 @@ export async function getEntityTasks(
     tasks: tasks || [],
     progress,
   };
+}
+
+// ============================================================================
+// Categories
+// ============================================================================
+
+export interface TaskTemplateCategory {
+  category: string;
+  item_count: number;
+}
+
+/**
+ * List distinct categories from user's active task templates
+ */
+export async function listTaskTemplateCategories(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<TaskTemplateCategory[]> {
+  const { data } = await supabase
+    .from('user_task_template_categories')
+    .select('category, item_count')
+    .eq('user_id', userId)
+    .order('category');
+
+  return data || [];
+}
+
+/**
+ * List template items filtered by category and/or subgroup
+ */
+export async function listTaskTemplateItemsByCategory(
+  supabase: SupabaseClient,
+  userId: string,
+  filters: {
+    category?: string;
+    subgroup?: string;
+    target_entity_type?: TemplateTargetEntityType;
+  }
+): Promise<TaskTemplateItem[]> {
+  let query = supabase
+    .from('task_template_items_by_category')
+    .select('*')
+    .eq('user_id', userId);
+
+  if (filters.category) {
+    query = query.eq('category', filters.category);
+  }
+
+  if (filters.subgroup) {
+    query = query.eq('subgroup', filters.subgroup);
+  }
+
+  if (filters.target_entity_type) {
+    query = query.or(`target_entity_type.eq.${filters.target_entity_type},target_entity_type.is.null`);
+  }
+
+  const { data } = await query;
+  return data || [];
+}
+
+/**
+ * Get grouped tasks for an entity (for UI display)
+ */
+export interface TaskGroup {
+  category: string;
+  subgroups: {
+    subgroup: string | null;
+    tasks: Task[];
+  }[];
+}
+
+export async function getEntityTasksGrouped(
+  supabase: SupabaseClient,
+  userId: string,
+  entityType: TaskEntityType,
+  entityId: string
+): Promise<{ groups: TaskGroup[]; progress: EntityTaskProgress | null }> {
+  // Get tasks ordered by category, subgroup, status, due_date
+  const { data: tasks } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('entity_type', entityType)
+    .eq('entity_id', entityId)
+    .order('category')
+    .order('subgroup', { nullsFirst: true })
+    .order('status', { ascending: true })
+    .order('due_date', { ascending: true, nullsFirst: false });
+
+  // Get progress
+  const progress = await getEntityTaskProgress(supabase, userId, entityType, entityId);
+
+  // Group tasks by category and subgroup
+  const groupsMap = new Map<string, Map<string | null, Task[]>>();
+
+  for (const task of tasks || []) {
+    const category = task.category || 'Sans catégorie';
+    const subgroup = task.subgroup;
+
+    if (!groupsMap.has(category)) {
+      groupsMap.set(category, new Map());
+    }
+
+    const categoryMap = groupsMap.get(category)!;
+    if (!categoryMap.has(subgroup)) {
+      categoryMap.set(subgroup, []);
+    }
+
+    categoryMap.get(subgroup)!.push(task);
+  }
+
+  // Convert to array structure
+  const groups: TaskGroup[] = [];
+  for (const [category, subgroupsMap] of groupsMap) {
+    const subgroups: TaskGroup['subgroups'] = [];
+    for (const [subgroup, subgroupTasks] of subgroupsMap) {
+      subgroups.push({ subgroup, tasks: subgroupTasks });
+    }
+    groups.push({ category, subgroups });
+  }
+
+  return { groups, progress };
 }

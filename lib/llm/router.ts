@@ -12,6 +12,8 @@ import {
   deleteTaskTemplate,
   applyTaskTemplate,
   getEntityTasks,
+  listTaskTemplateCategories,
+  listTaskTemplateItemsByCategory,
   type TaskTemplateWithCounts,
   type TemplateTargetEntityType,
 } from '@/lib/tasks/templates';
@@ -251,6 +253,8 @@ async function executeToolCallInternal(
       return await createTaskTemplateHandler(supabase, userId, args);
     case 'list_task_templates':
       return await listTaskTemplatesHandler(supabase, userId, args);
+    case 'list_task_template_categories':
+      return await listTaskTemplateCategoriesHandler(supabase, userId);
     case 'get_task_template':
       return await getTaskTemplateHandler(supabase, userId, args);
     case 'update_task_template':
@@ -5326,6 +5330,35 @@ async function listTaskTemplatesHandler(
   };
 }
 
+async function listTaskTemplateCategoriesHandler(
+  supabase: Supabase,
+  userId: string | null
+): Promise<ToolResult> {
+  if (!userId) {
+    return { success: false, message: 'Vous devez être connecté.' };
+  }
+
+  const categories = await listTaskTemplateCategories(supabase, userId);
+
+  if (categories.length === 0) {
+    return {
+      success: true,
+      data: [],
+      message: 'Aucune catégorie de templates trouvée. Créez des templates avec des catégories pour les organiser.',
+    };
+  }
+
+  const categoryList = categories
+    .map(c => `- ${c.category} (${c.item_count} tâche${c.item_count !== 1 ? 's' : ''})`)
+    .join('\n');
+
+  return {
+    success: true,
+    data: categories,
+    message: `${categories.length} catégorie(s) de templates:\n${categoryList}`,
+  };
+}
+
 async function getTaskTemplateHandler(
   supabase: Supabase,
   userId: string | null,
@@ -5358,10 +5391,22 @@ async function getTaskTemplateHandler(
     return { success: false, message: 'Template non trouvé.' };
   }
 
-  const itemsList = template.items.map(item => {
-    const daysInfo = item.day_offset > 0 ? ` (+${item.day_offset}j)` : '';
-    const ownerInfo = item.owner_scope !== 'me' ? ` [${item.owner_scope}]` : '';
-    return `  • ${item.title}${daysInfo}${ownerInfo}`;
+  // Group items by category for display
+  const itemsByCategory = template.items.reduce((acc, item) => {
+    const cat = item.category || 'Général';
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(item);
+    return acc;
+  }, {} as Record<string, typeof template.items>);
+
+  const itemsList = Object.entries(itemsByCategory).map(([category, items]) => {
+    const itemsStr = items.map(item => {
+      const daysInfo = item.day_offset > 0 ? ` (+${item.day_offset}j)` : '';
+      const ownerInfo = item.owner_scope !== 'me' ? ` [${item.owner_scope}]` : '';
+      const subgroupInfo = item.subgroup ? ` (${item.subgroup})` : '';
+      return `    • ${item.title}${subgroupInfo}${daysInfo}${ownerInfo}`;
+    }).join('\n');
+    return `  ${category}:\n${itemsStr}`;
   }).join('\n');
 
   return {

@@ -1860,6 +1860,14 @@ export const toolDefinitions = [
                   enum: ['me', 'client', 'supplier'],
                   description: 'Qui doit faire cette tâche: me (moi), client, supplier (fournisseur)',
                 },
+                category: {
+                  type: 'string',
+                  description: 'Catégorie pour regroupement visuel (ex: Administratif, Logistique, Numéros). Défaut: Général',
+                },
+                subgroup: {
+                  type: 'string',
+                  description: 'Sous-groupe optionnel au sein de la catégorie (ex: Book Test, Prédiction)',
+                },
               },
               required: ['title'],
             },
@@ -1882,7 +1890,22 @@ export const toolDefinitions = [
             enum: ['deal', 'mission', 'client'],
             description: 'Filtrer par type d\'entité cible',
           },
+          category: {
+            type: 'string',
+            description: 'Filtrer par catégorie de tâches',
+          },
         },
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'list_task_template_categories',
+      description: 'Lister les catégories distinctes de templates de tâches. Utile pour voir les groupes disponibles avant d\'ajouter des tâches.',
+      parameters: {
+        type: 'object',
+        properties: {},
       },
     },
   },
@@ -2106,6 +2129,7 @@ export type ToolName =
   // Task template tools
   | 'create_task_template'
   | 'list_task_templates'
+  | 'list_task_template_categories'
   | 'get_task_template'
   | 'update_task_template'
   | 'delete_task_template'

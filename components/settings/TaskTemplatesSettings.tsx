@@ -224,24 +224,43 @@ export function TaskTemplatesSettings() {
                       Aucune tâche dans ce template
                     </p>
                   ) : (
-                    <div className="space-y-2">
-                      {expandedTemplate.items.map((item, index) => (
-                        <div
-                          key={item.id}
-                          className="flex items-center gap-3 p-2 bg-background rounded border text-sm"
-                        >
-                          <span className="text-muted-foreground w-6 text-center">
-                            {index + 1}
-                          </span>
-                          <span className="flex-1">{item.title}</span>
-                          {item.day_offset > 0 && (
-                            <Badge variant="gray">J+{item.day_offset}</Badge>
-                          )}
-                          {item.owner_scope !== 'me' && (
-                            <Badge variant={item.owner_scope === 'client' ? 'yellow' : 'blue'}>
-                              {OWNER_LABELS[item.owner_scope]}
-                            </Badge>
-                          )}
+                    <div className="space-y-3">
+                      {/* Group items by category */}
+                      {Object.entries(
+                        expandedTemplate.items.reduce((acc, item) => {
+                          const cat = item.category || 'Général';
+                          if (!acc[cat]) acc[cat] = [];
+                          acc[cat].push(item);
+                          return acc;
+                        }, {} as Record<string, typeof expandedTemplate.items>)
+                      ).map(([category, categoryItems]) => (
+                        <div key={category}>
+                          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                            {category}
+                          </div>
+                          <div className="space-y-1">
+                            {categoryItems.map((item) => (
+                              <div
+                                key={item.id}
+                                className="flex items-center gap-3 p-2 bg-background rounded border text-sm"
+                              >
+                                <span className="flex-1">
+                                  {item.subgroup && (
+                                    <span className="text-muted-foreground mr-1">[{item.subgroup}]</span>
+                                  )}
+                                  {item.title}
+                                </span>
+                                {item.day_offset > 0 && (
+                                  <Badge variant="gray">J+{item.day_offset}</Badge>
+                                )}
+                                {item.owner_scope !== 'me' && (
+                                  <Badge variant={item.owner_scope === 'client' ? 'yellow' : 'blue'}>
+                                    {OWNER_LABELS[item.owner_scope]}
+                                  </Badge>
+                                )}
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -300,15 +319,22 @@ function TemplateForm({ template, templateId, onSave, onCancel }: TemplateFormPr
       day_offset: i.day_offset,
       sort_order: i.sort_order,
       owner_scope: i.owner_scope,
+      category: i.category || 'Général',
+      subgroup: i.subgroup || undefined,
     })) || []
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Categories from existing items
+  const existingCategories = [...new Set(items.map(i => i.category || 'Général'))];
+
   // New item form
   const [newItemTitle, setNewItemTitle] = useState('');
   const [newItemDayOffset, setNewItemDayOffset] = useState(0);
   const [newItemOwnerScope, setNewItemOwnerScope] = useState<TaskOwnerScope>('me');
+  const [newItemCategory, setNewItemCategory] = useState('Général');
+  const [newItemSubgroup, setNewItemSubgroup] = useState('');
 
   const handleAddItem = () => {
     if (!newItemTitle.trim()) return;
@@ -320,11 +346,14 @@ function TemplateForm({ template, templateId, onSave, onCancel }: TemplateFormPr
         day_offset: newItemDayOffset,
         sort_order: items.length,
         owner_scope: newItemOwnerScope,
+        category: newItemCategory.trim() || 'Général',
+        subgroup: newItemSubgroup.trim() || undefined,
       },
     ]);
     setNewItemTitle('');
     setNewItemDayOffset(0);
     setNewItemOwnerScope('me');
+    // Keep category for next item (often adding multiple to same category)
   };
 
   const handleRemoveItem = (index: number) => {
@@ -462,87 +491,141 @@ function TemplateForm({ template, templateId, onSave, onCancel }: TemplateFormPr
           Tâches ({items.length})
         </label>
         {items.length > 0 && (
-          <div className="space-y-2 mb-3">
-            {items.map((item, index) => (
-              <div
-                key={index}
-                className="flex items-center gap-2 p-2 bg-background rounded border text-sm"
-              >
-                <div className="flex flex-col gap-0.5">
-                  <button
-                    type="button"
-                    onClick={() => handleMoveItem(index, 'up')}
-                    disabled={index === 0}
-                    className="text-muted-foreground hover:text-foreground disabled:opacity-30"
-                  >
-                    <ChevronUp className="w-3 h-3" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleMoveItem(index, 'down')}
-                    disabled={index === items.length - 1}
-                    className="text-muted-foreground hover:text-foreground disabled:opacity-30"
-                  >
-                    <ChevronDown className="w-3 h-3" />
-                  </button>
+          <div className="space-y-3 mb-3">
+            {/* Group items by category for display */}
+            {Object.entries(
+              items.reduce((acc, item, idx) => {
+                const cat = item.category || 'Général';
+                if (!acc[cat]) acc[cat] = [];
+                acc[cat].push({ item, originalIndex: idx });
+                return acc;
+              }, {} as Record<string, { item: CreateTaskTemplateItemPayload; originalIndex: number }[]>)
+            ).map(([category, categoryItems]) => (
+              <div key={category} className="space-y-1">
+                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                  {category}
+                  <span className="text-xs font-normal">({categoryItems.length})</span>
                 </div>
-                <span className="flex-1">{item.title}</span>
-                {(item.day_offset ?? 0) > 0 && (
-                  <Badge variant="gray">J+{item.day_offset}</Badge>
-                )}
-                {item.owner_scope && item.owner_scope !== 'me' && (
-                  <Badge variant={item.owner_scope === 'client' ? 'yellow' : 'blue'}>
-                    {OWNER_LABELS[item.owner_scope]}
-                  </Badge>
-                )}
-                <button
-                  type="button"
-                  onClick={() => handleRemoveItem(index)}
-                  className="text-red-500 hover:text-red-700"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                {categoryItems.map(({ item, originalIndex }) => (
+                  <div
+                    key={originalIndex}
+                    className="flex items-center gap-2 p-2 bg-background rounded border text-sm"
+                  >
+                    <div className="flex flex-col gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() => handleMoveItem(originalIndex, 'up')}
+                        disabled={originalIndex === 0}
+                        className="text-muted-foreground hover:text-foreground disabled:opacity-30"
+                      >
+                        <ChevronUp className="w-3 h-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleMoveItem(originalIndex, 'down')}
+                        disabled={originalIndex === items.length - 1}
+                        className="text-muted-foreground hover:text-foreground disabled:opacity-30"
+                      >
+                        <ChevronDown className="w-3 h-3" />
+                      </button>
+                    </div>
+                    <span className="flex-1">
+                      {item.subgroup && (
+                        <span className="text-muted-foreground mr-1">[{item.subgroup}]</span>
+                      )}
+                      {item.title}
+                    </span>
+                    {(item.day_offset ?? 0) > 0 && (
+                      <Badge variant="gray">J+{item.day_offset}</Badge>
+                    )}
+                    {item.owner_scope && item.owner_scope !== 'me' && (
+                      <Badge variant={item.owner_scope === 'client' ? 'yellow' : 'blue'}>
+                        {OWNER_LABELS[item.owner_scope]}
+                      </Badge>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveItem(originalIndex)}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
               </div>
             ))}
           </div>
         )}
 
         {/* Add item form */}
-        <div className="flex items-end gap-2">
-          <div className="flex-1">
-            <input
-              type="text"
-              value={newItemTitle}
-              onChange={(e) => setNewItemTitle(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleAddItem()}
-              placeholder="Nouvelle tâche..."
-              className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm"
-            />
+        <div className="space-y-2 p-3 bg-background rounded-lg border border-dashed">
+          <div className="flex items-end gap-2">
+            <div className="flex-1">
+              <label className="block text-xs text-muted-foreground mb-1">Titre de la tâche</label>
+              <input
+                type="text"
+                value={newItemTitle}
+                onChange={(e) => setNewItemTitle(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddItem()}
+                placeholder="Nouvelle tâche..."
+                className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm"
+              />
+            </div>
+            <div className="w-20">
+              <label className="block text-xs text-muted-foreground mb-1">J+</label>
+              <input
+                type="number"
+                value={newItemDayOffset}
+                onChange={(e) => setNewItemDayOffset(parseInt(e.target.value) || 0)}
+                min={0}
+                className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm"
+              />
+            </div>
+            <div className="w-32">
+              <label className="block text-xs text-muted-foreground mb-1">Responsable</label>
+              <select
+                value={newItemOwnerScope}
+                onChange={(e) => setNewItemOwnerScope(e.target.value as TaskOwnerScope)}
+                className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm"
+              >
+                <option value="me">Moi</option>
+                <option value="client">Client</option>
+                <option value="supplier">Fournisseur</option>
+              </select>
+            </div>
           </div>
-          <div className="w-20">
-            <input
-              type="number"
-              value={newItemDayOffset}
-              onChange={(e) => setNewItemDayOffset(parseInt(e.target.value) || 0)}
-              min={0}
-              placeholder="J+"
-              className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm"
-            />
+          <div className="flex items-end gap-2">
+            <div className="flex-1">
+              <label className="block text-xs text-muted-foreground mb-1">Catégorie</label>
+              <input
+                type="text"
+                list="categories-datalist"
+                value={newItemCategory}
+                onChange={(e) => setNewItemCategory(e.target.value)}
+                placeholder="Ex: Administratif, Logistique..."
+                className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm"
+              />
+              <datalist id="categories-datalist">
+                {existingCategories.map(cat => (
+                  <option key={cat} value={cat} />
+                ))}
+              </datalist>
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs text-muted-foreground mb-1">Sous-groupe (optionnel)</label>
+              <input
+                type="text"
+                value={newItemSubgroup}
+                onChange={(e) => setNewItemSubgroup(e.target.value)}
+                placeholder="Ex: Book Test, Prédiction..."
+                className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm"
+              />
+            </div>
+            <Button size="sm" onClick={handleAddItem} disabled={!newItemTitle.trim()}>
+              <Plus className="w-4 h-4 mr-1" />
+              Ajouter
+            </Button>
           </div>
-          <div className="w-32">
-            <select
-              value={newItemOwnerScope}
-              onChange={(e) => setNewItemOwnerScope(e.target.value as TaskOwnerScope)}
-              className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm"
-            >
-              <option value="me">Moi</option>
-              <option value="client">Client</option>
-              <option value="supplier">Fournisseur</option>
-            </select>
-          </div>
-          <Button size="sm" onClick={handleAddItem} disabled={!newItemTitle.trim()}>
-            <Plus className="w-4 h-4" />
-          </Button>
         </div>
       </div>
 

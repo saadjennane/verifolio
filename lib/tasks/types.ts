@@ -32,6 +32,9 @@ export interface Task {
   // Dépendance (owner)
   owner_scope: TaskOwnerScope;
   owner_entity_id: string | null;
+  // Catégorie pour regroupement visuel
+  category: string;
+  subgroup: string | null;
   // Relations enrichies
   badges?: TaskBadge[];
   deal?: { id: string; title: string; client_id: string } | null;
@@ -51,6 +54,8 @@ export interface CreateTaskPayload {
   wait_reason?: string;
   owner_scope?: TaskOwnerScope;
   owner_entity_id?: string;
+  category?: string;
+  subgroup?: string;
 }
 
 export interface UpdateTaskPayload {
@@ -63,6 +68,8 @@ export interface UpdateTaskPayload {
   entity_id?: string | null;
   owner_scope?: TaskOwnerScope;
   owner_entity_id?: string | null;
+  category?: string;
+  subgroup?: string | null;
 }
 
 export interface ListTasksFilter {
@@ -73,6 +80,8 @@ export interface ListTasksFilter {
   overdue?: boolean;
   owner_scope?: TaskOwnerScope;
   owner_entity_id?: string;
+  category?: string;
+  subgroup?: string;
 }
 
 // Types pour mission_suppliers

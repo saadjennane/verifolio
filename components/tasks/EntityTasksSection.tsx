@@ -401,103 +401,149 @@ export function EntityTasksSection({
           </div>
         </div>
       ) : (
-        /* VUE LISTE */
-        <div className="space-y-2">
-          {tasks.map((task) => (
-            <div
-              key={task.id}
-              className={`flex items-start gap-3 p-3 rounded-lg border ${
-                task.status === 'done'
-                  ? 'bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700'
-                  : 'bg-background border-border'
-              }`}
-            >
-              {/* Checkbox */}
-              <button
-                onClick={() => handleToggleStatus(task)}
-                className={`mt-0.5 flex-shrink-0 ${
-                  task.status === 'done'
-                    ? 'text-green-600'
-                    : task.status === 'en_attente'
-                    ? 'text-yellow-500'
-                    : 'text-gray-400 hover:text-gray-600'
-                }`}
-              >
-                {task.status === 'done' ? (
-                  <CheckCircle2 className="w-5 h-5" />
-                ) : task.status === 'en_attente' ? (
-                  <Clock className="w-5 h-5" />
-                ) : (
-                  <Circle className="w-5 h-5" />
-                )}
-              </button>
+        /* VUE LISTE GROUPÉE PAR CATÉGORIE */
+        <div className="space-y-4">
+          {/* Group tasks by category */}
+          {Object.entries(
+            tasks.reduce((acc, task) => {
+              const category = task.category || 'Sans catégorie';
+              if (!acc[category]) acc[category] = { subgroups: new Map<string | null, Task[]>() };
+              const subgroup = task.subgroup || null;
+              if (!acc[category].subgroups.has(subgroup)) {
+                acc[category].subgroups.set(subgroup, []);
+              }
+              acc[category].subgroups.get(subgroup)!.push(task);
+              return acc;
+            }, {} as Record<string, { subgroups: Map<string | null, Task[]> }>)
+          ).map(([category, { subgroups }]) => {
+            const categoryTasks = Array.from(subgroups.values()).flat();
+            const categoryCompleted = categoryTasks.filter(t => t.status === 'done').length;
 
-              {/* Content */}
-              <div className="flex-1 min-w-0">
-                <div
-                  className={`font-medium cursor-pointer hover:text-blue-600 ${
-                    task.status === 'done' ? 'line-through text-muted-foreground' : ''
-                  }`}
-                  onClick={() => {
-                    setEditingTask(task);
-                    setShowEditModal(true);
-                  }}
-                >
-                  {task.title}
+            return (
+              <div key={category} className="space-y-2">
+                {/* Category Header */}
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    {category}
+                  </h4>
+                  <span className="text-xs text-muted-foreground">
+                    {categoryCompleted}/{categoryTasks.length}
+                  </span>
                 </div>
 
-                {/* Meta info */}
-                <div className="flex flex-wrap items-center gap-2 mt-1">
-                  {task.due_date && (
-                    <span
-                      className={`text-xs ${
-                        task.status !== 'done' && new Date(task.due_date) < new Date()
-                          ? 'text-red-600 font-medium'
-                          : 'text-muted-foreground'
-                      }`}
-                    >
-                      {formatDate(task.due_date)}
-                    </span>
-                  )}
+                {/* Tasks within category, grouped by subgroup */}
+                <div className="space-y-2 pl-2 border-l-2 border-border">
+                  {Array.from(subgroups.entries()).map(([subgroup, subgroupTasks]) => (
+                    <div key={subgroup || '__none__'} className="space-y-1">
+                      {/* Subgroup header if exists */}
+                      {subgroup && (
+                        <div className="text-xs text-muted-foreground font-medium pl-1 py-0.5">
+                          {subgroup}
+                        </div>
+                      )}
 
-                  {task.owner_scope && task.owner_scope !== 'me' && (
-                    <Badge
-                      variant={task.owner_scope === 'client' ? 'yellow' : 'blue'}
-                      className="text-xs"
-                    >
-                      {OWNER_LABELS[task.owner_scope]}
-                    </Badge>
-                  )}
+                      {/* Tasks */}
+                      {subgroupTasks.map((task) => (
+                        <div
+                          key={task.id}
+                          className={`flex items-start gap-3 p-3 rounded-lg border ${
+                            task.status === 'done'
+                              ? 'bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700'
+                              : 'bg-background border-border'
+                          }`}
+                        >
+                          {/* Checkbox */}
+                          <button
+                            onClick={() => handleToggleStatus(task)}
+                            className={`mt-0.5 flex-shrink-0 ${
+                              task.status === 'done'
+                                ? 'text-green-600'
+                                : task.status === 'en_attente'
+                                ? 'text-yellow-500'
+                                : 'text-gray-400 hover:text-gray-600'
+                            }`}
+                          >
+                            {task.status === 'done' ? (
+                              <CheckCircle2 className="w-5 h-5" />
+                            ) : task.status === 'en_attente' ? (
+                              <Clock className="w-5 h-5" />
+                            ) : (
+                              <Circle className="w-5 h-5" />
+                            )}
+                          </button>
 
-                  {task.status === 'en_attente' && task.wait_reason && (
-                    <span className="text-xs text-yellow-600">{task.wait_reason}</span>
-                  )}
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            <div
+                              className={`font-medium cursor-pointer hover:text-blue-600 ${
+                                task.status === 'done' ? 'line-through text-muted-foreground' : ''
+                              }`}
+                              onClick={() => {
+                                setEditingTask(task);
+                                setShowEditModal(true);
+                              }}
+                            >
+                              {task.title}
+                            </div>
+
+                            {/* Meta info */}
+                            <div className="flex flex-wrap items-center gap-2 mt-1">
+                              {task.due_date && (
+                                <span
+                                  className={`text-xs ${
+                                    task.status !== 'done' && new Date(task.due_date) < new Date()
+                                      ? 'text-red-600 font-medium'
+                                      : 'text-muted-foreground'
+                                  }`}
+                                >
+                                  {formatDate(task.due_date)}
+                                </span>
+                              )}
+
+                              {task.owner_scope && task.owner_scope !== 'me' && (
+                                <Badge
+                                  variant={task.owner_scope === 'client' ? 'yellow' : 'blue'}
+                                  className="text-xs"
+                                >
+                                  {OWNER_LABELS[task.owner_scope]}
+                                </Badge>
+                              )}
+
+                              {task.status === 'en_attente' && task.wait_reason && (
+                                <span className="text-xs text-yellow-600">{task.wait_reason}</span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex items-center gap-1">
+                            {task.status === 'open' && (
+                              <button
+                                onClick={() => handleSetWaiting(task.id)}
+                                className="text-xs text-gray-400 hover:text-yellow-600 p-1"
+                                title="Mettre en attente"
+                              >
+                                <Clock className="w-4 h-4" />
+                              </button>
+                            )}
+                            {!task.is_system && (
+                              <button
+                                onClick={() => handleDeleteTask(task.id)}
+                                className="text-xs text-gray-400 hover:text-red-600 p-1"
+                                title="Supprimer"
+                              >
+                                <span className="text-lg leading-none">&times;</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
                 </div>
               </div>
-
-              {/* Actions */}
-              <div className="flex items-center gap-1">
-                {task.status === 'open' && (
-                  <button
-                    onClick={() => handleSetWaiting(task.id)}
-                    className="text-xs text-gray-400 hover:text-yellow-600 p-1"
-                    title="Mettre en attente"
-                  >
-                    <Clock className="w-4 h-4" />
-                  </button>
-                )}
-                {!task.is_system && (
-                  <button
-                    onClick={() => handleDeleteTask(task.id)}
-                    className="text-xs text-gray-400 hover:text-red-600 p-1"
-                    title="Supprimer"
-                  >
-                    <span className="text-lg leading-none">&times;</span>
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

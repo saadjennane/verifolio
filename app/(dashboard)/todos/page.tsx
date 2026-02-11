@@ -39,6 +39,8 @@ interface Task {
   wait_reason: string | null;
   owner_scope: TaskOwnerScope;
   owner_entity_id: string | null;
+  category: string;
+  subgroup: string | null;
   badges?: TaskBadge[];
   // Relations enrichies
   deal?: { id: string; title: string; client_id: string } | null;
