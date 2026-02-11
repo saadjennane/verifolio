@@ -55,6 +55,7 @@ export const ChatRequestSchema = z.object({
   contextId: z.string().nullable().optional(),
   confirmedAction: z.boolean().optional(),
   confirmedToolCallId: z.string().optional(),
+  stream: z.boolean().optional(),
 });
 
 export type ParsedContextId = z.infer<typeof ContextIdSchema>;

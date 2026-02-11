@@ -29,6 +29,9 @@ const OPENAI_TIMEOUT_MS = 60000;
 const TOOL_TIMEOUT_MS = 30000;
 const TOTAL_TIMEOUT_MS = 90000;
 
+// Encoder pour SSE
+const encoder = new TextEncoder();
+
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => reject(new Error(`${label} timeout`)), ms);
@@ -103,32 +106,144 @@ async function callOpenAI(
   }
 }
 
+// Fonction pour appeler OpenAI avec streaming
+async function callOpenAIStream(
+  apiKey: string,
+  messages: ChatMessage[]
+): Promise<Response> {
+  const body = {
+    model: 'gpt-4o-mini',
+    messages,
+    stream: true,
+  };
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), OPENAI_TIMEOUT_MS);
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('TIMEOUT: La requête OpenAI a pris trop de temps');
+    }
+    throw error;
+  }
+}
+
+// Créer une réponse SSE streamée
+function createStreamResponse(
+  openAIResponse: Response,
+  metadata?: {
+    workingSteps?: string[];
+    entitiesCreated?: Array<{ type: string; id: string; title: string }>;
+    tabsToOpen?: Array<{ type: string; path: string; title: string; entityId: string }>;
+  }
+): Response {
+  const stream = new ReadableStream({
+    async start(controller) {
+      // Envoyer les métadonnées en premier
+      if (metadata) {
+        const metaEvent = `data: ${JSON.stringify({ type: 'metadata', ...metadata })}\n\n`;
+        controller.enqueue(encoder.encode(metaEvent));
+      }
+
+      const reader = openAIResponse.body?.getReader();
+      if (!reader) {
+        controller.close();
+        return;
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6);
+              if (data === '[DONE]') {
+                controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+                continue;
+              }
+
+              try {
+                const parsed = JSON.parse(data);
+                const content = parsed.choices?.[0]?.delta?.content;
+                if (content) {
+                  const textEvent = `data: ${JSON.stringify({ type: 'text', content })}\n\n`;
+                  controller.enqueue(encoder.encode(textEvent));
+                }
+              } catch {
+                // Ignorer les erreurs de parsing
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Stream error:', error);
+        const errorEvent = `data: ${JSON.stringify({ type: 'error', message: 'Erreur de streaming' })}\n\n`;
+        controller.enqueue(encoder.encode(errorEvent));
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+    },
+  });
+}
+
 // Détecter si la réponse suggère que le LLM aurait dû utiliser un tool
+// OPTIMISÉ: Seuls les vrais échecs déclenchent un retry (pas les suggestions/questions)
 function shouldRetryWithTools(content: string): boolean {
   const failurePatterns = [
+    // Vrais échecs - le LLM dit qu'il ne peut pas faire quelque chose
     /je ne (peux|suis) pas/i,
     /pas accès aux/i,
     /pas d['']information/i,
     /impossible de/i,
     /aucune donnée/i,
     /je n['']ai pas/i,
-    /vous devez/i,
-    /il faudrait/i,
     /pas de données/i,
     /ne dispose pas/i,
-    /il semble qu/i,
     /aucune facture.*enregistr/i,
-    /n'hésitez pas à créer/i,
-    /souhaitez.*(lister|vérifier|voir)/i,
-    /je peux vérifier pour vous/i,
-    /voulez-vous que je/i,
-    // Patterns pour détecter quand le LLM dit qu'il va faire quelque chose mais ne le fait pas
-    /je vais (procéder|créer|générer|préparer)/i,
-    /un instant/i,
-    /je (crée|génère|prépare) (la|le|une|un)/i,
-    /je m'en occupe/i,
-    /c'est parti/i,
-    /voici les détails.*créer/i,
+    // Patterns retirés (faux positifs qui causaient des retries inutiles):
+    // - /vous devez/i (conseil)
+    // - /il faudrait/i (suggestion)
+    // - /il semble qu/i (observation)
+    // - /n'hésitez pas à créer/i (suggestion)
+    // - /souhaitez.*(lister|vérifier|voir)/i (question)
+    // - /je peux vérifier pour vous/i (offre)
+    // - /voulez-vous que je/i (question)
+    // - /je vais (procéder|créer|générer|préparer)/i (intention)
+    // - /un instant/i (transition)
+    // - /je (crée|génère|prépare) (la|le|une|un)/i (action en cours)
+    // - /je m'en occupe/i (confirmation)
+    // - /c'est parti/i (confirmation)
+    // - /voici les détails.*créer/i (info)
   ];
   return failurePatterns.some(p => p.test(content));
 }
@@ -313,7 +428,7 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-    const { message, history, mode = 'auto', contextId = null, confirmedAction, confirmedToolCallId } = parsedBody.data;
+    const { message, history, mode = 'auto', contextId = null, confirmedAction, confirmedToolCallId, stream = false } = parsedBody.data;
 
     ensureWithinBudget(requestStart);
 
@@ -528,7 +643,15 @@ export async function POST(request: Request) {
             })),
           ];
 
-          // Dernier appel pour la réponse finale
+          // Dernier appel pour la réponse finale - avec streaming si demandé
+          if (stream) {
+            console.log('Streaming final response after follow-up...');
+            const streamResponse = await callOpenAIStream(apiKey, messagesWithAllToolResults);
+            if (streamResponse.ok) {
+              return createStreamResponse(streamResponse, { workingSteps, entitiesCreated, tabsToOpen });
+            }
+          }
+
           const finalResponse = await withTimeout(
             callOpenAI(apiKey, messagesWithAllToolResults, 'none'),
             OPENAI_TIMEOUT_MS,
@@ -583,6 +706,15 @@ export async function POST(request: Request) {
                   tool_call_id: tr.id,
                 })),
               ];
+
+              // Avec streaming si demandé
+              if (stream) {
+                console.log('Streaming final response after retry...');
+                const streamResponse = await callOpenAIStream(apiKey, messagesWithRetryResults);
+                if (streamResponse.ok) {
+                  return createStreamResponse(streamResponse, { workingSteps, entitiesCreated, tabsToOpen });
+                }
+              }
 
               const finalRetryResponse = await withTimeout(
                 callOpenAI(apiKey, messagesWithRetryResults, 'none'),
@@ -670,6 +802,15 @@ export async function POST(request: Request) {
                 })),
               ];
 
+              // Avec streaming si demandé
+              if (stream) {
+                console.log('Streaming final response after initial retry...');
+                const streamResponse = await callOpenAIStream(apiKey, messagesWithToolResults);
+                if (streamResponse.ok) {
+                  return createStreamResponse(streamResponse, { workingSteps, entitiesCreated, tabsToOpen });
+                }
+              }
+
               const followUpResponse = await withTimeout(
                 callOpenAI(apiKey, messagesWithToolResults, 'none'),
                 OPENAI_TIMEOUT_MS,
@@ -704,7 +845,15 @@ export async function POST(request: Request) {
       }
     }
 
-    // Réponse directe sans tool calls
+    // Réponse directe sans tool calls - avec streaming si demandé
+    if (stream) {
+      console.log('Streaming direct response...');
+      const streamResponse = await callOpenAIStream(apiKey, messages);
+      if (streamResponse.ok) {
+        return createStreamResponse(streamResponse);
+      }
+    }
+
     return NextResponse.json({
       message: choice.message.content || 'Je suis prêt à vous aider. Que souhaitez-vous faire ?',
     });

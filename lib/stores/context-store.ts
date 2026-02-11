@@ -30,6 +30,7 @@ interface ContextStore {
 
   // Messages
   addMessage: (message: Omit<ContextMessage, 'id' | 'timestamp'>) => void;
+  updateLastMessage: (content: string) => void;
   clearMessages: () => void;
 
   // Mode
@@ -144,6 +145,38 @@ export const useContextStore = create<ContextStore>()(
             },
           },
         });
+      },
+
+      updateLastMessage: (content) => {
+        const { currentContextId, contexts } = get();
+        if (!currentContextId) return;
+
+        const key = contextIdToString(currentContextId);
+        const currentState = contexts[key];
+        if (!currentState || currentState.messages.length === 0) return;
+
+        const messages = [...currentState.messages];
+        const lastIndex = messages.length - 1;
+        const lastMessage = messages[lastIndex];
+
+        // Ne mettre à jour que si c'est un message assistant
+        if (lastMessage.role === 'assistant') {
+          messages[lastIndex] = {
+            ...lastMessage,
+            content,
+          };
+
+          set({
+            contexts: {
+              ...contexts,
+              [key]: {
+                ...currentState,
+                messages,
+                lastInteraction: new Date(),
+              },
+            },
+          });
+        }
       },
 
       clearMessages: () => {

@@ -221,6 +221,7 @@ export function ContextualChat() {
 
   const {
     addMessage,
+    updateLastMessage,
     clearMessages,
     setWorking,
   } = useContextStore();
@@ -482,14 +483,9 @@ export function ContextualChat() {
           history: messages.map((m) => ({ role: m.role, content: m.content })),
           mode,
           contextId: contextId ? contextIdToString(contextId) : null,
+          stream: true, // Activer le streaming pour une meilleure UX
         }),
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Erreur de communication avec l'assistant");
-      }
 
       // Arrêter la progression automatique
       if (progressInterval) {
@@ -500,77 +496,206 @@ export function ContextualChat() {
       if (preliminarySteps.length > 0) {
         setLocalWorking(prev => {
           const newSteps = prev.steps.map(s => ({ ...s, status: 'completed' as const }));
-          // Garder visible mais collapsed après complétion
           return { ...prev, steps: newSteps, isActive: false, isCollapsed: true };
         });
       }
 
-      // Si des étapes de travail supplémentaires sont retournées par l'API, les afficher
-      if (data.workingSteps && data.workingSteps.length > 0 && preliminarySteps.length === 0) {
-        startWorking(data.workingSteps);
-        for (let i = 0; i < data.workingSteps.length; i++) {
-          await new Promise((resolve) => setTimeout(resolve, 300));
-          completeCurrentStep();
+      // Vérifier si c'est une réponse streamée (SSE)
+      const contentType = response.headers.get('content-type');
+      if (contentType?.includes('text/event-stream') && response.body) {
+        // Traitement du stream SSE
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let streamedContent = '';
+        let messageId: string | null = null;
+        let metadata: {
+          workingSteps?: string[];
+          entitiesCreated?: EntityCreated[];
+          tabsToOpen?: Array<{ type: string; path: string; title: string; entityId: string }>;
+        } = {};
+
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n');
+
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const data = line.slice(6);
+                if (data === '[DONE]') continue;
+
+                try {
+                  const parsed = JSON.parse(data);
+
+                  if (parsed.type === 'metadata') {
+                    // Recevoir les métadonnées (workingSteps, entitiesCreated, tabsToOpen)
+                    metadata = parsed;
+
+                    // Afficher les étapes de travail si présentes
+                    if (parsed.workingSteps && parsed.workingSteps.length > 0 && preliminarySteps.length === 0) {
+                      startWorking(parsed.workingSteps);
+                      for (let i = 0; i < parsed.workingSteps.length; i++) {
+                        await new Promise((resolve) => setTimeout(resolve, 300));
+                        completeCurrentStep();
+                      }
+                    }
+                  } else if (parsed.type === 'text') {
+                    // Ajouter le texte au message
+                    streamedContent += parsed.content;
+
+                    // Créer ou mettre à jour le message
+                    if (!messageId) {
+                      // Premier chunk de texte - créer le message
+                      messageId = Date.now().toString();
+                      addMessage({ role: 'assistant', content: streamedContent });
+                    } else {
+                      // Mettre à jour le dernier message avec le contenu complet
+                      updateLastMessage(streamedContent);
+                    }
+                  } else if (parsed.type === 'error') {
+                    throw new Error(parsed.message);
+                  }
+                } catch (parseError) {
+                  // Ignorer les erreurs de parsing
+                }
+              }
+            }
+          }
+        } finally {
+          reader.releaseLock();
         }
-      }
 
-      addMessage({ role: 'assistant', content: data.message });
+        // Traiter les entités créées et onglets après le stream
+        if (metadata.entitiesCreated && metadata.entitiesCreated.length > 0) {
+          const entities = metadata.entitiesCreated;
+          const refreshedTypes = new Set<string>();
+          for (const entity of entities) {
+            if (!refreshedTypes.has(entity.type)) {
+              triggerRefresh(entity.type as EntityType);
+              refreshedTypes.add(entity.type);
+            }
+          }
 
-      // Gérer les entités créées : refresh + ouverture automatique
-      if (data.entitiesCreated && data.entitiesCreated.length > 0) {
-        const entities = data.entitiesCreated as EntityCreated[];
+          const firstEntity = entities[0];
+          if (firstEntity) {
+            const typeToPath: Record<string, string> = {
+              clients: '/clients',
+              invoices: '/invoices',
+              quotes: '/quotes',
+              deals: '/deals',
+              missions: '/missions',
+              proposals: '/proposals',
+              briefs: '/briefs',
+              contacts: '/contacts',
+              reviews: '/reviews',
+            };
 
-        // Déclencher le refresh pour chaque type d'entité modifié
-        const refreshedTypes = new Set<string>();
-        for (const entity of entities) {
-          if (!refreshedTypes.has(entity.type)) {
-            triggerRefresh(entity.type as EntityType);
-            refreshedTypes.add(entity.type);
+            const basePath = typeToPath[firstEntity.type];
+            if (basePath) {
+              openTab(
+                {
+                  type: firstEntity.type.slice(0, -1) as 'client' | 'invoice' | 'quote' | 'deal' | 'mission' | 'proposal' | 'brief' | 'contact' | 'review',
+                  path: `${basePath}/${firstEntity.id}`,
+                  title: firstEntity.title,
+                  entityId: firstEntity.id,
+                },
+                true
+              );
+            }
           }
         }
 
-        // Ouvrir automatiquement la première entité créée dans un nouvel onglet
-        const firstEntity = entities[0];
-        if (firstEntity) {
-          const typeToPath: Record<string, string> = {
-            clients: '/clients',
-            invoices: '/invoices',
-            quotes: '/quotes',
-            deals: '/deals',
-            missions: '/missions',
-            proposals: '/proposals',
-            briefs: '/briefs',
-            contacts: '/contacts',
-            reviews: '/reviews',
-          };
-
-          const basePath = typeToPath[firstEntity.type];
-          if (basePath) {
+        if (metadata.tabsToOpen && metadata.tabsToOpen.length > 0) {
+          for (const tab of metadata.tabsToOpen) {
             openTab(
               {
-                type: firstEntity.type.slice(0, -1) as 'client' | 'invoice' | 'quote' | 'deal' | 'mission' | 'proposal' | 'brief' | 'contact' | 'review',
-                path: `${basePath}/${firstEntity.id}`,
-                title: firstEntity.title,
-                entityId: firstEntity.id,
+                type: tab.type as 'client' | 'invoice' | 'quote' | 'deal' | 'mission' | 'proposal' | 'brief' | 'contact' | 'supplier' | 'expense',
+                path: tab.path,
+                title: tab.title,
+                entityId: tab.entityId,
+              },
+              true
+            );
+          }
+        }
+      } else {
+        // Réponse JSON classique (fallback)
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Erreur de communication avec l'assistant");
+        }
+
+        // Si des étapes de travail supplémentaires sont retournées par l'API, les afficher
+        if (data.workingSteps && data.workingSteps.length > 0 && preliminarySteps.length === 0) {
+          startWorking(data.workingSteps);
+          for (let i = 0; i < data.workingSteps.length; i++) {
+            await new Promise((resolve) => setTimeout(resolve, 300));
+            completeCurrentStep();
+          }
+        }
+
+        addMessage({ role: 'assistant', content: data.message });
+
+        // Gérer les entités créées : refresh + ouverture automatique
+        if (data.entitiesCreated && data.entitiesCreated.length > 0) {
+          const entities = data.entitiesCreated as EntityCreated[];
+
+          // Déclencher le refresh pour chaque type d'entité modifié
+          const refreshedTypes = new Set<string>();
+          for (const entity of entities) {
+            if (!refreshedTypes.has(entity.type)) {
+              triggerRefresh(entity.type as EntityType);
+              refreshedTypes.add(entity.type);
+            }
+          }
+
+          // Ouvrir automatiquement la première entité créée dans un nouvel onglet
+          const firstEntity = entities[0];
+          if (firstEntity) {
+            const typeToPath: Record<string, string> = {
+              clients: '/clients',
+              invoices: '/invoices',
+              quotes: '/quotes',
+              deals: '/deals',
+              missions: '/missions',
+              proposals: '/proposals',
+              briefs: '/briefs',
+              contacts: '/contacts',
+              reviews: '/reviews',
+            };
+
+            const basePath = typeToPath[firstEntity.type];
+            if (basePath) {
+              openTab(
+                {
+                  type: firstEntity.type.slice(0, -1) as 'client' | 'invoice' | 'quote' | 'deal' | 'mission' | 'proposal' | 'brief' | 'contact' | 'review',
+                  path: `${basePath}/${firstEntity.id}`,
+                  title: firstEntity.title,
+                  entityId: firstEntity.id,
+                },
+                true // permanent tab
+              );
+            }
+          }
+        }
+
+        // Ouvrir les onglets demandés par le LLM via open_tab
+        if (data.tabsToOpen && data.tabsToOpen.length > 0) {
+          for (const tab of data.tabsToOpen) {
+            openTab(
+              {
+                type: tab.type as 'client' | 'invoice' | 'quote' | 'deal' | 'mission' | 'proposal' | 'brief' | 'contact' | 'supplier' | 'expense',
+                path: tab.path,
+                title: tab.title,
+                entityId: tab.entityId,
               },
               true // permanent tab
             );
           }
-        }
-      }
-
-      // Ouvrir les onglets demandés par le LLM via open_tab
-      if (data.tabsToOpen && data.tabsToOpen.length > 0) {
-        for (const tab of data.tabsToOpen) {
-          openTab(
-            {
-              type: tab.type as 'client' | 'invoice' | 'quote' | 'deal' | 'mission' | 'proposal' | 'brief' | 'contact' | 'supplier' | 'expense',
-              path: tab.path,
-              title: tab.title,
-              entityId: tab.entityId,
-            },
-            true // permanent tab
-          );
         }
       }
 
