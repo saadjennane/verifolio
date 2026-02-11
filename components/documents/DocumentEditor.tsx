@@ -783,12 +783,13 @@ export function DocumentEditor({ type, documentId, dealId: initialDealId, missio
   // ============================================================================
 
   const autoSave = useCallback(async () => {
-    // Don't auto-save if document not yet created (only update existing documents)
-    if (!document.id) return;
-    // Don't auto-save if no client selected or no valid items
+    // Don't auto-save if no client selected
     if (!client) return;
+
+    // For new documents, require at least one valid item to create
+    // For existing documents, allow empty items (they'll be filtered on save)
     const validItems = document.items.filter(i => i.description.trim());
-    if (validItems.length === 0) return;
+    if (!document.id && validItems.length === 0) return;
 
     setIsAutoSaving(true);
 
