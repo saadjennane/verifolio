@@ -2050,6 +2050,33 @@ export const toolDefinitions = [
       },
     },
   },
+  // UI Navigation tool
+  {
+    type: 'function' as const,
+    function: {
+      name: 'open_tab',
+      description: 'Ouvre une entité dans un nouvel onglet de l\'interface. Utilise ce tool quand l\'utilisateur demande d\'ouvrir, afficher, consulter ou voir une entité spécifique.',
+      parameters: {
+        type: 'object',
+        properties: {
+          entity_type: {
+            type: 'string',
+            enum: ['client', 'invoice', 'quote', 'deal', 'mission', 'proposal', 'brief', 'contact', 'supplier', 'expense'],
+            description: 'Type d\'entité à ouvrir',
+          },
+          entity_id: {
+            type: 'string',
+            description: 'ID de l\'entité à ouvrir',
+          },
+          title: {
+            type: 'string',
+            description: 'Titre à afficher dans l\'onglet (ex: nom du client, numéro de facture)',
+          },
+        },
+        required: ['entity_type', 'entity_id', 'title'],
+      },
+    },
+  },
 ];
 
 export type ToolName =
@@ -2134,4 +2161,6 @@ export type ToolName =
   | 'update_task_template'
   | 'delete_task_template'
   | 'apply_task_template'
-  | 'get_entity_tasks';
+  | 'get_entity_tasks'
+  // UI Navigation
+  | 'open_tab';

@@ -265,6 +265,9 @@ async function executeToolCallInternal(
       return await applyTaskTemplateHandler(supabase, userId, args);
     case 'get_entity_tasks':
       return await getEntityTasksHandler(supabase, userId, args);
+    // UI Navigation
+    case 'open_tab':
+      return openTabHandler(args);
     default:
       return { success: false, message: `Outil inconnu: ${toolName}` };
   }
@@ -5646,5 +5649,49 @@ async function getEntityTasksHandler(
     success: true,
     data: { tasks, progress },
     message: `Tâches du ${entityType}:\n${progressInfo}${tasksList}`,
+  };
+}
+
+// ============================================================================
+// UI Navigation Handler
+// ============================================================================
+
+function openTabHandler(args: Record<string, unknown>): ToolResult {
+  const { entity_type, entity_id, title } = args;
+
+  if (!entity_type || !entity_id || !title) {
+    return { success: false, message: 'entity_type, entity_id et title sont requis' };
+  }
+
+  const pathMap: Record<string, string> = {
+    client: '/clients',
+    invoice: '/invoices',
+    quote: '/quotes',
+    deal: '/deals',
+    mission: '/missions',
+    proposal: '/proposals',
+    brief: '/briefs',
+    contact: '/contacts',
+    supplier: '/suppliers',
+    expense: '/expenses',
+  };
+
+  const basePath = pathMap[entity_type as string];
+  if (!basePath) {
+    return { success: false, message: `Type d'entité inconnu: ${entity_type}` };
+  }
+
+  return {
+    success: true,
+    data: {
+      action: 'open_tab',
+      tab: {
+        type: entity_type,
+        path: `${basePath}/${entity_id}`,
+        title: title,
+        entityId: entity_id,
+      },
+    },
+    message: `Ouverture de ${title}`,
   };
 }

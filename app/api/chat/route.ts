@@ -144,6 +144,12 @@ interface ToolExecutionResult {
     id: string;
     title: string;
   };
+  tabToOpen?: {
+    type: string;
+    path: string;
+    title: string;
+    entityId: string;
+  };
 }
 
 // Mapping des tools vers les types d'entité à rafraîchir
@@ -257,12 +263,26 @@ async function executeToolCalls(
       }
     }
 
+    // Extraire l'onglet à ouvrir si c'est un tool open_tab
+    let tabToOpen: ToolExecutionResult['tabToOpen'] = undefined;
+    const resultData = parsedResult.data.data as Record<string, unknown> | undefined;
+    if (resultData?.action === 'open_tab' && resultData?.tab) {
+      const tab = resultData.tab as Record<string, string>;
+      tabToOpen = {
+        type: tab.type,
+        path: tab.path,
+        title: tab.title,
+        entityId: tab.entityId,
+      };
+    }
+
     results.push({
       id: toolCall.id,
       result: parsedResult.data.message,
       toolName,
       stepLabel,
       entityCreated,
+      tabToOpen,
     });
   }
 
@@ -462,6 +482,11 @@ export async function POST(request: Request) {
         .filter(tr => tr.entityCreated)
         .map(tr => tr.entityCreated!);
 
+      // Extraire les onglets à ouvrir
+      const tabsToOpen = toolResults
+        .filter(tr => tr.tabToOpen)
+        .map(tr => tr.tabToOpen!);
+
       // Second appel pour obtenir la réponse finale (avec tools auto pour permettre un second tool call si nécessaire)
       console.log('Getting final response...');
       const followUpResponse = await withTimeout(
@@ -481,10 +506,12 @@ export async function POST(request: Request) {
           const followUpToolResults = await executeToolCalls(supabase, userId, followUpChoice.message.tool_calls);
           ensureWithinBudget(requestStart);
 
-          // Ajouter aux étapes et entités
+          // Ajouter aux étapes, entités et onglets
           workingSteps.push(...followUpToolResults.map(tr => tr.stepLabel));
           const newEntities = followUpToolResults.filter(tr => tr.entityCreated).map(tr => tr.entityCreated!);
           entitiesCreated.push(...newEntities);
+          const newTabs = followUpToolResults.filter(tr => tr.tabToOpen).map(tr => tr.tabToOpen!);
+          tabsToOpen.push(...newTabs);
 
           // Construire les messages avec les nouveaux résultats
           const messagesWithAllToolResults: ChatMessage[] = [
@@ -517,6 +544,7 @@ export async function POST(request: Request) {
               message: finalContent || followUpToolResults.map(tr => tr.result).join('\n\n'),
               workingSteps,
               entitiesCreated,
+              tabsToOpen,
             });
           }
         }
@@ -539,6 +567,8 @@ export async function POST(request: Request) {
               workingSteps.push(...retryToolResults.map(tr => tr.stepLabel));
               const retryEntities = retryToolResults.filter(tr => tr.entityCreated).map(tr => tr.entityCreated!);
               entitiesCreated.push(...retryEntities);
+              const retryTabs = retryToolResults.filter(tr => tr.tabToOpen).map(tr => tr.tabToOpen!);
+              tabsToOpen.push(...retryTabs);
 
               const messagesWithRetryResults: ChatMessage[] = [
                 ...messagesWithToolResults,
@@ -568,6 +598,7 @@ export async function POST(request: Request) {
                   message: finalRetryContent || retryToolResults.map(tr => tr.result).join('\n\n'),
                   workingSteps,
                   entitiesCreated,
+                  tabsToOpen,
                 });
               }
             }
@@ -578,6 +609,7 @@ export async function POST(request: Request) {
           message: finalContent || toolResults.map(tr => tr.result).join('\n\n'),
           workingSteps,
           entitiesCreated,
+          tabsToOpen,
         });
       }
 
@@ -586,6 +618,7 @@ export async function POST(request: Request) {
         message: toolResults.map(tr => tr.result).join('\n\n'),
         workingSteps,
         entitiesCreated,
+        tabsToOpen,
       });
     }
 
@@ -619,6 +652,9 @@ export async function POST(request: Request) {
               const entitiesCreated = toolResults
                 .filter(tr => tr.entityCreated)
                 .map(tr => tr.entityCreated!);
+              const tabsToOpen = toolResults
+                .filter(tr => tr.tabToOpen)
+                .map(tr => tr.tabToOpen!);
 
               const messagesWithToolResults: ChatMessage[] = [
                 ...messages,
@@ -649,6 +685,7 @@ export async function POST(request: Request) {
                   message: finalContent || toolResults.map(tr => tr.result).join('\n\n'),
                   workingSteps,
                   entitiesCreated,
+                  tabsToOpen,
                 });
               }
 
@@ -656,6 +693,7 @@ export async function POST(request: Request) {
                 message: toolResults.map(tr => tr.result).join('\n\n'),
                 workingSteps,
                 entitiesCreated,
+                tabsToOpen,
               });
             }
           }

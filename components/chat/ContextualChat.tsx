@@ -559,6 +559,21 @@ export function ContextualChat() {
         }
       }
 
+      // Ouvrir les onglets demandés par le LLM via open_tab
+      if (data.tabsToOpen && data.tabsToOpen.length > 0) {
+        for (const tab of data.tabsToOpen) {
+          openTab(
+            {
+              type: tab.type as 'client' | 'invoice' | 'quote' | 'deal' | 'mission' | 'proposal' | 'brief' | 'contact' | 'supplier' | 'expense',
+              path: tab.path,
+              title: tab.title,
+              entityId: tab.entityId,
+            },
+            true // permanent tab
+          );
+        }
+      }
+
       // Ne pas clear les steps - les garder visibles en collapsed
     } catch (error) {
       console.error('Chat error:', error);

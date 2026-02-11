@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { X, Search, Briefcase, FolderKanban, Truck } from 'lucide-react';
+import { X, Search, Briefcase, FolderKanban, Truck, Plus } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { useTabsStore } from '@/lib/stores/tabs-store';
 
 type EntityType = 'mission' | 'deal' | 'supplier';
 
@@ -57,6 +58,7 @@ export function EntitySelectionModal({
   entityType,
   onSelect,
 }: EntitySelectionModalProps) {
+  const { openTab } = useTabsStore();
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [missions, setMissions] = useState<Mission[]>([]);
@@ -183,6 +185,29 @@ export function EntitySelectionModal({
     onClose();
   };
 
+  const handleCreateNew = () => {
+    if (entityType === 'mission') {
+      openTab({
+        type: 'mission',
+        path: '/missions/new',
+        title: 'Nouvelle mission',
+      }, true);
+    } else if (entityType === 'deal') {
+      openTab({
+        type: 'deal',
+        path: '/deals/new',
+        title: 'Nouveau deal',
+      }, true);
+    } else {
+      openTab({
+        type: 'supplier',
+        path: '/suppliers/new',
+        title: 'Nouveau fournisseur',
+      }, true);
+    }
+    onClose();
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[80vh] flex flex-col">
@@ -228,8 +253,23 @@ export function EntitySelectionModal({
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto" />
             </div>
           ) : filteredEntities.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              {search ? 'Aucun résultat' : emptyMessage}
+            <div className="p-8 text-center">
+              <p className="text-gray-500 mb-4">
+                {search ? 'Aucun résultat' : emptyMessage}
+              </p>
+              {!search && (
+                <button
+                  onClick={handleCreateNew}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                >
+                  <Plus className="w-4 h-4" />
+                  {entityType === 'mission'
+                    ? 'Créer une mission'
+                    : entityType === 'deal'
+                    ? 'Créer un deal'
+                    : 'Créer un fournisseur'}
+                </button>
+              )}
             </div>
           ) : (
             <div className="py-2">
@@ -293,13 +333,22 @@ export function EntitySelectionModal({
 
         {/* Footer */}
         <div className="p-4 border-t border-gray-200 bg-gray-50">
-          <p className="text-xs text-gray-500 text-center">
-            {entityType === 'mission'
-              ? 'Une facture doit être liée à une mission'
-              : entityType === 'deal'
-              ? 'Un devis doit être lié à un deal'
-              : 'Un document fournisseur doit être lié à un fournisseur'}
-          </p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-gray-500">
+              {entityType === 'mission'
+                ? 'Une facture doit être liée à une mission'
+                : entityType === 'deal'
+                ? 'Un devis doit être lié à un deal'
+                : 'Un document fournisseur doit être lié à un fournisseur'}
+            </p>
+            <button
+              onClick={handleCreateNew}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Créer
+            </button>
+          </div>
         </div>
       </div>
     </div>
