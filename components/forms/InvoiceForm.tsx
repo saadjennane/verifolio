@@ -35,7 +35,7 @@ export function InvoiceForm({ invoice, clients: initialClients }: InvoiceFormPro
   const [dateEmission, setDateEmission] = useState(invoice?.date_emission || new Date().toISOString().split('T')[0]);
   const [dateEcheance, setDateEcheance] = useState(invoice?.date_echeance || '');
   const [notes, setNotes] = useState(invoice?.notes || '');
-  const [currency, setCurrency] = useState(invoice?.devise || 'MAD');
+  const [currency, setCurrency] = useState(invoice?.devise || 'EUR');
   const [vatEnabled, setVatEnabled] = useState(invoice?.vat_enabled ?? true);
   const [items, setItems] = useState<LineItemInput[]>(
     invoice?.items?.map(item => ({

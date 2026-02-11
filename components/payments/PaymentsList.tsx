@@ -23,7 +23,7 @@ interface PaymentsListProps {
 
 export function PaymentsList({
   payments,
-  currency = 'MAD',
+  currency = 'EUR',
   showInvoice = false,
   showClient = false,
   showMission = false,

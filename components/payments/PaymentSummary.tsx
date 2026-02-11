@@ -21,7 +21,7 @@ export function PaymentSummary({
   totalPaid,
   remaining,
   paymentStatus,
-  currency = 'MAD',
+  currency = 'EUR',
   showProgressBar = true,
 }: PaymentSummaryProps) {
   const percentage = totalAmount > 0 ? Math.min((totalPaid / totalAmount) * 100, 100) : 0;
@@ -78,7 +78,7 @@ export function PaymentSummary({
 export function PaymentStatusBadge({
   status,
   amount,
-  currency = 'MAD',
+  currency = 'EUR',
 }: {
   status: InvoicePaymentStatus;
   amount?: number;

@@ -35,7 +35,7 @@ export function PaymentAssociationModal({
   supplierId,
   invoiceNumero,
   invoiceRemaining,
-  currency = 'MAD',
+  currency = 'EUR',
 }: PaymentAssociationModalProps) {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(false);

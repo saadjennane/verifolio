@@ -68,13 +68,13 @@ const DEFAULT_SETTINGS: DocumentSettings = {
   defaultTvaRate: 20,
 };
 
-const createEmptyDocument = (type: DocumentType): DocumentData => ({
+const createEmptyDocument = (type: DocumentType, currency?: string): DocumentData => ({
   numero: '',
   date_emission: new Date().toISOString().split('T')[0],
   date_validite: type === 'quote' ? '' : undefined,
   date_echeance: type === 'invoice' ? '' : undefined,
   status: 'brouillon',
-  devise: 'MAD',
+  devise: currency || 'EUR',
   total_ht: 0,
   total_tva: 0,
   total_ttc: 0,
@@ -241,7 +241,7 @@ export function DocumentEditor({ type, documentId, dealId, missionId }: Document
           date_validite: type === 'quote' ? docData.date_validite : undefined,
           date_echeance: type === 'invoice' ? docData.date_echeance : undefined,
           status: docData.status,
-          devise: docData.devise || 'MAD',
+          devise: docData.devise || companyData?.default_currency || 'EUR',
           total_ht: Number(docData.total_ht),
           total_tva: Number(docData.total_tva),
           total_ttc: Number(docData.total_ttc),
@@ -294,10 +294,11 @@ export function DocumentEditor({ type, documentId, dealId, missionId }: Document
             setDocument(prev => ({
               ...prev,
               numero: generatedNumero,
+              devise: companyData?.default_currency || prev.devise,
             }));
           } else {
             console.log('[DocumentEditor] No deal data found');
-            setDocument(prev => ({ ...prev, numero: generatedNumero }));
+            setDocument(prev => ({ ...prev, numero: generatedNumero, devise: companyData?.default_currency || prev.devise }));
           }
         } else if (missionId) {
           const { data: missionData, error: missionError } = await supabase
@@ -332,6 +333,7 @@ export function DocumentEditor({ type, documentId, dealId, missionId }: Document
             setDocument(prev => ({
               ...prev,
               numero: generatedNumero,
+              devise: companyData?.default_currency || prev.devise,
               items: newItems,
               total_ht: totalHT,
               total_tva: totalTVA,
@@ -339,11 +341,11 @@ export function DocumentEditor({ type, documentId, dealId, missionId }: Document
             }));
           } else {
             console.log('[DocumentEditor] No mission data found for missionId:', missionId);
-            setDocument(prev => ({ ...prev, numero: generatedNumero }));
+            setDocument(prev => ({ ...prev, numero: generatedNumero, devise: companyData?.default_currency || prev.devise }));
           }
         } else {
           // No deal/mission context, just set the number
-          setDocument(prev => ({ ...prev, numero: generatedNumero }));
+          setDocument(prev => ({ ...prev, numero: generatedNumero, devise: companyData?.default_currency || prev.devise }));
         }
       }
 

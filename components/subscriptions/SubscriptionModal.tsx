@@ -25,7 +25,7 @@ export function SubscriptionModal({
   onClose,
   onSuccess,
   subscription,
-  currency = 'MAD',
+  currency = 'EUR',
 }: SubscriptionModalProps) {
   const isEditing = !!subscription;
 

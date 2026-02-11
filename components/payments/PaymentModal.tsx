@@ -44,7 +44,7 @@ export function PaymentModal({
   clientId,
   missionId,
   remainingAmount,
-  currency = 'MAD',
+  currency = 'EUR',
   defaultType = 'payment',
   editData,
 }: PaymentModalProps) {

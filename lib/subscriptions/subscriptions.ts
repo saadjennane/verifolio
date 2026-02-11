@@ -142,7 +142,7 @@ export async function createSubscription(
         supplier_id: supplierId,
         name: input.name,
         amount: input.amount,
-        currency: input.currency || 'MAD',
+        currency: input.currency || 'EUR',
         frequency: input.frequency,
         frequency_days: input.frequency === 'custom' ? input.frequency_days : null,
         start_date: input.start_date,

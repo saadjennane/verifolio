@@ -35,7 +35,7 @@ export function QuoteForm({ quote, clients: initialClients }: QuoteFormProps) {
   const [dateEmission, setDateEmission] = useState(quote?.date_emission || new Date().toISOString().split('T')[0]);
   const [dateValidite, setDateValidite] = useState(quote?.date_validite || '');
   const [notes, setNotes] = useState(quote?.notes || '');
-  const [currency, setCurrency] = useState(quote?.devise || 'MAD');
+  const [currency, setCurrency] = useState(quote?.devise || 'EUR');
   const [vatEnabled, setVatEnabled] = useState(quote?.vat_enabled ?? true);
   const [items, setItems] = useState<LineItemInput[]>(
     quote?.items?.map(item => ({

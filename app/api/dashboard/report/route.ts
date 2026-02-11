@@ -109,15 +109,12 @@ export async function GET() {
         .order('updated_at', { ascending: true })
         .limit(3),
 
-      // Currency
-      fetch(
-        `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/settings/currency`,
-        {
-          headers: { cookie: '' },
-        }
-      )
-        .then((r) => r.json())
-        .catch(() => ({ data: { currency: 'EUR' } })),
+      // Currency from company settings
+      supabase
+        .from('companies')
+        .select('default_currency')
+        .eq('user_id', userId)
+        .maybeSingle(),
     ]);
 
     // Calculate revenue
@@ -220,7 +217,7 @@ export async function GET() {
       overdueInvoices: overdueInvoices.slice(0, 3),
       pendingDeals,
       actions,
-      currency: currencyRes.data?.currency || 'EUR',
+      currency: currencyRes.data?.default_currency || 'EUR',
     };
 
     return NextResponse.json({ success: true, data: report });

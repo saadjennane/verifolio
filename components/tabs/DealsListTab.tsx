@@ -42,7 +42,7 @@ export function DealsListTab() {
   const [filterBadges, setFilterBadges] = useState<string[]>([]);
   const [filterTags, setFilterTags] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
-  const [currency, setCurrency] = useState<string>('MAD');
+  const [currency, setCurrency] = useState<string>('EUR');
 
   // Load view mode from localStorage on mount
   useEffect(() => {
@@ -62,7 +62,7 @@ export function DealsListTab() {
       const res = await fetch('/api/settings/currency');
       if (res.ok) {
         const data = await res.json();
-        setCurrency(data.data?.currency || 'MAD');
+        setCurrency(data.data?.currency || 'EUR');
       }
     } catch (error) {
       console.error('Error loading currency:', error);

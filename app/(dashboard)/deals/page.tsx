@@ -32,7 +32,7 @@ export default function DealsPage() {
   const [deals, setDeals] = useState<DealListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [currency, setCurrency] = useState<string>('MAD');
+  const [currency, setCurrency] = useState<string>('EUR');
 
   useEffect(() => {
     loadCurrency();
@@ -44,7 +44,7 @@ export default function DealsPage() {
       const res = await fetch('/api/settings/currency');
       if (res.ok) {
         const data = await res.json();
-        setCurrency(data.data?.currency || 'MAD');
+        setCurrency(data.data?.currency || 'EUR');
       }
     } catch (error) {
       console.error('Error loading currency:', error);

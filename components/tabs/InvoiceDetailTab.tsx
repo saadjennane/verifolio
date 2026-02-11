@@ -209,7 +209,7 @@ export function InvoiceDetailTab({ invoiceId }: InvoiceDetailTabProps) {
   }
 
   const config = statusConfig[invoice?.status as InvoiceStatus] || statusConfig.brouillon;
-  const currency = company?.default_currency || 'MAD';
+  const currency = company?.default_currency || 'EUR';
   const remaining = paymentSummary?.remaining ?? invoice?.total_ttc ?? 0;
   const totalPaid = paymentSummary?.total_paid ?? 0;
 

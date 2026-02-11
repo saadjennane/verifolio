@@ -33,7 +33,7 @@ interface SubscriptionListProps {
 
 export function SubscriptionList({
   subscriptions,
-  currency = 'MAD',
+  currency = 'EUR',
   onEdit,
   onSuspend,
   onResume,

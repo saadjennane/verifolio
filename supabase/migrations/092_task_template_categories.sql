@@ -43,6 +43,9 @@ COMMENT ON COLUMN tasks.subgroup IS 'Sous-groupe optionnel au sein de la catégo
 -- 3) Update apply_task_template function to copy category/subgroup
 -- ============================================================================
 
+-- Drop existing function first to allow signature changes
+DROP FUNCTION IF EXISTS apply_task_template(UUID, TEXT, UUID, DATE, UUID);
+
 CREATE OR REPLACE FUNCTION apply_task_template(
   p_template_id UUID,
   p_entity_type TEXT,

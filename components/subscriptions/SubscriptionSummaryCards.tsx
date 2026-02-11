@@ -13,7 +13,7 @@ interface SubscriptionSummaryCardsProps {
 
 export function SubscriptionSummaryCards({
   summary,
-  currency = 'MAD',
+  currency = 'EUR',
   loading = false,
 }: SubscriptionSummaryCardsProps) {
   if (loading) {

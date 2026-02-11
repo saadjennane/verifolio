@@ -34,7 +34,7 @@ export function DocumentActions({
   missionId,
   documentTitle,
   remainingAmount,
-  currency = 'MAD',
+  currency = 'EUR',
   onPaymentAdded,
 }: DocumentActionsProps) {
   const router = useRouter();

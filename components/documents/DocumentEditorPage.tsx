@@ -54,7 +54,7 @@ function formatCurrency(amount: number, symbol: string): string {
   }).format(amount) + ' ' + symbol;
 }
 
-function numberToWords(amount: number, currencyCode: string = 'MAD'): string {
+function numberToWords(amount: number, currencyCode: string = 'EUR'): string {
   if (amount < 0 || amount >= 1000000000) return '';
 
   const units = ['', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf'];
@@ -67,7 +67,7 @@ function numberToWords(amount: number, currencyCode: string = 'MAD'): string {
     DH: { singular: 'dirham', plural: 'dirhams', cents: 'centimes' },
   };
 
-  const curr = currencyNames[currencyCode] || currencyNames['MAD'];
+  const curr = currencyNames[currencyCode] || currencyNames['EUR'];
 
   const intPart = Math.floor(amount);
   const decPart = Math.round((amount - intPart) * 100);
