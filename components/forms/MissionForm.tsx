@@ -12,6 +12,8 @@ interface Deal {
   id: string;
   title: string;
   client_id: string;
+  estimated_amount?: number | null;
+  description?: string | null;
 }
 
 interface Mission {
@@ -54,7 +56,28 @@ export function MissionForm({ mission, onSuccess, onCancel, embedded }: MissionF
   useEffect(() => {
     loadClients();
     loadCurrency();
+    loadAllDeals(); // Charger tous les deals dès le départ
   }, []);
+
+  async function loadAllDeals() {
+    try {
+      const supabase = createClient();
+
+      const { data, error } = await supabase
+        .from('deals')
+        .select('id, title, client_id, estimated_amount, description')
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error loading all deals:', error);
+      } else {
+        setDeals(data as Deal[] || []);
+      }
+    } catch (error) {
+      console.error('Error loading all deals:', error);
+    }
+  }
 
   async function loadCurrency() {
     try {
@@ -71,14 +94,35 @@ export function MissionForm({ mission, onSuccess, onCancel, embedded }: MissionF
     }
   }
 
-  useEffect(() => {
-    if (clientId) {
-      loadDeals(clientId);
-    } else {
-      setDeals([]);
-      setDealId('');
+  // Quand un deal est sélectionné, auto-remplir le client et potentiellement d'autres champs
+  const handleDealChange = (selectedDealId: string) => {
+    setDealId(selectedDealId);
+
+    if (selectedDealId) {
+      const selectedDeal = deals.find(d => d.id === selectedDealId);
+      if (selectedDeal) {
+        // Auto-remplir le client
+        if (selectedDeal.client_id && selectedDeal.client_id !== clientId) {
+          setClientId(selectedDeal.client_id);
+        }
+
+        // Si le titre est vide, suggérer celui du deal
+        if (!title && selectedDeal.title) {
+          setTitle(selectedDeal.title);
+        }
+
+        // Si la description est vide, suggérer celle du deal
+        if (!description && selectedDeal.description) {
+          setDescription(selectedDeal.description);
+        }
+
+        // Si le montant estimé est vide, suggérer celui du deal
+        if (!estimatedAmount && selectedDeal.estimated_amount) {
+          setEstimatedAmount(selectedDeal.estimated_amount.toString());
+        }
+      }
     }
-  }, [clientId]);
+  };
 
   async function loadClients() {
     try {
@@ -99,25 +143,10 @@ export function MissionForm({ mission, onSuccess, onCancel, embedded }: MissionF
     }
   }
 
-  async function loadDeals(selectedClientId: string) {
-    try {
-      const supabase = createClient();
-
-      const { data, error } = await supabase
-        .from('deals')
-        .select('id, title, client_id')
-        .eq('client_id', selectedClientId)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error loading deals:', error);
-      } else {
-        setDeals(data as Deal[] || []);
-      }
-    } catch (error) {
-      console.error('Error loading deals:', error);
-    }
-  }
+  // Filtrer les deals par client si un client est sélectionné
+  const filteredDeals = clientId
+    ? deals.filter(d => d.client_id === clientId)
+    : deals;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -232,20 +261,23 @@ export function MissionForm({ mission, onSuccess, onCancel, embedded }: MissionF
         </div>
       </div>
 
-      {deals.length > 0 && (
-        <Select
-          label="Deal (optionnel)"
-          value={dealId}
-          onChange={(e) => setDealId(e.target.value)}
-          options={[
-            { value: '', label: 'Aucun deal lié' },
-            ...deals.map((deal) => ({
+      <Select
+        label={`Deal lié (optionnel)${!clientId && deals.length > 0 ? ' - Sélectionner un deal pré-remplit le client' : ''}`}
+        value={dealId}
+        onChange={(e) => handleDealChange(e.target.value)}
+        options={[
+          { value: '', label: 'Aucun deal lié' },
+          ...filteredDeals.map((deal) => {
+            // Trouver le nom du client pour l'afficher si pas de client sélectionné
+            const client = !clientId ? clients.find(c => c.id === deal.client_id) : null;
+            const clientSuffix = client ? ` (${client.nom})` : '';
+            return {
               value: deal.id,
-              label: deal.title,
-            })),
-          ]}
-        />
-      )}
+              label: `${deal.title}${clientSuffix}`,
+            };
+          }),
+        ]}
+      />
 
       <Input
         label={`Montant estimé HT (${getCurrencySymbol(currency)})`}

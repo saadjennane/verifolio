@@ -188,19 +188,19 @@ export function EntitySelectionModal({
   const handleCreateNew = () => {
     if (entityType === 'mission') {
       openTab({
-        type: 'mission',
+        type: 'new-mission',
         path: '/missions/new',
         title: 'Nouvelle mission',
       }, true);
     } else if (entityType === 'deal') {
       openTab({
-        type: 'deal',
+        type: 'new-deal',
         path: '/deals/new',
         title: 'Nouveau deal',
       }, true);
     } else {
       openTab({
-        type: 'supplier',
+        type: 'new-company',
         path: '/suppliers/new',
         title: 'Nouveau fournisseur',
       }, true);
