@@ -38,7 +38,8 @@ export type EntityType =
   | 'contacts'
   | 'reviews'
   | 'suppliers'
-  | 'expenses';
+  | 'expenses'
+  | 'notes';
 
 interface OpenTabOptions {
   /** Source de l'ouverture */
@@ -127,6 +128,7 @@ export const useTabsStore = create<TabsState>()(
         reviews: 0,
         suppliers: 0,
         expenses: 0,
+        notes: 0,
       },
       mobileSidebarOpen: false,
       mobileChatOpen: false,

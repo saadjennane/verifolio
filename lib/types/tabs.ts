@@ -82,7 +82,12 @@ export type TabType =
   // Treasury
   | 'treasury'
   // Subscriptions
-  | 'subscriptions';
+  | 'subscriptions'
+  // Notes
+  | 'notes'
+  | 'note'
+  | 'new-note'
+  | 'edit-note';
 
 /**
  * Source de l'ouverture d'un onglet
@@ -220,6 +225,11 @@ export const TAB_ICONS: Record<TabType, string> = {
   treasury: 'wallet',
   // Subscriptions
   subscriptions: 'repeat',
+  // Notes
+  notes: 'sticky-note',
+  note: 'sticky-note',
+  'new-note': 'plus',
+  'edit-note': 'edit',
 };
 
 export function pathToTabConfig(pathname: string): TabConfig | null {
@@ -549,6 +559,32 @@ export function pathToTabConfig(pathname: string): TabConfig | null {
   // Subscriptions
   if (pathname === '/subscriptions') {
     return { type: 'subscriptions', path: '/subscriptions', title: 'Abonnements' };
+  }
+
+  // Notes
+  if (pathname === '/notes') {
+    return { type: 'notes', path: '/notes', title: 'Notes' };
+  }
+  if (pathname === '/notes/new') {
+    return { type: 'new-note', path: '/notes/new', title: 'Nouvelle note' };
+  }
+  const noteEditMatch = pathname.match(/^\/notes\/([^/]+)\/edit$/);
+  if (noteEditMatch) {
+    return {
+      type: 'edit-note',
+      path: pathname,
+      title: 'Modifier note',
+      entityId: noteEditMatch[1],
+    };
+  }
+  const noteMatch = pathname.match(/^\/notes\/([^/]+)$/);
+  if (noteMatch && noteMatch[1] !== 'new') {
+    return {
+      type: 'note',
+      path: pathname,
+      title: 'Note',
+      entityId: noteMatch[1],
+    };
   }
 
   return null;

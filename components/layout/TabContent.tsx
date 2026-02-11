@@ -160,6 +160,22 @@ const SubscriptionsTab = dynamic(() => import('@/components/tabs/SubscriptionsTa
   loading: () => <TabLoading />,
 });
 
+const NotesListTab = dynamic(() => import('@/components/tabs/NotesListTab').then(m => ({ default: m.NotesListTab })), {
+  loading: () => <TabLoading />,
+});
+
+// Heavy editor - disable SSR to reduce initial bundle
+const NoteDetailTab = dynamic(() => import('@/components/tabs/NoteDetailTab').then(m => ({ default: m.NoteDetailTab })), {
+  loading: () => <TabLoading />,
+  ssr: false,
+});
+
+// Heavy editor - disable SSR to reduce initial bundle
+const NewNoteTab = dynamic(() => import('@/components/tabs/NewNoteTab').then(m => ({ default: m.NewNoteTab })), {
+  loading: () => <TabLoading />,
+  ssr: false,
+});
+
 function TabLoading() {
   return (
     <div className="flex items-center justify-center h-full">
@@ -380,6 +396,18 @@ export function TabContent() {
 
     case 'subscriptions':
       return <SubscriptionsTab />;
+
+    case 'notes':
+      return <NotesListTab />;
+
+    case 'note':
+      return <NoteDetailTab noteId={activeTab.entityId!} />;
+
+    case 'new-note':
+      return <NewNoteTab />;
+
+    case 'edit-note':
+      return <NoteDetailTab noteId={activeTab.entityId!} />;
 
     default:
       return <EmptyState />;
