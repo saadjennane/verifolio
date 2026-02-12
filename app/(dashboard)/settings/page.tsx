@@ -12,10 +12,11 @@ import { TrashSettings } from '@/components/settings/TrashSettings';
 import { ReviewTemplatesSettings } from '@/components/settings/ReviewTemplatesSettings';
 import { VerifolioSettings } from '@/components/settings/VerifolioSettings';
 import { TaskTemplatesSettings } from '@/components/settings/TaskTemplatesSettings';
+import { IntegrationsSettings } from '@/components/settings/IntegrationsSettings';
 
-type SettingsTab = 'profile' | 'company' | 'email' | 'fields' | 'template' | 'task-templates' | 'reviews' | 'verifolio' | 'navigation' | 'trash';
+type SettingsTab = 'profile' | 'company' | 'email' | 'fields' | 'template' | 'task-templates' | 'reviews' | 'verifolio' | 'integrations' | 'navigation' | 'trash';
 
-const validTabs: SettingsTab[] = ['profile', 'company', 'email', 'fields', 'template', 'task-templates', 'reviews', 'verifolio', 'navigation', 'trash'];
+const validTabs: SettingsTab[] = ['profile', 'company', 'email', 'fields', 'template', 'task-templates', 'reviews', 'verifolio', 'integrations', 'navigation', 'trash'];
 
 // Wrapper component to handle useSearchParams inside Suspense
 function SettingsPageContent() {
@@ -126,6 +127,16 @@ function SettingsPageContent() {
               Mon Verifolio
             </button>
             <button
+              onClick={() => setActiveTab('integrations')}
+              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'integrations'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Intégrations
+            </button>
+            <button
               onClick={() => setActiveTab('navigation')}
               className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === 'navigation'
@@ -157,6 +168,7 @@ function SettingsPageContent() {
         {activeTab === 'task-templates' && <TaskTemplatesSettings />}
         {activeTab === 'reviews' && <ReviewTemplatesSettings />}
         {activeTab === 'verifolio' && <VerifolioSettings />}
+        {activeTab === 'integrations' && <IntegrationsSettings />}
         {activeTab === 'navigation' && <NavigationSettings />}
         {activeTab === 'trash' && <TrashSettings />}
       </div>

@@ -87,7 +87,9 @@ export type TabType =
   | 'notes'
   | 'note'
   | 'new-note'
-  | 'edit-note';
+  | 'edit-note'
+  // Calendar
+  | 'calendar';
 
 /**
  * Source de l'ouverture d'un onglet
@@ -230,6 +232,8 @@ export const TAB_ICONS: Record<TabType, string> = {
   note: 'sticky-note',
   'new-note': 'plus',
   'edit-note': 'edit',
+  // Calendar
+  calendar: 'calendar',
 };
 
 export function pathToTabConfig(pathname: string): TabConfig | null {
@@ -559,6 +563,11 @@ export function pathToTabConfig(pathname: string): TabConfig | null {
   // Subscriptions
   if (pathname === '/subscriptions') {
     return { type: 'subscriptions', path: '/subscriptions', title: 'Abonnements' };
+  }
+
+  // Calendar
+  if (pathname === '/calendar') {
+    return { type: 'calendar', path: '/calendar', title: 'Calendrier' };
   }
 
   // Notes

@@ -176,6 +176,10 @@ const NewNoteTab = dynamic(() => import('@/components/tabs/NewNoteTab').then(m =
   ssr: false,
 });
 
+const CalendarTab = dynamic(() => import('@/components/tabs/CalendarTab').then(m => ({ default: m.CalendarTab })), {
+  loading: () => <TabLoading />,
+});
+
 function TabLoading() {
   return (
     <div className="flex items-center justify-center h-full">
@@ -408,6 +412,9 @@ export function TabContent() {
 
     case 'edit-note':
       return <NoteDetailTab noteId={activeTab.entityId!} />;
+
+    case 'calendar':
+      return <CalendarTab />;
 
     default:
       return <EmptyState />;
