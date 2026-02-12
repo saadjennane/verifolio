@@ -1,7 +1,7 @@
 # Guide des Tests Verifolio
 
-> **Version**: 1.2
-> **Date**: 2025-02-10
+> **Version**: 1.4
+> **Date**: 2026-02-12
 > **Framework**: Vitest
 
 ---
@@ -594,6 +594,7 @@ interface TaskTemplateItem {
 - Tâches liées & Templates
 - Abonnements (Subscriptions)
 - Paiements indépendants (Association a posteriori)
+- Logos Entreprises (Upload & logo.dev)
 
 ---
 
@@ -1154,6 +1155,346 @@ interface AssociatePaymentResult {
 - Fonctions RPC: `associate_payment_to_invoice`, `associate_payment_to_supplier_invoice`, `dissociate_payment_from_invoice`
 - Modal: `components/payments/PaymentAssociationModal.tsx`
 - API: `app/api/payments/[id]/associate/`, `app/api/payments/[id]/dissociate/`
+
+---
+
+### Tests du Module Logos Entreprises
+
+#### Gestion des Logos Clients/Fournisseurs
+
+Module permettant d'ajouter des logos aux fiches entreprises (clients et fournisseurs) via upload manuel ou recherche automatique via l'API logo.dev.
+
+**Fichiers sources**:
+- Migration: `supabase/migrations/095_client_logos.sql`
+- API: `app/api/clients/[id]/logo/route.ts` (POST upload, PATCH select, DELETE)
+- API: `app/api/clients/[id]/logo/search/route.ts` (POST recherche logo.dev)
+- Composant: `components/clients/ClientLogoPicker.tsx`
+- Types: `lib/supabase/types.ts` (Client interface)
+
+**Tests manuels recommandes - Upload :**
+
+| Test | Description | Verification |
+|------|-------------|--------------|
+| Ouvrir modal | Cliquer "Ajouter un logo" sur fiche entreprise | Modal s'ouvre avec onglets Upload/Rechercher |
+| Upload PNG | Selectionner fichier PNG < 500Ko | Logo uploade, affiche dans la fiche |
+| Upload JPG | Selectionner fichier JPG < 500Ko | Logo uploade, affiche dans la fiche |
+| Upload WebP | Selectionner fichier WebP < 500Ko | Logo uploade, affiche dans la fiche |
+| Upload SVG | Selectionner fichier SVG < 500Ko | Logo uploade, affiche dans la fiche |
+| Fichier trop gros | Selectionner fichier > 500Ko | Erreur "Fichier trop volumineux" |
+| Format invalide | Selectionner fichier .gif ou .pdf | Erreur "Format non supporte" |
+| Remplacer logo | Upload nouveau logo sur entreprise existante | Ancien logo supprime, nouveau affiche |
+
+**Tests manuels recommandes - Recherche logo.dev :**
+
+| Test | Description | Verification |
+|------|-------------|--------------|
+| Onglet recherche | Cliquer onglet "Rechercher" | Champ domaine affiche |
+| Recherche valide | Entrer "google.com", cliquer Rechercher | 3 variantes de taille affichees |
+| Domaine invalide | Entrer "invalid" sans TLD | Erreur "Format de domaine invalide" |
+| Domaine inexistant | Entrer domaine sans logo connu | Message "Aucun logo trouve" |
+| Selectionner variante | Cliquer sur une taille (200px, 128px, 64px) | Variante selectionnee (bordure bleue) |
+| Utiliser logo | Cliquer "Utiliser ce logo" | Logo applique a la fiche |
+| URL nettoyee | Entrer "https://www.example.com/page" | Recherche sur "example.com" |
+
+**Tests manuels recommandes - Affichage :**
+
+| Test | Description | Verification |
+|------|-------------|--------------|
+| Fiche entreprise | Ouvrir fiche avec logo | Logo affiche dans le header a gauche |
+| Fiche sans logo | Ouvrir fiche sans logo | Placeholder avec icone Building2 + initiales |
+| Liste entreprises | Ouvrir liste Entreprises | Colonne logo avec miniatures ou icones |
+| Formulaire edition | Modifier entreprise existante | LogoPicker affiche avec logo actuel |
+| Image cassee | Logo avec URL invalide | Fallback sur placeholder initiales |
+
+**Tests manuels recommandes - Suppression :**
+
+| Test | Description | Verification |
+|------|-------------|--------------|
+| Bouton supprimer | Cliquer "Supprimer" sous le logo | Logo supprime, placeholder affiche |
+| Suppression storage | Supprimer logo uploade | Fichier supprime de Supabase Storage |
+| Suppression logo.dev | Supprimer logo logo.dev | Champ logo_url mis a null (pas de fichier) |
+
+**Tests API :**
+
+| Endpoint | Methode | Test | Verification |
+|----------|---------|------|--------------|
+| `/api/clients/[id]/logo` | POST | Upload fichier valide | `{data: {logo_url, logo_source: 'upload'}}` |
+| `/api/clients/[id]/logo` | POST | Fichier trop gros | `{error: 'Fichier trop volumineux'}`, 400 |
+| `/api/clients/[id]/logo` | POST | Format invalide | `{error: 'Format non supporte'}`, 400 |
+| `/api/clients/[id]/logo` | POST | Client inexistant | `{error: 'Client non trouve'}`, 404 |
+| `/api/clients/[id]/logo` | PATCH | Selectionner URL logo.dev | `{data: {logo_url, logo_source: 'logodev'}}` |
+| `/api/clients/[id]/logo` | PATCH | URL non logo.dev | `{error: 'URL non autorisee'}`, 400 |
+| `/api/clients/[id]/logo` | DELETE | Supprimer logo | `{message: 'Logo supprime'}` |
+| `/api/clients/[id]/logo/search` | POST | Domaine valide avec logo | `{data: {found: true, variants: [...]}}` |
+| `/api/clients/[id]/logo/search` | POST | Domaine sans logo | `{data: {found: false, variants: []}}` |
+| `/api/clients/[id]/logo/search` | POST | Format invalide | `{error: 'Format de domaine invalide'}`, 400 |
+
+**Tests de securite :**
+
+| Test | Description | Verification |
+|------|-------------|--------------|
+| Ownership | Modifier logo d'un client d'un autre user | Erreur 404 (client non trouve) |
+| URL whitelist | PATCH avec URL non logo.dev | Erreur "URL non autorisee" |
+| SSRF prevention | Recherche ne fait pas fetch arbitraire | Seules URLs logo.dev acceptees |
+| Validation domaine | Injection dans le domaine | Regex bloque les caracteres invalides |
+
+**Tests unitaires recommandes :**
+
+```typescript
+// tests/lib/clients/logo-validation.test.ts
+
+describe('Logo validation', () => {
+  it('should accept valid domain formats', () => {
+    expect(isValidDomain('acme.com')).toBe(true);
+    expect(isValidDomain('sub.domain.co.uk')).toBe(true);
+  });
+
+  it('should reject invalid domain formats', () => {
+    expect(isValidDomain('invalid')).toBe(false);
+    expect(isValidDomain('http://acme.com')).toBe(false);
+    expect(isValidDomain('../etc/passwd')).toBe(false);
+  });
+
+  it('should validate file types', () => {
+    expect(ALLOWED_TYPES.includes('image/png')).toBe(true);
+    expect(ALLOWED_TYPES.includes('image/gif')).toBe(false);
+  });
+
+  it('should validate file size', () => {
+    expect(file.size <= MAX_SIZE_BYTES).toBe(true);
+  });
+});
+```
+
+**Structure de donnees :**
+
+```typescript
+// Colonnes ajoutees a la table clients
+interface ClientLogoFields {
+  logo_url: string | null;           // URL du logo (storage ou logo.dev)
+  logo_source: 'upload' | 'logodev' | null;  // Source du logo
+  logo_updated_at: string | null;    // Timestamp de mise a jour
+}
+
+// Reponse API upload
+interface LogoUploadResponse {
+  data: {
+    logo_url: string;
+    logo_source: 'upload' | 'logodev';
+  };
+  message: string;
+}
+
+// Reponse API search
+interface LogoSearchResponse {
+  data: {
+    found: boolean;
+    domain: string;
+    variants: Array<{
+      url: string;
+      size: number;
+      format: string;
+    }>;
+  };
+  message: string;
+}
+```
+
+**Configuration requise :**
+
+| Variable | Description | Obligatoire |
+|----------|-------------|-------------|
+| `LOGODEV_API_KEY` | Cle API logo.dev | Non (mode demo sinon) |
+
+**Storage Supabase :**
+
+| Bucket | Chemin | Description |
+|--------|--------|-------------|
+| `company-assets` | `client-logos/` | Logos uploades manuellement |
+
+---
+
+### Tests du Module Google Calendar
+
+#### Integration Google Calendar
+
+Module d'integration avec Google Calendar pour enrichir les evenements avec des entites Verifolio.
+
+**Architecture:**
+- Google Calendar = source de verite (pas de calendrier interne)
+- Verifolio stocke uniquement les liens (google_event_id + entites liees)
+- Pre-remplissage intelligent lors de la creation depuis une entite
+
+**Page de test**: Modal accessible depuis les fiches Mission/Deal/Client
+
+**Tests manuels - Connexion OAuth:**
+
+| Test | Description | Verification |
+|------|-------------|--------------|
+| Connexion initiale | Cliquer "Connecter Google Calendar" | Redirection OAuth Google |
+| Autorisation | Accepter les permissions | Retour a l'app avec succes |
+| Deconnexion | Cliquer "Deconnecter" | Tokens supprimes |
+| Token expire | Attendre expiration | Refresh automatique |
+
+**Tests manuels - Creation d'evenement:**
+
+| Test | Description | Verification |
+|------|-------------|--------------|
+| Ouvrir modal | Cliquer "Nouvel evenement" | Modal s'ouvre avec dates par defaut |
+| Titre requis | Soumettre sans titre | Erreur affichee |
+| Dates valides | Fin avant debut | Erreur affichee |
+| Creation simple | Remplir titre + dates | Evenement cree dans Google Calendar |
+| Avec lieu | Ajouter un lieu | Lieu visible dans Google Calendar |
+| Avec participants | Ajouter emails | Invitations envoyees |
+| Avec liens | Lier a Mission/Deal/Client | Liens sauvegardes dans Verifolio |
+
+**Tests manuels - Pre-remplissage:**
+
+| Test | Description | Verification |
+|------|-------------|--------------|
+| Depuis Mission | "Nouvel evenement" sur fiche Mission | Titre pre-rempli, Mission + Client lies |
+| Depuis Deal | "Nouvel evenement" sur fiche Deal | Titre pre-rempli, Deal + Client lies |
+| Depuis Client | "Nouvel evenement" sur fiche Client | Titre pre-rempli, Client lie |
+| Contacts suggeres | Entite avec contacts | Emails des contacts en suggestion |
+
+**Tests manuels - Gestion des liens:**
+
+| Test | Description | Verification |
+|------|-------------|--------------|
+| Voir liens | Ouvrir dropdown "Lier a..." | Autocomplete pour chaque type |
+| Ajouter lien | Selectionner une entite | Lien sauvegarde |
+| Supprimer lien | Effacer le champ | Lien supprime |
+| Liens multiples | Lier Mission + Client + Contact | Tous les liens sauvegardes |
+
+**Tests API:**
+
+| Endpoint | Methode | Test | Verification |
+|----------|---------|------|--------------|
+| `/api/calendar/auth` | GET | Status connexion | `{ connected: boolean }` |
+| `/api/calendar/auth` | DELETE | Deconnecter | Tokens supprimes |
+| `/api/calendar/auth/connect` | GET | URL OAuth | Retourne authUrl |
+| `/api/calendar/events` | GET | Lister evenements | Events enrichis retournes |
+| `/api/calendar/events` | POST | Creer evenement | Event cree + liens |
+| `/api/calendar/events/[id]` | GET | Detail evenement | Event enrichi |
+| `/api/calendar/events/[id]` | PATCH | Modifier evenement | Event mis a jour |
+| `/api/calendar/events/[id]` | DELETE | Supprimer evenement | Event + liens supprimes |
+| `/api/calendar/events/[id]/link` | PUT | Creer/modifier lien | Lien upsert |
+| `/api/calendar/events/[id]/link` | DELETE | Supprimer lien | Lien supprime |
+| `/api/calendar/prefill` | GET | Pre-remplissage | Contexte avec suggestions |
+| `/api/calendar/entity-events` | GET | Events par entite | Liste filtree |
+
+**Tests unitaires:**
+
+```typescript
+describe('CalendarEventModal', () => {
+  it('should set default dates rounded to 30 minutes', () => {
+    // Modal opens with start = now rounded up to 30min
+    // End = start + 1 hour
+  });
+
+  it('should auto-adjust end time when start changes', () => {
+    // If new start >= current end, set end = start + 1h
+  });
+
+  it('should validate email format for attendees', () => {
+    expect(parseAttendees('invalid')).toEqual([]);
+    expect(parseAttendees('a@b.com, c@d.com')).toEqual([
+      { email: 'a@b.com' },
+      { email: 'c@d.com' },
+    ]);
+  });
+});
+
+describe('getPrefillContext', () => {
+  it('should suggest client when creating from mission', async () => {
+    const context = await getPrefillContext('mission', missionId);
+    expect(context.suggestedLinks.client_id).toBe(mission.client_id);
+  });
+
+  it('should suggest contacts from deal', async () => {
+    const context = await getPrefillContext('deal', dealId);
+    expect(context.suggestedAttendees).toContainEqual(
+      expect.objectContaining({ email: contact.email })
+    );
+  });
+});
+
+describe('enrichEvents', () => {
+  it('should attach verifolioLink to events with links', async () => {
+    const events = await enrichEvents([googleEvent]);
+    expect(events[0].verifolioLink?.mission_id).toBe(missionId);
+  });
+
+  it('should resolve entity names for linked entities', async () => {
+    const events = await enrichEvents([googleEvent]);
+    expect(events[0].linkedEntities.mission?.title).toBe('Mission Title');
+  });
+});
+```
+
+**Structure de donnees:**
+
+```typescript
+// Table calendar_event_links
+interface CalendarEventLink {
+  id: string;
+  user_id: string;
+  google_event_id: string;     // ID de l'evenement Google
+  google_calendar_id: string;  // 'primary' par defaut
+  event_title: string | null;  // Cache pour affichage rapide
+  event_start: string | null;  // Cache
+  event_end: string | null;    // Cache
+  mission_id: string | null;
+  deal_id: string | null;
+  client_id: string | null;
+  supplier_id: string | null;
+  contact_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Evenement enrichi
+interface EnrichedCalendarEvent extends GoogleCalendarEvent {
+  verifolioLink?: CalendarEventLink;
+  linkedEntities: {
+    mission?: { id: string; title: string } | null;
+    deal?: { id: string; nom: string } | null;
+    client?: { id: string; nom: string } | null;
+    supplier?: { id: string; nom: string } | null;
+    contact?: { id: string; nom: string; prenom: string } | null;
+  };
+}
+
+// Contexte de pre-remplissage
+interface EventPrefillContext {
+  fromEntity?: { type: CalendarEntityType; id: string };
+  suggestedLinks: {
+    mission_id?: string;
+    deal_id?: string;
+    client_id?: string;
+    supplier_id?: string;
+    contact_id?: string;
+  };
+  suggestedTitle?: string;
+  suggestedAttendees?: Array<{ email: string; name?: string }>;
+}
+```
+
+**Configuration requise:**
+
+| Variable | Description | Obligatoire |
+|----------|-------------|-------------|
+| `GOOGLE_CLIENT_ID` | Client ID OAuth Google | Oui |
+| `GOOGLE_CLIENT_SECRET` | Client Secret OAuth Google | Oui |
+| `GOOGLE_CALENDAR_REDIRECT_URI` | URI de callback OAuth | Non (auto-detecte) |
+
+**Fichiers sources:**
+- Types: `lib/calendar/types.ts`
+- Service Google: `lib/calendar/google-calendar.ts`
+- Service Liens: `lib/calendar/calendar-links.ts`
+- API: `app/api/calendar/`
+- UI: `components/calendar/CalendarEventModal.tsx`
+- DB: `supabase/migrations/096_calendar_integration.sql`
 
 ---
 

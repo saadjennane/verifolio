@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useTabsStore } from '@/lib/stores/tabs-store';
 import { Button, Input, Select, PhoneInput, Textarea } from '@/components/ui';
-import type { Client, ClientType } from '@/lib/supabase/types';
+import { ClientLogoPicker } from '@/components/clients';
+import type { Client, ClientType, ClientLogoSource } from '@/lib/supabase/types';
 import type { CustomField } from '@/lib/types/settings';
 
 interface CompanyFormTabProps {
@@ -26,6 +27,10 @@ export function CompanyFormTab({ companyId }: CompanyFormTabProps) {
   // Role flags
   const [isClient, setIsClient] = useState(true);
   const [isSupplier, setIsSupplier] = useState(false);
+
+  // Logo
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [logoSource, setLogoSource] = useState<ClientLogoSource | null>(null);
 
   // Custom fields
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
@@ -100,6 +105,8 @@ export function CompanyFormTab({ companyId }: CompanyFormTabProps) {
         setNotes(data.notes || '');
         setIsClient(data.is_client ?? true);
         setIsSupplier(data.is_supplier ?? false);
+        setLogoUrl(data.logo_url || null);
+        setLogoSource(data.logo_source || null);
 
         // Map field values
         if (valuesRes.data) {
@@ -286,6 +293,25 @@ export function CompanyFormTab({ companyId }: CompanyFormTabProps) {
 
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Logo (only for editing existing company) */}
+            {isEditing && companyId && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Logo
+                </label>
+                <ClientLogoPicker
+                  clientId={companyId}
+                  currentLogoUrl={logoUrl}
+                  clientName={nom || 'Entreprise'}
+                  onLogoChange={(newUrl, newSource) => {
+                    setLogoUrl(newUrl);
+                    setLogoSource(newSource);
+                  }}
+                  disabled={saving}
+                />
+              </div>
+            )}
+
             {/* Role checkboxes */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">

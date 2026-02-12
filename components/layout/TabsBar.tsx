@@ -2,6 +2,7 @@
 
 import { useTabsStore } from '@/lib/stores/tabs-store';
 import { Tab } from './Tab';
+import { TodosDropdown } from './TodosDropdown';
 
 export function TabsBar() {
   const { tabs, chatPanelOpen, toggleChatPanel, historyPanelOpen, toggleHistoryPanel } =
@@ -22,6 +23,9 @@ export function TabsBar() {
 
       {/* Right side buttons */}
       <div className="flex items-center">
+        {/* Todos dropdown */}
+        <TodosDropdown />
+
         {/* History toggle button */}
         <button
           onClick={toggleHistoryPanel}

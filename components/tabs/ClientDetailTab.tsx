@@ -6,6 +6,7 @@ import { useTabsStore } from '@/lib/stores/tabs-store';
 import { Badge, Button, Card } from '@/components/ui';
 import { EntityTasksSection } from '@/components/tasks/EntityTasksSection';
 import { getCurrencySymbol } from '@/lib/utils/currency';
+import { Building2 } from 'lucide-react';
 import type { Client } from '@/lib/supabase/types';
 import type { CustomField } from '@/lib/types/settings';
 
@@ -313,17 +314,44 @@ export function ClientDetailTab({ clientId }: ClientDetailTabProps) {
             ← Retour aux entreprises
           </button>
           <div className="flex items-center justify-between mt-2">
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{client?.nom}</h1>
-              <Badge variant={client?.type === 'entreprise' ? 'blue' : 'gray'}>
-                {client?.type === 'entreprise' ? 'Entreprise' : 'Particulier'}
-              </Badge>
-              {(client as any)?.is_client && (
-                <Badge variant="green">Client</Badge>
-              )}
-              {(client as any)?.is_supplier && (
-                <Badge variant="yellow">Fournisseur</Badge>
-              )}
+            <div className="flex items-center gap-4">
+              {/* Logo */}
+              <div className="w-16 h-16 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex items-center justify-center overflow-hidden flex-shrink-0">
+                {client?.logo_url ? (
+                  <img
+                    src={client.logo_url}
+                    alt={`Logo de ${client.nom}`}
+                    className="w-full h-full object-contain p-1"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <div className="flex flex-col items-center text-gray-400 dark:text-gray-500">
+                    <Building2 className="w-6 h-6" />
+                    <span className="text-[10px] mt-0.5">
+                      {client?.nom?.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <div>
+                <div className="flex items-center gap-3">
+                  <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{client?.nom}</h1>
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                  <Badge variant={client?.type === 'entreprise' ? 'blue' : 'gray'}>
+                    {client?.type === 'entreprise' ? 'Entreprise' : 'Particulier'}
+                  </Badge>
+                  {(client as any)?.is_client && (
+                    <Badge variant="green">Client</Badge>
+                  )}
+                  {(client as any)?.is_supplier && (
+                    <Badge variant="yellow">Fournisseur</Badge>
+                  )}
+                </div>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <Button onClick={handleEdit}>Modifier</Button>

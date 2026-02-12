@@ -2,9 +2,6 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 export async function middleware(request: NextRequest) {
-  // TEMPORAIRE: Bypass complet pour debug
-  return NextResponse.next();
-
   // Routes publiques (accessibles sans authentification)
   const publicRoutes = [
     '/login',

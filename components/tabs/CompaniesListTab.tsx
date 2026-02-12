@@ -5,6 +5,7 @@ import { Button, Badge, Input } from '@/components/ui';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { useTabsStore } from '@/lib/stores/tabs-store';
 import { createClient } from '@/lib/supabase/client';
+import { Building2 } from 'lucide-react';
 
 interface Company {
   id: string;
@@ -15,6 +16,7 @@ interface Company {
   is_client: boolean;
   is_supplier: boolean;
   vat_enabled: boolean;
+  logo_url: string | null;
   activeDealsCount?: number;
   activeMissionsCount?: number;
 }
@@ -329,6 +331,7 @@ export function CompaniesListTab({ initialTab }: CompaniesListTabProps) {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-14"></TableHead>
                   <TableHead>Nom</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Email</TableHead>
@@ -343,6 +346,25 @@ export function CompaniesListTab({ initialTab }: CompaniesListTabProps) {
                     onClick={() => handleRowClick(company)}
                     className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700"
                   >
+                    <TableCell className="py-2">
+                      <div className="w-10 h-10 rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex items-center justify-center overflow-hidden">
+                        {company.logo_url ? (
+                          <img
+                            src={company.logo_url}
+                            alt=""
+                            className="w-full h-full object-contain p-0.5"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                              target.nextElementSibling?.classList.remove('hidden');
+                            }}
+                          />
+                        ) : null}
+                        <div className={`flex flex-col items-center text-gray-400 dark:text-gray-500 ${company.logo_url ? 'hidden' : ''}`}>
+                          <Building2 className="w-4 h-4" />
+                        </div>
+                      </div>
+                    </TableCell>
                     <TableCell className="font-medium">{company.nom}</TableCell>
                     <TableCell>
                       <Badge variant={company.type === 'entreprise' ? 'blue' : 'gray'}>

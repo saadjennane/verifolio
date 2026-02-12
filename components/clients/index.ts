@@ -1,0 +1,1 @@
+export { ClientLogoPicker } from './ClientLogoPicker';

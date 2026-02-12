@@ -2,6 +2,75 @@
 // Ces types correspondent au schéma de la base de données
 
 export type ClientType = 'particulier' | 'entreprise';
+
+// Calendar Integration
+export interface CalendarEventLink {
+  id: string;
+  user_id: string;
+  google_event_id: string;
+  google_calendar_id: string;
+  event_title: string | null;
+  event_start: string | null;
+  event_end: string | null;
+  mission_id: string | null;
+  deal_id: string | null;
+  client_id: string | null;
+  supplier_id: string | null;
+  contact_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GoogleCalendarToken {
+  id: string;
+  user_id: string;
+  access_token: string;
+  refresh_token: string | null;
+  token_type: string;
+  scope: string | null;
+  expires_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Google Calendar API types (from Google API response)
+export interface GoogleCalendarEvent {
+  id: string;
+  summary?: string;
+  description?: string;
+  location?: string;
+  start?: {
+    dateTime?: string;
+    date?: string;
+    timeZone?: string;
+  };
+  end?: {
+    dateTime?: string;
+    date?: string;
+    timeZone?: string;
+  };
+  attendees?: Array<{
+    email: string;
+    displayName?: string;
+    responseStatus?: string;
+  }>;
+  htmlLink?: string;
+  status?: string;
+  created?: string;
+  updated?: string;
+}
+
+// Enriched calendar event with Verifolio entities
+export interface EnrichedCalendarEvent extends GoogleCalendarEvent {
+  verifolioLink?: CalendarEventLink;
+  linkedEntities?: {
+    mission?: { id: string; title: string } | null;
+    deal?: { id: string; nom: string } | null;
+    client?: { id: string; nom: string } | null;
+    supplier?: { id: string; nom: string } | null;
+    contact?: { id: string; nom: string; prenom: string } | null;
+  };
+}
 export type QuoteStatus = 'brouillon' | 'envoye';
 export type InvoiceStatus = 'brouillon' | 'envoyee' | 'partielle' | 'payee' | 'annulee';
 
@@ -50,6 +119,8 @@ export interface Company {
   updated_at: string;
 }
 
+export type ClientLogoSource = 'upload' | 'logodev';
+
 export interface Client {
   id: string;
   user_id: string;
@@ -60,6 +131,9 @@ export interface Client {
   adresse: string | null;
   notes: string | null;
   vat_enabled: boolean;
+  logo_url: string | null;
+  logo_source: ClientLogoSource | null;
+  logo_updated_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -273,6 +347,16 @@ export interface Database {
         Row: DeliveryNote;
         Insert: Omit<DeliveryNote, 'id' | 'created_at' | 'updated_at'>;
         Update: Partial<Omit<DeliveryNote, 'id' | 'user_id' | 'created_at' | 'updated_at'>>;
+      };
+      calendar_event_links: {
+        Row: CalendarEventLink;
+        Insert: Omit<CalendarEventLink, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<CalendarEventLink, 'id' | 'user_id' | 'created_at' | 'updated_at'>>;
+      };
+      google_calendar_tokens: {
+        Row: GoogleCalendarToken;
+        Insert: Omit<GoogleCalendarToken, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<GoogleCalendarToken, 'id' | 'user_id' | 'created_at' | 'updated_at'>>;
       };
     };
     Views: {

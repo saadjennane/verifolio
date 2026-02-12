@@ -13,7 +13,7 @@ export async function GET() {
     // Fetch all clients (both clients and suppliers)
     const { data, error } = await supabase
       .from('clients')
-      .select('id, nom, type, email, telephone, is_client, is_supplier, vat_enabled')
+      .select('id, nom, type, email, telephone, is_client, is_supplier, vat_enabled, logo_url')
       .eq('user_id', user.id)
       .is('deleted_at', null)
       .order('nom', { ascending: true });
