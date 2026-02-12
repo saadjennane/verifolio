@@ -15,9 +15,10 @@ import { NavigationSettings } from '@/components/settings/NavigationSettings';
 import { TrashSettings } from '@/components/settings/TrashSettings';
 import { FontsSettings } from '@/components/settings/FontsSettings';
 import { ChatStylesSettings } from '@/components/settings/ChatStylesSettings';
+import { IntegrationsSettings } from '@/components/settings/IntegrationsSettings';
 
 // Section types
-type SectionType = 'profile' | 'entreprise' | 'email' | 'templates' | 'verifolio' | 'navigation' | 'trash' | 'fonts' | 'chat-styles';
+type SectionType = 'profile' | 'entreprise' | 'email' | 'templates' | 'verifolio' | 'integrations' | 'navigation' | 'trash' | 'fonts' | 'chat-styles';
 type EntrepriseTab = 'infos' | 'activities' | 'fields';
 type TemplatesTab = 'documents' | 'proposals' | 'briefs' | 'reviews';
 
@@ -86,6 +87,8 @@ export function SettingsTab({ path }: SettingsTabProps) {
         return { title: 'Templates', subtitle: 'Gérez vos modèles de documents' };
       case 'verifolio':
         return { title: 'Mon Verifolio', subtitle: 'Configurez votre portfolio public' };
+      case 'integrations':
+        return { title: 'Intégrations', subtitle: 'Connectez des services externes' };
       case 'navigation':
         return { title: 'Navigation', subtitle: 'Personnalisez la navigation de l\'application' };
       case 'trash':
@@ -226,6 +229,7 @@ export function SettingsTab({ path }: SettingsTabProps) {
         )}
 
         {activeSection === 'verifolio' && <VerifolioSettings />}
+        {activeSection === 'integrations' && <IntegrationsSettings />}
         {activeSection === 'navigation' && <NavigationSettings />}
         {activeSection === 'trash' && <TrashSettings />}
         {activeSection === 'fonts' && <FontsSettings />}
