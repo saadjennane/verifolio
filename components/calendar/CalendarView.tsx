@@ -227,7 +227,6 @@ export function CalendarView() {
             type: 'settings',
             path: '/settings?section=integrations',
             title: 'Paramètres',
-            icon: 'settings',
           })}
         >
           <Settings className="w-4 h-4 mr-2" />
