@@ -2,6 +2,27 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 export async function middleware(request: NextRequest) {
+  // Routes publiques (accessibles sans authentification)
+  const publicRoutes = [
+    '/login',
+    '/signup',
+    '/auth/callback',
+    '/p/',      // Propositions publiques
+    '/b/',      // Briefs publics
+    '/q/',      // Devis publics
+    '/i/',      // Factures publiques
+    '/r/',      // Review requests publics
+    '/api/public/', // APIs publiques
+  ];
+  const isPublicRoute = publicRoutes.some(path =>
+    request.nextUrl.pathname.startsWith(path)
+  );
+
+  // Pour les routes publiques, pas besoin de vérifier l'auth
+  if (isPublicRoute) {
+    return NextResponse.next();
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   });
@@ -33,24 +54,8 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Routes publiques (accessibles sans authentification)
-  const publicRoutes = [
-    '/login',
-    '/signup',
-    '/auth/callback',
-    '/p/',      // Propositions publiques
-    '/b/',      // Briefs publics
-    '/q/',      // Devis publics
-    '/i/',      // Factures publiques
-    '/r/',      // Review requests publics
-    '/api/public/', // APIs publiques
-  ];
-  const isPublicRoute = publicRoutes.some(path =>
-    request.nextUrl.pathname.startsWith(path)
-  );
-
-  // Rediriger vers /login si non authentifié et pas sur une route publique
-  if (!user && !isPublicRoute) {
+  // Rediriger vers /login si non authentifié
+  if (!user) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
