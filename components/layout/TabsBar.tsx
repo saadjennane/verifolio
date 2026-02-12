@@ -1,12 +1,16 @@
 'use client';
 
+import { useState } from 'react';
+import { Calendar } from 'lucide-react';
 import { useTabsStore } from '@/lib/stores/tabs-store';
 import { Tab } from './Tab';
 import { TodosDropdown } from './TodosDropdown';
+import { CalendarEventModal } from '@/components/calendar/CalendarEventModal';
 
 export function TabsBar() {
   const { tabs, chatPanelOpen, toggleChatPanel, historyPanelOpen, toggleHistoryPanel } =
     useTabsStore();
+  const [calendarModalOpen, setCalendarModalOpen] = useState(false);
 
   return (
     <div className="flex items-center justify-between bg-muted border-b border-border">
@@ -23,6 +27,15 @@ export function TabsBar() {
 
       {/* Right side buttons */}
       <div className="flex items-center">
+        {/* Calendar button */}
+        <button
+          onClick={() => setCalendarModalOpen(true)}
+          className="flex items-center justify-center w-10 h-10 border-l border-border hover:bg-accent transition-colors text-muted-foreground hover:text-blue-600"
+          title="Créer un événement calendrier"
+        >
+          <Calendar className="w-5 h-5" />
+        </button>
+
         {/* Todos dropdown */}
         <TodosDropdown />
 
@@ -76,6 +89,12 @@ export function TabsBar() {
           </svg>
         </button>
       </div>
+
+      {/* Calendar Event Modal */}
+      <CalendarEventModal
+        isOpen={calendarModalOpen}
+        onClose={() => setCalendarModalOpen(false)}
+      />
     </div>
   );
 }
