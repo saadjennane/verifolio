@@ -1,7 +1,7 @@
 # Guide des Tests Verifolio
 
-> **Version**: 1.4
-> **Date**: 2026-02-12
+> **Version**: 1.5
+> **Date**: 2026-02-14
 > **Framework**: Vitest
 
 ---
@@ -1495,6 +1495,166 @@ interface EventPrefillContext {
 - API: `app/api/calendar/`
 - UI: `components/calendar/CalendarEventModal.tsx`
 - DB: `supabase/migrations/096_calendar_integration.sql`
+
+---
+
+### Tests de la Recherche Universelle (Command Palette)
+
+#### Fonctionnalite Cmd+K
+
+Module de recherche universelle permettant de rechercher instantanement dans toutes les entites (clients, contacts, deals, missions, devis, factures, propositions, briefs, notes, taches).
+
+**Raccourci**: `Cmd+K` (Mac) / `Ctrl+K` (Windows)
+
+**Tests manuels recommandes - Ouverture :**
+
+| Test | Description | Verification |
+|------|-------------|--------------|
+| Raccourci clavier | Appuyer Cmd+K | Modal de recherche s'ouvre |
+| Bouton TabsBar | Cliquer sur l'icone loupe | Modal de recherche s'ouvre |
+| ESC ferme | Appuyer ESC | Modal se ferme |
+| Clic externe | Cliquer en dehors du modal | Modal se ferme |
+
+**Tests manuels recommandes - Recherche :**
+
+| Test | Description | Verification |
+|------|-------------|--------------|
+| Recherche client | Taper "acme" | Clients correspondants affiches |
+| Recherche facture | Taper "FAC-2024" | Factures correspondantes affichees |
+| Recherche multi-entites | Taper terme commun | Resultats groupes par type |
+| Aucun resultat | Taper terme inexistant | Message "Aucun resultat" |
+| Debounce | Taper rapidement | Pas de requete par caractere |
+
+**Tests manuels recommandes - Navigation clavier :**
+
+| Test | Description | Verification |
+|------|-------------|--------------|
+| Fleches haut/bas | Appuyer ↑ ou ↓ | Selection change |
+| Enter | Appuyer Enter sur resultat | Onglet s'ouvre |
+| Cmd+Enter | Appuyer Cmd+Enter | Nouvel onglet permanent |
+| Scroll auto | Naviguer au-dela de la vue | Resultat selectionne visible |
+
+**Tests manuels recommandes - Historique :**
+
+| Test | Description | Verification |
+|------|-------------|--------------|
+| Historique vide | Premiere utilisation | Message "Commencez a taper" |
+| Ajout historique | Selectionner un resultat | Element ajoute a l'historique |
+| Affichage historique | Ouvrir Cmd+K sans taper | Derniers elements affiches |
+| Supprimer historique | Cliquer X sur element | Element supprime |
+
+**Tests API :**
+
+| Endpoint | Methode | Test | Verification |
+|----------|---------|------|--------------|
+| `/api/search?q=test` | GET | Recherche valide | Resultats groupes retournes |
+| `/api/search?q=a` | GET | Requete trop courte | `{ results: [] }` |
+| `/api/search?q=&limit=50` | GET | Limite respectee | Max 50 resultats par type |
+| `/api/search` | GET | Non authentifie | Erreur 401 |
+
+**Structure de donnees :**
+
+```typescript
+// Resultat de recherche
+interface SearchResult {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  path: string;
+  tabType: TabType;
+  entityType: EntityType;
+}
+
+// Groupes de resultats
+interface SearchResultGroup {
+  type: EntityType;
+  label: string;
+  items: SearchResult[];
+}
+
+// Types d'entites recherchables
+type EntityType =
+  | 'client' | 'contact' | 'deal' | 'mission'
+  | 'quote' | 'invoice' | 'proposal' | 'brief'
+  | 'note' | 'task';
+```
+
+**Fichiers sources**:
+- Modal: `components/search/CommandPalette.tsx`
+- Resultats: `components/search/SearchResultGroup.tsx`, `SearchResultItem.tsx`
+- Historique: `components/search/SearchHistory.tsx`
+- Hooks: `lib/hooks/useUniversalSearch.ts`, `useSearchHistory.ts`, `useDebounce.ts`
+- Store: `lib/stores/search-store.ts`
+- API: `app/api/search/route.ts`
+- Types: `lib/search/types.ts`
+- Config: `lib/search/constants.ts`
+
+---
+
+### Tests des Outils LLM Financiers
+
+#### Questions Financieres (Dettes et Creances)
+
+Outils LLM pour repondre aux questions sur l'argent du/a l'utilisateur avec une semantique precise.
+
+**Tests manuels recommandes - Dettes (ce que je dois) :**
+
+| Test | Entree | Outil attendu | Verification |
+|------|--------|---------------|--------------|
+| Question directe | "A qui je dois de l'argent ?" | `get_debts_to_suppliers` | Liste des fournisseurs groupes |
+| Variante | "Mes dettes" | `get_debts_to_suppliers` | Liste des fournisseurs groupes |
+| Variante | "Ce que je dois payer" | `get_debts_to_suppliers` | Liste des fournisseurs groupes |
+| Filtre fournisseur | "Combien je dois a Orange ?" | `get_debts_to_suppliers(supplier_name)` | Montant Orange |
+| Avec details | "Details de mes dettes" | `get_debts_to_suppliers(include_details)` | Factures detaillees |
+| Aucune dette | Toutes factures payees | - | "Aucune dette, tout est regle !" |
+
+**Tests manuels recommandes - Creances (ce qu'on me doit) :**
+
+| Test | Entree | Outil attendu | Verification |
+|------|--------|---------------|--------------|
+| Question directe | "Qui me doit de l'argent ?" | `get_financial_summary(unpaid)` | Liste des clients groupes |
+| Variante | "Mes impayes" | `get_financial_summary(unpaid)` | Liste des clients groupes |
+| Variante | "Factures non payees" | `get_financial_summary(unpaid)` | Liste des clients groupes |
+| Filtre client | "Combien me doit ACME ?" | `get_financial_summary(client_name)` | Montant ACME |
+| Aucun impaye | Tous clients a jour | - | "Tous les clients sont a jour !" |
+
+**Format de reponse attendu :**
+
+```
+# Dettes (get_debts_to_suppliers)
+"Tu dois 8 500€ a 2 fournisseur(s) :
+• **Fournisseur A** : 5 000€ (2 factures)
+• **Fournisseur B** : 3 500€ (1 facture)"
+
+# Creances (get_financial_summary unpaid)
+"2 client(s) te doi(ven)t 12 000€ :
+• **Client X** : 8 000€ (3 factures)
+• **Client Y** : 4 000€ (1 facture)"
+```
+
+**Distinction semantique importante :**
+
+| Question | Signification | Outil | Table |
+|----------|---------------|-------|-------|
+| "A qui je dois" | Mes dettes | `get_debts_to_suppliers` | `supplier_invoices` |
+| "Qui me doit" | Mes creances | `get_financial_summary` | `invoices` |
+
+**Tests API internes (router.ts) :**
+
+| Fonction | Test | Verification |
+|----------|------|--------------|
+| `getDebtsToSuppliers` | userId null | Erreur "Vous devez etre connecte" |
+| `getDebtsToSuppliers` | Aucune facture | "Aucune dette, tout est regle !" |
+| `getDebtsToSuppliers` | Factures existantes | Groupees par fournisseur |
+| `getFinancialSummary(unpaid)` | userId null | Erreur "Vous devez etre connecte" |
+| `getFinancialSummary(unpaid)` | Aucune facture | "Tous les clients sont a jour !" |
+| `getFinancialSummary(unpaid)` | Factures existantes | Groupees par client |
+| `listMissions` | userId null | Erreur "Vous devez etre connecte" |
+
+**Fichiers sources**:
+- Definitions: `lib/llm/tools.ts` (get_financial_summary, get_debts_to_suppliers)
+- Implementation: `lib/llm/router.ts` (getFinancialSummary, getDebtsToSuppliers)
+- Prompt: `lib/llm/prompt.ts` (section QUESTIONS FINANCIERES)
 
 ---
 

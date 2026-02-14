@@ -9,6 +9,7 @@ import { MobileHeader } from '@/components/layout/MobileHeader';
 import { MobileSidebarDrawer } from '@/components/layout/MobileSidebarDrawer';
 import { MobileChatModal } from '@/components/chat/MobileChatModal';
 import { FloatingChatButton } from '@/components/chat/FloatingChatButton';
+import { CommandPalette } from '@/components/search/CommandPalette';
 
 export function DashboardLayoutClient() {
   const isMobile = useIsMobile();
@@ -23,6 +24,7 @@ export function DashboardLayoutClient() {
         <MobileSidebarDrawer />
         <MobileChatModal />
         <FloatingChatButton />
+        <CommandPalette />
       </div>
     );
   }
@@ -34,6 +36,7 @@ export function DashboardLayoutClient() {
       <TabsContainer />
       <ActivityHistoryPanel />
       <ContextualChat />
+      <CommandPalette />
     </div>
   );
 }

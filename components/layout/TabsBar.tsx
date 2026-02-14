@@ -1,13 +1,15 @@
 'use client';
 
-import { Calendar } from 'lucide-react';
+import { Calendar, Search } from 'lucide-react';
 import { useTabsStore } from '@/lib/stores/tabs-store';
+import { useSearchStore } from '@/lib/stores/search-store';
 import { Tab } from './Tab';
 import { TodosDropdown } from './TodosDropdown';
 
 export function TabsBar() {
   const { tabs, chatPanelOpen, toggleChatPanel, historyPanelOpen, toggleHistoryPanel, openTab } =
     useTabsStore();
+  const { openSearch } = useSearchStore();
 
   const handleOpenCalendar = () => {
     openTab({
@@ -32,6 +34,15 @@ export function TabsBar() {
 
       {/* Right side buttons */}
       <div className="flex items-center">
+        {/* Search button */}
+        <button
+          onClick={openSearch}
+          className="flex items-center justify-center w-10 h-10 border-l border-border hover:bg-accent transition-colors text-muted-foreground"
+          title="Rechercher (⌘K)"
+        >
+          <Search className="w-5 h-5" />
+        </button>
+
         {/* Calendar button */}
         <button
           onClick={handleOpenCalendar}

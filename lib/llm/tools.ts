@@ -383,14 +383,14 @@ export const toolDefinitions = [
     type: 'function' as const,
     function: {
       name: 'get_financial_summary',
-      description: 'Obtenir un résumé financier: factures impayées, montants dus, chiffre d\'affaires, statistiques. UTILISER pour toute question sur l\'argent, les montants, les impayés, le CA, combien doivent les clients.',
+      description: 'Obtenir un résumé des factures CLIENTS: qui me doit de l\'argent, impayés clients, CA encaissé. UTILISER pour "qui me doit de l\'argent", "mes impayés clients", "factures non payées", "mon CA". Retourne les CLIENTS groupés par montant dû.',
       parameters: {
         type: 'object',
         properties: {
           query_type: {
             type: 'string',
             enum: ['unpaid', 'revenue', 'by_client', 'all'],
-            description: 'Type de requête: unpaid=factures impayées, revenue=CA total encaissé, by_client=stats par client, all=résumé complet',
+            description: 'Type de requête: unpaid=factures clients impayées (qui me doit), revenue=CA total encaissé, by_client=stats par client, all=résumé complet',
           },
           client_name: {
             type: 'string',
@@ -398,6 +398,27 @@ export const toolDefinitions = [
           },
         },
         required: ['query_type'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'get_debts_to_suppliers',
+      description: 'Obtenir les dettes envers les FOURNISSEURS (factures fournisseurs impayées). UTILISER quand l\'utilisateur demande "à qui je dois de l\'argent", "mes dettes", "ce que je dois payer", "factures fournisseurs". Retourne les FOURNISSEURS groupés par montant dû.',
+      parameters: {
+        type: 'object',
+        properties: {
+          supplier_name: {
+            type: 'string',
+            description: 'Filtrer par nom de fournisseur (optionnel)',
+          },
+          include_details: {
+            type: 'boolean',
+            description: 'Inclure le détail des factures (false par défaut, montre juste le résumé par fournisseur)',
+          },
+        },
+        required: [],
       },
     },
   },
@@ -1362,7 +1383,7 @@ export const toolDefinitions = [
     type: 'function' as const,
     function: {
       name: 'list_missions',
-      description: 'Lister les missions. Peut filtrer par client ou statut.',
+      description: 'Lister les missions (projets en cours, livrés, à facturer). UTILISER pour "mes missions", "missions en cours", "projets actuels", "est-ce que j\'ai des missions". Pour les missions EN COURS spécifiquement, utiliser status: "in_progress".',
       parameters: {
         type: 'object',
         properties: {
@@ -1377,7 +1398,7 @@ export const toolDefinitions = [
           status: {
             type: 'string',
             enum: ['in_progress', 'delivered', 'to_invoice', 'invoiced', 'paid', 'closed', 'cancelled'],
-            description: 'Filtrer par statut',
+            description: 'Filtrer par statut. in_progress=en cours, delivered=livrée, to_invoice=à facturer, invoiced=facturée, paid=payée',
           },
         },
       },
@@ -2098,6 +2119,7 @@ export type ToolName =
   | 'mark_invoice_paid'
   | 'send_email'
   | 'get_financial_summary'
+  | 'get_debts_to_suppliers'
   | 'get_company_settings'
   | 'update_company_settings'
   | 'list_custom_fields'

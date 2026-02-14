@@ -135,6 +135,8 @@ async function executeToolCallInternal(
       return await prepareSendEmail(supabase, userId, args);
     case 'get_financial_summary':
       return await getFinancialSummary(supabase, userId, args);
+    case 'get_debts_to_suppliers':
+      return await getDebtsToSuppliers(supabase, userId, args);
     case 'get_company_settings':
       return await getCompanySettings(supabase, userId);
     case 'update_company_settings':
@@ -1484,26 +1486,57 @@ async function getFinancialSummary(
 
   // Calculer selon le type de requête
   if (queryType === 'unpaid') {
-    const unpaid = filteredInvoices.filter(inv => inv.status !== 'payee');
-    const total = unpaid.reduce((sum, inv) => sum + (Number(inv.total_ttc) || 0), 0);
+    const unpaid = filteredInvoices.filter((inv) => inv.status !== 'payee');
 
     if (unpaid.length === 0) {
       return {
         success: true,
         data: [],
-        message: 'Aucune facture impayée. Toutes les factures sont réglées.',
+        message: 'Aucune facture impayée. Tous les clients sont à jour ! ✅',
       };
     }
 
-    const details = unpaid.map(inv => {
-      const clientNom = (inv.client as { nom: string })?.nom || 'N/A';
-      return `• ${inv.numero} (${clientNom}): ${Number(inv.total_ttc).toFixed(2)} ${currencySymbol}`;
-    }).join('\n');
+    // Grouper par client (ENTITÉS D'ABORD)
+    const byClient = new Map<
+      string,
+      { id: string; nom: string; total: number; invoices: typeof unpaid }
+    >();
+
+    unpaid.forEach((inv) => {
+      const clientId = inv.client_id || 'unknown';
+      const clientNom = (inv.client as { nom: string })?.nom || 'Inconnu';
+
+      if (!byClient.has(clientId)) {
+        byClient.set(clientId, {
+          id: clientId,
+          nom: clientNom,
+          total: 0,
+          invoices: [],
+        });
+      }
+      const entry = byClient.get(clientId)!;
+      entry.total += Number(inv.total_ttc) || 0;
+      entry.invoices.push(inv);
+    });
+
+    const total = unpaid.reduce(
+      (sum, inv) => sum + (Number(inv.total_ttc) || 0),
+      0
+    );
+    const clientCount = byClient.size;
+
+    let message = `💰 ${clientCount} client(s) te doi(ven)t ${total.toFixed(2)} ${currencySymbol} :\n\n`;
+
+    Array.from(byClient.values())
+      .sort((a, b) => b.total - a.total)
+      .forEach((entry) => {
+        message += `• **${entry.nom}** : ${entry.total.toFixed(2)} ${currencySymbol} (${entry.invoices.length} facture${entry.invoices.length > 1 ? 's' : ''})\n`;
+      });
 
     return {
       success: true,
-      data: unpaid,
-      message: `💰 Montant total impayé: ${total.toFixed(2)} ${currencySymbol}\n\n${unpaid.length} facture(s) impayée(s):\n${details}`,
+      data: { byClient: Object.fromEntries(byClient), total },
+      message,
     };
   }
 
@@ -1560,6 +1593,114 @@ async function getFinancialSummary(
   }
 
   return { success: false, message: 'Type de requête non reconnu.' };
+}
+
+async function getDebtsToSuppliers(
+  supabase: Supabase,
+  userId: string | null,
+  args: Record<string, unknown>
+): Promise<ToolResult> {
+  const supplierName = args.supplier_name as string | undefined;
+  const includeDetails = (args.include_details as boolean) ?? false;
+
+  // Récupérer devise
+  const { data: company } = userId
+    ? await supabase
+        .from('companies')
+        .select('default_currency')
+        .eq('user_id', userId)
+        .single()
+    : { data: null };
+
+  const currencySymbol = getCurrencySymbol(company?.default_currency);
+
+  // Requête factures fournisseurs impayées
+  let query = supabase
+    .from('supplier_invoices')
+    .select('*, supplier:suppliers(id, nom)')
+    .neq('status', 'paid')
+    .neq('status', 'cancelled');
+
+  if (userId) {
+    query = query.eq('user_id', userId);
+  }
+
+  const { data: invoices, error } = await query;
+
+  if (error) {
+    return { success: false, message: `Erreur: ${error.message}` };
+  }
+
+  if (!invoices || invoices.length === 0) {
+    return {
+      success: true,
+      data: [],
+      message: 'Aucune dette envers les fournisseurs. Tout est réglé ! ✅',
+    };
+  }
+
+  // Filtrer par nom si spécifié
+  let filtered = invoices;
+  if (supplierName) {
+    const lowerName = supplierName.toLowerCase();
+    filtered = invoices.filter((inv) => {
+      const nom = (inv.supplier as { nom: string })?.nom;
+      return nom?.toLowerCase().includes(lowerName);
+    });
+  }
+
+  // Grouper par fournisseur
+  const bySupplier = new Map<
+    string,
+    { id: string; nom: string; total: number; invoices: typeof filtered }
+  >();
+
+  filtered.forEach((inv) => {
+    const supplier = inv.supplier as { id: string; nom: string };
+    const supplierId = supplier?.id || 'unknown';
+    const supplierNom = supplier?.nom || 'Inconnu';
+
+    if (!bySupplier.has(supplierId)) {
+      bySupplier.set(supplierId, {
+        id: supplierId,
+        nom: supplierNom,
+        total: 0,
+        invoices: [],
+      });
+    }
+    const entry = bySupplier.get(supplierId)!;
+    entry.total += Number(inv.total_ttc) || 0;
+    entry.invoices.push(inv);
+  });
+
+  const totalDebt = filtered.reduce(
+    (sum, inv) => sum + (Number(inv.total_ttc) || 0),
+    0
+  );
+  const supplierCount = bySupplier.size;
+
+  // Format de réponse : ENTITÉS D'ABORD, puis optionnellement détails
+  let message = `💸 Tu dois ${totalDebt.toFixed(2)} ${currencySymbol} à ${supplierCount} fournisseur(s) :\n\n`;
+
+  Array.from(bySupplier.values())
+    .sort((a, b) => b.total - a.total)
+    .forEach((entry) => {
+      message += `• **${entry.nom}** : ${entry.total.toFixed(2)} ${currencySymbol}`;
+      if (includeDetails && entry.invoices.length > 0) {
+        message += '\n';
+        entry.invoices.forEach((inv) => {
+          message += `  └ ${inv.numero || 'Sans numéro'} : ${Number(inv.total_ttc).toFixed(2)} ${currencySymbol}\n`;
+        });
+      } else {
+        message += ` (${entry.invoices.length} facture${entry.invoices.length > 1 ? 's' : ''})\n`;
+      }
+    });
+
+  return {
+    success: true,
+    data: { bySupplier: Object.fromEntries(bySupplier), totalDebt },
+    message,
+  };
 }
 
 // ============================================================================
@@ -4057,6 +4198,13 @@ async function listMissions(
   userId: string | null,
   args: Record<string, unknown>
 ): Promise<ToolResult> {
+  if (!userId) {
+    return {
+      success: false,
+      message: 'Vous devez être connecté pour voir vos missions.',
+    };
+  }
+
   const { client_id, client_name, status } = args;
 
   let query = supabase
