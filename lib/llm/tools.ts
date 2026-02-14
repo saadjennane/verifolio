@@ -92,6 +92,28 @@ export const toolDefinitions = [
   {
     type: 'function' as const,
     function: {
+      name: 'get_client_overview',
+      description:
+        'Obtenir une vue complète de la situation d\'un client. UTILISER quand l\'utilisateur demande "où en est-on avec [client]", "situation de [client]", "quoi de neuf avec [client]", "news de [client]", "point sur [client]", "résumé [client]". Retourne: infos client, deals actifs, missions en cours, devis/factures récents, et solde financier.',
+      parameters: {
+        type: 'object',
+        properties: {
+          client_id: {
+            type: 'string',
+            description: 'ID du client (optionnel si client_name fourni)',
+          },
+          client_name: {
+            type: 'string',
+            description: 'Nom du client pour recherche (optionnel si client_id fourni)',
+          },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
       name: 'create_quote',
       description: 'Créer un nouveau devis pour un client. Le client doit exister. IMPORTANT : Tout devis DOIT être lié à un deal (deal_id obligatoire).',
       parameters: {
@@ -2108,6 +2130,7 @@ export type ToolName =
   | 'create_client'
   | 'list_clients'
   | 'update_client'
+  | 'get_client_overview'
   | 'create_quote'
   | 'list_quotes'
   | 'update_quote_status'

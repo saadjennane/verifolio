@@ -113,6 +113,8 @@ async function executeToolCallInternal(
       return await listClients(supabase, userId);
     case 'update_client':
       return await updateClient(supabase, userId, args);
+    case 'get_client_overview':
+      return await getClientOverview(supabase, userId, args);
     case 'create_quote':
       return await createQuote(supabase, userId, args);
     case 'list_quotes':
@@ -486,6 +488,232 @@ async function updateClient(
     success: true,
     data: updatedClient,
     message: `Client "${updatedClient?.nom || clientData?.nom}" mis à jour (${updatedFields.join(', ')}).`,
+  };
+}
+
+async function getClientOverview(
+  supabase: Supabase,
+  userId: string | null,
+  args: Record<string, unknown>
+): Promise<ToolResult> {
+  if (!userId) {
+    return {
+      success: false,
+      message: 'Vous devez être connecté pour voir les informations client.',
+    };
+  }
+
+  const { client_id, client_name } = args;
+
+  // Find client by ID or name
+  let clientId = client_id as string | undefined;
+  let client: { id: string; nom: string; email: string | null; telephone: string | null } | null = null;
+
+  if (clientId) {
+    const { data } = await supabase
+      .from('clients')
+      .select('id, nom, email, telephone')
+      .eq('id', clientId)
+      .eq('user_id', userId)
+      .is('deleted_at', null)
+      .single();
+    client = data;
+  } else if (client_name) {
+    const found = await findClientByName(supabase, userId, client_name as string);
+    if (found) {
+      clientId = found.id;
+      const { data } = await supabase
+        .from('clients')
+        .select('id, nom, email, telephone')
+        .eq('id', found.id)
+        .single();
+      client = data;
+    }
+  }
+
+  if (!client || !clientId) {
+    return {
+      success: false,
+      message: client_name
+        ? `Client "${client_name}" non trouvé. Vérifiez le nom ou utilisez list_clients pour voir les clients existants.`
+        : 'Précisez le nom du client pour voir sa situation.',
+    };
+  }
+
+  // Fetch all related data in parallel
+  const [dealsResult, missionsResult, quotesResult, invoicesResult, contactsResult] = await Promise.all([
+    // Deals for this client
+    supabase
+      .from('deals')
+      .select('id, title, status, estimated_value, created_at')
+      .eq('client_id', clientId)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(10),
+
+    // Missions for this client
+    supabase
+      .from('missions')
+      .select('id, title, status, estimated_amount, created_at, deal:deals(title)')
+      .eq('client_id', clientId)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(10),
+
+    // Quotes for this client
+    supabase
+      .from('quotes')
+      .select('id, numero, status, total_ttc, created_at')
+      .eq('client_id', clientId)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(10),
+
+    // Invoices for this client
+    supabase
+      .from('invoices')
+      .select('id, numero, status, total_ttc, date_echeance, created_at')
+      .eq('client_id', clientId)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(10),
+
+    // Primary contact
+    supabase
+      .from('client_contacts')
+      .select('contact:contacts(id, nom, prenom, email, telephone)')
+      .eq('client_id', clientId)
+      .eq('is_primary', true)
+      .limit(1),
+  ]);
+
+  const deals = dealsResult.data || [];
+  const missions = missionsResult.data || [];
+  const quotes = quotesResult.data || [];
+  const invoices = invoicesResult.data || [];
+
+  // Extract primary contact (handling Supabase join which may return array or object)
+  const contactData = contactsResult.data?.[0]?.contact;
+  let primaryContact: { nom: string; prenom: string; email: string | null } | null = null;
+  if (contactData) {
+    if (Array.isArray(contactData)) {
+      const first = contactData[0] as { nom?: string; prenom?: string; email?: string | null } | undefined;
+      if (first) {
+        primaryContact = { nom: first.nom || '', prenom: first.prenom || '', email: first.email || null };
+      }
+    } else {
+      const c = contactData as { nom?: string; prenom?: string; email?: string | null };
+      primaryContact = { nom: c.nom || '', prenom: c.prenom || '', email: c.email || null };
+    }
+  }
+
+  // Calculate financial summary
+  const unpaidInvoices = invoices.filter((i) => i.status !== 'payee');
+  const totalUnpaid = unpaidInvoices.reduce((sum, i) => sum + (i.total_ttc || 0), 0);
+  const paidInvoices = invoices.filter((i) => i.status === 'payee');
+  const totalPaid = paidInvoices.reduce((sum, i) => sum + (i.total_ttc || 0), 0);
+
+  // Categorize deals
+  const activeDeals = deals.filter((d) => d.status === 'new' || d.status === 'sent');
+  const wonDeals = deals.filter((d) => d.status === 'won');
+  const lostDeals = deals.filter((d) => d.status === 'lost');
+
+  // Categorize missions
+  const activeMissions = missions.filter((m) => m.status === 'in_progress');
+  const deliveredMissions = missions.filter((m) => m.status === 'delivered' || m.status === 'to_invoice');
+
+  // Categorize quotes
+  const pendingQuotes = quotes.filter((q) => q.status === 'brouillon' || q.status === 'envoye');
+
+  // Build comprehensive message
+  let message = `## Situation de ${client.nom}\n\n`;
+
+  // Client info
+  message += `**Contact** : ${client.email || 'Pas d\'email'}`;
+  if (client.telephone) message += ` | ${client.telephone}`;
+  if (primaryContact) {
+    message += `\n**Contact principal** : ${primaryContact.prenom || ''} ${primaryContact.nom}`;
+    if (primaryContact.email) message += ` (${primaryContact.email})`;
+  }
+  message += '\n\n';
+
+  // Deals summary
+  if (deals.length > 0) {
+    message += `### Deals\n`;
+    if (activeDeals.length > 0) {
+      message += `**En cours** (${activeDeals.length}) :\n`;
+      activeDeals.forEach((d) => {
+        const value = d.estimated_value ? ` - ${d.estimated_value.toLocaleString('fr-FR')}€` : '';
+        message += `• ${d.title}${value}\n`;
+      });
+    }
+    if (wonDeals.length > 0) message += `✓ ${wonDeals.length} gagné(s)\n`;
+    if (lostDeals.length > 0) message += `✗ ${lostDeals.length} perdu(s)\n`;
+    message += '\n';
+  } else {
+    message += `### Deals\nAucun deal avec ce client.\n\n`;
+  }
+
+  // Missions summary
+  if (missions.length > 0) {
+    message += `### Missions\n`;
+    if (activeMissions.length > 0) {
+      message += `**En cours** (${activeMissions.length}) :\n`;
+      activeMissions.forEach((m) => {
+        const amount = m.estimated_amount ? ` - ${m.estimated_amount.toLocaleString('fr-FR')}€` : '';
+        message += `• ${m.title}${amount}\n`;
+      });
+    }
+    if (deliveredMissions.length > 0) {
+      message += `**Livrées/À facturer** (${deliveredMissions.length}) :\n`;
+      deliveredMissions.forEach((m) => {
+        message += `• ${m.title}\n`;
+      });
+    }
+    message += '\n';
+  } else {
+    message += `### Missions\nAucune mission avec ce client.\n\n`;
+  }
+
+  // Quotes summary
+  if (quotes.length > 0) {
+    message += `### Devis\n`;
+    if (pendingQuotes.length > 0) {
+      message += `**En attente** (${pendingQuotes.length}) :\n`;
+      pendingQuotes.forEach((q) => {
+        const amount = q.total_ttc ? ` - ${q.total_ttc.toLocaleString('fr-FR')}€` : '';
+        message += `• ${q.numero || 'Sans numéro'}${amount} (${q.status})\n`;
+      });
+    }
+    message += '\n';
+  }
+
+  // Financial summary
+  message += `### Finances\n`;
+  if (unpaidInvoices.length > 0) {
+    message += `**Impayés** : ${totalUnpaid.toLocaleString('fr-FR')}€ (${unpaidInvoices.length} facture(s))\n`;
+    unpaidInvoices.forEach((i) => {
+      const overdue = i.date_echeance && new Date(i.date_echeance) < new Date() ? ' ⚠️ EN RETARD' : '';
+      message += `• ${i.numero || 'Sans numéro'} - ${(i.total_ttc || 0).toLocaleString('fr-FR')}€${overdue}\n`;
+    });
+  } else {
+    message += `**Impayés** : Aucun, ce client est à jour !\n`;
+  }
+  message += `**Total facturé** : ${(totalPaid + totalUnpaid).toLocaleString('fr-FR')}€`;
+  if (paidInvoices.length > 0) {
+    message += ` (dont ${totalPaid.toLocaleString('fr-FR')}€ encaissé)`;
+  }
+
+  return {
+    success: true,
+    data: {
+      client,
+      deals: { active: activeDeals.length, won: wonDeals.length, lost: lostDeals.length, items: deals },
+      missions: { active: activeMissions.length, delivered: deliveredMissions.length, items: missions },
+      quotes: { pending: pendingQuotes.length, items: quotes },
+      invoices: { unpaid: unpaidInvoices.length, totalUnpaid, totalPaid, items: invoices },
+    },
+    message,
   };
 }
 
