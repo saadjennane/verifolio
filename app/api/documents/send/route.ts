@@ -76,10 +76,12 @@ export async function POST(request: Request) {
     const replyToEmail = company?.email_reply_to || company?.email || user.email;
 
     if (docType === 'quote') {
+      // SÉCURITÉ: Filtrer par user_id pour empêcher l'accès aux devis d'autres utilisateurs
       const { data: quote, error } = await supabase
         .from('quotes')
         .select(`*, client:clients(*), items:quote_line_items(*)`)
         .eq('id', documentId)
+        .eq('user_id', user.id)
         .single();
 
       if (error || !quote) {
@@ -91,10 +93,12 @@ export async function POST(request: Request) {
       subject = `Devis ${quote.numero} - ${companyName}`;
 
     } else if (docType === 'invoice') {
+      // SÉCURITÉ: Filtrer par user_id pour empêcher l'accès aux factures d'autres utilisateurs
       const { data: invoice, error } = await supabase
         .from('invoices')
         .select(`*, client:clients(*), items:invoice_line_items(*)`)
         .eq('id', documentId)
+        .eq('user_id', user.id)
         .single();
 
       if (error || !invoice) {
@@ -108,10 +112,12 @@ export async function POST(request: Request) {
     } else if (docType === 'proposal') {
       // Pour les propositions, on n'envoie pas de PDF pour l'instant
       // On envoie juste un lien vers la proposition
+      // SÉCURITÉ: Filtrer par user_id pour empêcher l'accès aux propositions d'autres utilisateurs
       const { data: proposal, error } = await supabase
         .from('proposals')
         .select(`*, client:clients(*)`)
         .eq('id', documentId)
+        .eq('user_id', user.id)
         .single();
 
       if (error || !proposal) {
@@ -207,17 +213,20 @@ export async function POST(request: Request) {
     }
 
     // Mettre à jour le statut du document si c'est un devis ou facture
+    // SÉCURITÉ: Inclure user_id dans les updates pour garantir l'isolation
     if (docType === 'quote' && document) {
       await supabase
         .from('quotes')
         .update({ status: 'sent' })
         .eq('id', documentId)
+        .eq('user_id', user.id)
         .eq('status', 'brouillon');
     } else if (docType === 'invoice' && document) {
       await supabase
         .from('invoices')
         .update({ status: 'sent' })
         .eq('id', documentId)
+        .eq('user_id', user.id)
         .eq('status', 'brouillon');
     }
 

@@ -18,6 +18,7 @@ export async function GET(
     }
 
     // Récupérer la facture avec le client et les lignes
+    // SÉCURITÉ: Filtrer par user_id pour empêcher l'accès aux factures d'autres utilisateurs
     const { data: invoice, error: invoiceError } = await supabase
       .from('invoices')
       .select(`
@@ -26,6 +27,7 @@ export async function GET(
         items:invoice_line_items(*)
       `)
       .eq('id', id)
+      .eq('user_id', user.id)
       .single();
 
     if (invoiceError || !invoice) {

@@ -18,6 +18,7 @@ export async function GET(
     }
 
     // Récupérer le devis avec le client et les lignes
+    // SÉCURITÉ: Filtrer par user_id pour empêcher l'accès aux devis d'autres utilisateurs
     const { data: quote, error: quoteError } = await supabase
       .from('quotes')
       .select(`
@@ -26,6 +27,7 @@ export async function GET(
         items:quote_line_items(*)
       `)
       .eq('id', id)
+      .eq('user_id', user.id)
       .single();
 
     if (quoteError || !quote) {
