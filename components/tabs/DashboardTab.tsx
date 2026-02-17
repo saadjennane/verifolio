@@ -2,7 +2,7 @@
 
 import { DailyReportCard } from '@/components/dashboard/DailyReportCard';
 import { CreateButton } from '@/components/dashboard/CreateButton';
-import { QuickAccessCard } from '@/components/dashboard/QuickAccessCard';
+import { RecentItemsCard } from '@/components/dashboard/RecentItemsCard';
 
 export function DashboardTab() {
   return (
@@ -20,8 +20,8 @@ export function DashboardTab() {
         {/* Rapport du jour */}
         <DailyReportCard />
 
-        {/* Acces rapides */}
-        <QuickAccessCard />
+        {/* Éléments récents */}
+        <RecentItemsCard />
       </div>
     </div>
   );
